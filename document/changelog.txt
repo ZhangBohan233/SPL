@@ -5,6 +5,14 @@
     * Strong type annotation
     * Array
     * Manual memory management
+* Optimization:
+    * Removed spl_optimizer
+    * Deleted the intermediate abstract syntax tree node of numbers
+* New syntax:
+    * Custom unary operators for spl classes
+    * Custom indexing for spl classes
+* Bug fixes:
+    * Exception caught is not accessible
 
 ********** SPL 1.4 Beta 4 **********
 ===== Build 0055 2019/03/21 =====

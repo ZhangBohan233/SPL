@@ -15,8 +15,6 @@ FUNCTION_SCOPE = 2
 LOOP_SCOPE = 3
 SUB_SCOPE = 4
 
-# LOCAL_SCOPES = {LOOP_SCOPE, IF_ELSE_SCOPE, TRY_CATCH_SCOPE, LOOP_INNER_SCOPE}
-
 LINE_FILE = 0, "interpreter"
 INVALID = lib.InvalidArgument()
 UNPACK_ARGUMENT = lib.UnpackArgument()
@@ -138,12 +136,10 @@ class Environment:
 
     def __init__(self, scope_type, outer):
         self.scope_type = scope_type
-        self.children = []
         if outer is None:
             self.heap: dict = {}
         else:
             self.heap: dict = outer.heap  # Heap-allocated variables (global)
-            outer.children.append(self)
         self.variables: dict = {}  # Stack variables
         self.constants: dict = {}  # Constants
 
@@ -590,24 +586,47 @@ class ClassInstance(lib.SplObject):
         lib.SplObject.__init__(self)
         self.class_name = class_name
         self.env = env
-        # self.id = mem.MEMORY.allocate(self)
-        # self.reference_count = 0
         self.env.constants["this"] = self
-        # check_gc(env, self.pointer())
+
+    def __getitem__(self, item):
+        if self.env.contains_key("__getitem__"):
+            call = ast.FuncCall(LINE_FILE, "__getitem__")
+            call.args = ast.BlockStmt(LINE_FILE)
+            call.args.add_line(item)
+            return evaluate(call, self.env)
+        else:
+            raise lib.SplException("{} object does not support indexing".format(self.class_name))
 
     def __hash__(self):
         if self.env.contains_key("__hash__"):
             call = ast.FuncCall(LINE_FILE, "__hash__")
-            call.args = []
+            call.args = ast.BlockStmt(LINE_FILE)
             return evaluate(call, self.env)
         else:
-            return hash(self)
+            raise lib.SplException("{} object is not hashable".format(self.class_name))
+
+    def __neg__(self):
+        if self.env.contains_key("__neg__"):
+            call = ast.FuncCall(LINE_FILE, "__neg__")
+            call.args = ast.BlockStmt(LINE_FILE)
+            return evaluate(call, self.env)
+        else:
+            raise lib.SplException("{} object has no neg attribute".format(self.class_name))
 
     def __repr__(self):
         if self.env.contains_key("__repr__"):
             return to_repr(self).literal
         else:
             return "<{} at {}>".format(self.class_name, self.id)
+
+    def __setitem__(self, item):
+        if self.env.contains_key("__setitem__"):
+            call = ast.FuncCall(LINE_FILE, "__setitem__")
+            call.args = ast.BlockStmt(LINE_FILE)
+            call.args.add_line(item)
+            return evaluate(call, self.env)
+        else:
+            raise lib.SplException("{} object does not support indexing".format(self.class_name))
 
     def __str__(self):
         if self.env.contains_key("__str__"):
@@ -624,6 +643,9 @@ class RuntimeException(Exception):
         Exception.__init__(self, "RuntimeException")
 
         self.exception = exception
+
+    def __str__(self):
+        return self.exception.__str__()
 
 
 # Native functions with dependencies
@@ -884,7 +906,6 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
         block_scope = Environment(SUB_SCOPE, env)
         block_scope.scope_name = "Try scope"
         result = evaluate(node.try_block, block_scope)
-        # env.terminated = False
         return result
     except RuntimeException as re:  # catches the exceptions thrown by SPL program
         block_scope = Environment(SUB_SCOPE, env)
@@ -892,8 +913,10 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
         exception: ClassInstance = re.exception
         exception_class = block_scope.get_heap(exception.class_name)
         catches = node.catch_blocks
-        for cat in catches:
+        for cat in catches:  # catch blocks
+            block_scope.invalidate()
             for line in cat.condition.lines:
+                block_scope.define_var(line.left.name, exception, (line.line_num, line.file))
                 catch_name = line.right.name
                 if is_subclass_of(exception_class, catch_name, block_scope):
                     result = evaluate(cat.then, block_scope)
@@ -904,12 +927,12 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
         block_scope.scope_name = "Try scope"
         catches = node.catch_blocks
         for cat in catches:
+            block_scope.invalidate()
             for line in cat.condition.lines:
+                block_scope.define_var(line.left.name, e, (line.line_num, line.file))
                 catch_name = line.right.name
-                # exception_name = exception.class_name
                 if catch_name == "Exception":
                     result = evaluate(cat.then, block_scope)
-                    # env.terminated = False
                     return result
         raise e
     finally:
@@ -1237,6 +1260,8 @@ def instance_arithmetic(left: ClassInstance, right, symbol, env: Environment, ri
             return False
     else:
         fc = ast.FuncCall(LINE_FILE, "__" + stl.BINARY_OPERATORS[symbol] + "__")
+        if not left.env.contains_key(fc.f_name):
+            raise lib.AttributeException("Class '{}' does not support operation '{}'".format(left.class_name, symbol))
         block = ast.BlockStmt(LINE_FILE)
         block.add_line(right)
         fc.args = block
@@ -1260,7 +1285,9 @@ def native_arithmetic(left: lib.NativeType, right, symbol: str):
     elif symbol == "!=":
         return left != right
     else:
-        raise lib.TypeException("Unsupported operation")
+        raise lib.TypeException("Unsupported operation '{}' between {} and {}".format(symbol,
+                                                                                      typeof(left),
+                                                                                      typeof(right)))
 
 
 STRING_ARITHMETIC_TABLE = {
@@ -1571,51 +1598,12 @@ def eval_assert(node: ast.Node, env: Environment):
         raise lib.AssertionException("Assertion failed, in file '{}', at line {}".format(node.file, node.line_num))
 
 
-# def eval_array_init(node: ast.ArrayInit, env: Environment):
-#     length = evaluate(node.args, env)
-#     type_name: str = node.f_name
-#     array = None
-#     if type_name == "int":
-#         array = lib.IntArray(length)
-#     elif type_name == "float":
-#         array = lib.FloatArray(length)
-#     elif type_name == "boolean":
-#         array = lib.BooleanArray(length)
-#     elif type_name == "Object":  # Special case for mixture of built-in and object classes
-#         array = lib.PointerArray(length)
-#     elif env.has_class(type_name):
-#         cla = env.get_heap(type_name)
-#         if isinstance(cla, Class):
-#             array = InstanceArray(type_name, length)
-#         elif isinstance(cla, NativeFunction):
-#             array = lib.NativeObjectArray(type_name, length)
-#
-#     if array is not None:
-#         array: lib.Array
-#         return mem.Pointer(array.id)
-#     else:
-#         raise lib.TypeException(
-#             "Unknown type for array creation, in '{}', at line {}.".format(node.file, node.line_num))
-
-
-# def free_pointer(node: ast.Node, env: Environment):
-#     t = node.node_type
-#     if t == ast.NAME_NODE:
-#         node: ast.NameNode
-#         pointer = env.direct_get(node.name, (node.line_num, node.file))
-#         mem.MEMORY.free(pointer)
-#     else:
-#         raise lib.TypeException("Unknown type for free. In file '{}', at line {}"
-#                                 .format(node.file, node.line_num))
-
-
 UNARY_TABLE = {
     "return": eval_return,
-    "throw": lambda n, env: raise_exception(RuntimeException(evaluate(n.value, env))),
-    "neg": lambda n, env: -evaluate(n.value, env),
-    "!": lambda n, env: not bool(evaluate(n.value, env)),
+    "throw": lambda n, env: raise_exception(RuntimeException(evaluate(n, env))),
+    "neg": lambda n, env: -evaluate(n, env),
+    "!": lambda n, env: not bool(evaluate(n, env)),
     "assert": eval_assert,
-    # "del": free_pointer
 }
 
 
@@ -1634,8 +1622,8 @@ SELF_RETURN_TABLE = {int, float, bool, lib.String, lib.List, lib.Set, lib.Pair, 
 
 # Operation table of every non-abstract node types
 NODE_TABLE = {
-    ast.INT_NODE: lambda n, env: n.value,
-    ast.FLOAT_NODE: lambda n, env: n.value,
+    # ast.INT_NODE: lambda n, env: n.value,
+    # ast.FLOAT_NODE: lambda n, env: n.value,
     ast.LITERAL_NODE: lambda n, env: lib.String(n.literal),
     ast.NAME_NODE: lambda n, env: env.get(n.name, (n.line_num, n.file)),
     ast.BOOLEAN_STMT: eval_boolean_stmt,

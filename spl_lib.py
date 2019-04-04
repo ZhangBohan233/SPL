@@ -2,7 +2,6 @@ import sys
 import time as time_lib
 import os
 import spl_memory as mem
-import struct
 
 
 def replace_bool_none(string: str):
@@ -624,6 +623,11 @@ class ArgumentException(SplException):
 
 
 class ArithmeticException(SplException):
+    def __init__(self, msg=""):
+        SplException.__init__(self, msg)
+
+
+class AttributeException(SplException):
     def __init__(self, msg=""):
         SplException.__init__(self, msg)
 

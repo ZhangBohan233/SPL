@@ -2,7 +2,7 @@ EOF = -1
 EOL = ";"
 SYMBOLS = {"{", "}", ".", ","}
 MIDDLE = {"(", ")", "[", "]"}
-BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "mod",
+BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mod",
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
                     "<<": "lshift", ">>": "rshift", "===": "", "!==": "", "instanceof": "",

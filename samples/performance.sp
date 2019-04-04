@@ -6,7 +6,6 @@ if (main()) {
     for (var i = 0; i < 100_000; i += 1);
 
     const t1 = system.time();
-    print("s");
     println(t1 - t0);
 
     fib(20);

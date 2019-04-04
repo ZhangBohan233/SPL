@@ -1,3 +1,5 @@
+import spl_token_lib as stl
+
 PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "==": 20, ">": 25, "<": 25, ">=": 25, "<=": 25,
               "!=": 20, "&&": 5, "and": 5, "||": 5, "or": 5, "&": 12, "^": 11, "|": 10,
@@ -10,8 +12,8 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
 MULTIPLIER = 1000
 
 # NODE = 0
-INT_NODE = 1
-FLOAT_NODE = 2
+# INT_NODE = 1
+# FLOAT_NODE = 2
 LITERAL_NODE = 3
 NAME_NODE = 4
 BOOLEAN_STMT = 5
@@ -52,430 +54,6 @@ CONST = 1
 VAR = 2
 
 
-class AbstractSyntaxTree:
-    """
-    :type inner: AbstractSyntaxTree
-    """
-
-    def __init__(self):
-        self.elements: BlockStmt = BlockStmt((0, "parser"))
-        self.stack = []
-        self.inner = None
-        self.in_expr = False
-        self.in_get = False
-
-    def __str__(self):
-        return str(self.elements)
-
-    def get_active(self):
-        if self.inner:
-            return self.inner.get_active()
-        else:
-            return self
-
-    def add_name(self, line, n):
-        if self.inner:
-            self.inner.add_name(line, n)
-        else:
-            node = NameNode(line, n)
-            self.stack.append(node)
-
-    def add_number(self, line, v):
-        if self.inner:
-            self.inner.add_number(line, v)
-        else:
-            node = get_number_node(line, v)
-            self.stack.append(node)
-
-    def add_literal(self, line, lit):
-        if self.inner:
-            self.inner.add_literal(line, lit)
-        else:
-            node = LiteralNode(line, lit)
-            self.stack.append(node)
-
-    def add_operator(self, line, op, extra_precedence, assignment=False):
-        if self.inner:
-            self.inner.add_operator(line, op, extra_precedence, assignment)
-        else:
-            self.in_expr = True
-            op_node = OperatorNode(line, extra_precedence)
-            op_node.assignment = assignment
-            op_node.operation = op
-            self.stack.append(op_node)
-
-    def add_unary(self, line, op, extra_precedence):
-        if self.inner:
-            self.inner.add_unary(line, op, extra_precedence)
-        else:
-            self.in_expr = True
-            node = UnaryOperator(line, op, extra_precedence)
-            self.stack.append(node)
-
-    def add_assignment(self, line, var_level):
-        if self.inner:
-            self.inner.add_assignment(line, var_level)
-        else:
-            name = self.stack.pop()
-            ass_node = AssignmentNode(line, var_level)
-            ass_node.left = name
-
-            # if len(self.stack) > 0 and isinstance(self.stack[-1], NameNode):
-            #     type_node = self.stack.pop()
-            #     ass_node.var_type = type_node
-            #     if ass_node.level == ASSIGN:
-            #         ass_node.level = VAR
-            self.stack.append(ass_node)
-
-    def add_undefined(self, line):
-        if self.inner:
-            self.inner.add_undefined(line)
-        else:
-            node = UndefinedNode(line)
-            self.stack.append(node)
-
-    def add_type(self, line):
-        if self.inner:
-            self.inner.add_type(line)
-        else:
-            name = self.stack.pop()
-            tp_node = TypeNode(line)
-            tp_node.left = name
-            self.stack.append(tp_node)
-
-    def add_if(self, line):
-        if self.inner:
-            self.inner.add_if(line)
-        else:
-            ifs = IfStmt(line)
-            self.stack.append(ifs)
-            self.inner = AbstractSyntaxTree()
-
-    def add_else(self):
-        if self.inner:
-            self.inner.add_else()
-        else:
-            pass
-            # node = self.stack.pop()
-
-    def add_while(self, line):
-        if self.inner:
-            self.inner.add_while(line)
-        else:
-            whs = WhileStmt(line)
-            self.stack.append(whs)
-            self.inner = AbstractSyntaxTree()
-
-    def add_for_loop(self, line):
-        if self.inner:
-            self.inner.add_for_loop(line)
-        else:
-            fls = ForLoopStmt(line)
-            self.stack.append(fls)
-            self.inner = AbstractSyntaxTree()
-
-    def add_try(self, line):
-        if self.inner:
-            self.inner.add_try(line)
-        else:
-            tb = TryStmt(line)
-            self.stack.append(tb)
-
-    def add_catch(self, line):
-        if self.inner:
-            self.inner.add_catch(line)
-        else:
-            cat = CatchStmt(line)
-            self.stack.append(cat)
-            self.inner = AbstractSyntaxTree()
-
-    def add_finally(self, line):
-        if self.inner:
-            self.inner.add_finally(line)
-        else:
-            pass
-
-    def add_function(self, line, f_name, abstract: bool, tags: list):
-        if self.inner:
-            self.inner.add_function(line, f_name, abstract, tags)
-        else:
-            func = DefStmt(line, f_name, abstract, tags)
-            self.stack.append(func)
-            self.inner = AbstractSyntaxTree()
-
-    def build_func_params(self):
-        if self.inner.inner:
-            self.inner.build_func_params()
-        else:
-            self.inner.build_line()
-            block = self.inner.get_as_block()
-            self.inner = None
-            function = self.stack.pop()
-            function.params = block
-            self.stack.append(function)
-
-    def add_call(self, line, f_name):
-        # print(f_name)
-        if self.inner:
-            self.inner.add_call(line, f_name)
-        else:
-            fc = FuncCall(line, f_name)
-            self.stack.append(fc)
-            self.inner = AbstractSyntaxTree()
-
-    def add_anonymous_call(self, line, extra):
-        if self.inner:
-            self.inner.add_anonymous_call(line, extra)
-        else:
-            self.in_expr = True
-            op_node = AnonymousCall(line, extra)
-            op_node.assignment = False
-            op_node.operation = "=>"
-            self.stack.append(op_node)
-            self.add_call(line, "=>")
-
-    def is_in_get(self):
-        if self.inner:
-            return self.inner.is_in_get()
-        else:
-            return self.in_get
-
-    def add_get_set(self, line):
-        if self.inner:
-            self.inner.add_get_set(line)
-        else:
-            self.add_call(line, "get/set")
-            self.inner.in_get = True
-
-    def build_get_set(self, is_set):
-        if self.inner.inner:
-            self.inner.build_get_set(is_set)
-        else:
-            i = len(self.stack) - 1
-            if is_set:
-                while i >= 0:
-                    node = self.stack[i]
-                    if isinstance(node, FuncCall) and node.f_name == "get/set":
-                        node.f_name = "__setitem__"
-                        break
-                    i -= 1
-            else:
-                while i >= 0:
-                    node = self.stack[i]
-                    if isinstance(node, FuncCall) and node.f_name == "get/set":
-                        node.f_name = "__getitem__"
-                        break
-                    i -= 1
-
-    def add_break(self, line):
-        if self.inner:
-            self.inner.add_break(line)
-        else:
-            node = BreakStmt(line)
-            self.stack.append(node)
-
-    def add_continue(self, line):
-        if self.inner:
-            self.inner.add_continue(line)
-        else:
-            node = ContinueStmt(line)
-            self.stack.append(node)
-
-    def add_bool(self, line, v):
-        if self.inner:
-            self.inner.add_bool(line, v)
-        else:
-            node = BooleanStmt(line, v)
-            self.stack.append(node)
-
-    def add_null(self, line):
-        if self.inner:
-            self.inner.add_null(line)
-        else:
-            node = NullStmt(line)
-            self.stack.append(node)
-
-    def build_call(self):
-        if self.inner.inner:
-            self.inner.build_call()
-        else:
-            self.inner.build_line()
-
-            block: BlockStmt = self.inner.get_as_block()
-            self.inner = None
-            call = self.stack.pop()
-            if len(self.stack) > 0 and isinstance(self.stack[-1], ClassInit):
-                call = self.stack.pop()
-            call.args = block
-            self.stack.append(call)
-
-    def build_condition(self):
-        if self.inner.inner:
-            self.inner.build_condition()
-        else:
-            self.inner.build_line()
-            expr = self.inner.get_as_block()
-            # print(expr)
-            self.inner = None
-            cond_stmt: CondStmt = self.stack.pop()
-            cond_stmt.condition = expr
-            # print(cond_stmt)
-            self.stack.append(cond_stmt)
-
-    def new_block(self):
-        if self.inner:
-            self.inner.new_block()
-        else:
-            self.inner = AbstractSyntaxTree()
-
-    def add_class(self, line, class_name, abstract: bool):
-        if self.inner:
-            self.inner.add_class(line, class_name, abstract)
-        else:
-            cs = ClassStmt(line, class_name, abstract)
-            self.stack.append(cs)
-
-    def get_current_class(self):
-        if self.inner:
-            return self.inner.get_current_class()
-        else:
-            return self.stack[-1]
-
-    def add_extends(self, superclass_name: str, target_class):
-        if self.inner:
-            self.inner.add_extends(superclass_name, target_class)
-        else:
-            target_class: ClassStmt
-            target_class.superclass_names.append(superclass_name)
-
-    def build_class(self):
-        if self.inner:
-            self.inner.build_class()
-        else:
-            node = self.stack.pop()
-            class_node = self.stack.pop()
-            class_node.block = node
-            self.stack.append(class_node)
-
-    def add_class_new(self, line, class_name):
-        if self.inner:
-            self.inner.add_class_new(line, class_name)
-        else:
-            node = ClassInit(line, class_name)
-            self.stack.append(node)
-
-    # def add_array_init(self, line, class_name):
-    #     if self.inner:
-    #         self.inner.add_array_init(line, class_name)
-    #     else:
-    #         node = ArrayInit(line, class_name)
-    #         self.stack.append(node)
-    #         self.inner = AbstractSyntaxTree()
-
-    def add_dot(self, line, extra_precedence):
-        if self.inner:
-            self.inner.add_dot(line, extra_precedence)
-        else:
-            self.in_expr = True
-            node = Dot(line, extra_precedence)
-            self.stack.append(node)
-
-    def build_block(self):
-        if self.inner.inner:
-            self.inner.build_block()
-        else:
-            root = self.inner.get_as_block()
-            self.inner = None
-            self.stack.append(root)
-
-    def build_expr(self):
-        if self.inner:
-            self.inner.build_expr()
-        else:
-            if not self.in_expr:
-                return
-            self.in_expr = False
-            # print(type(self.stack[1]))
-            lst = []
-            while len(self.stack) > 0:
-                node = self.stack[-1]
-                if isinstance(node, NumNode) or isinstance(node, NameNode) or isinstance(node, OperatorNode) or \
-                        isinstance(node, UnaryOperator) or isinstance(node, LiteralNode) or \
-                        (isinstance(node, FuncCall) and node.args is not None) or isinstance(node, ClassInit) or \
-                        isinstance(node, NullStmt) or isinstance(node, BooleanStmt):
-                    lst.append(node)
-                    self.stack.pop()
-                else:
-                    break
-            lst.reverse()
-
-            # print(lst)
-            if len(lst) > 0:
-                node = parse_expr(lst)
-                self.stack.append(node)
-
-    def build_line(self):
-        if self.inner:
-            self.inner.build_line()
-        else:
-            # print(self.stack)
-            self.build_expr()
-            if len(self.stack) > 0:
-                lst = [self.stack.pop()]
-                while len(self.stack) > 0:
-                    node = self.stack.pop()
-                    if isinstance(node, LeafNode):
-                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                        # res = node
-                    elif isinstance(node, BinaryExpr) and len(lst) > 0:
-                        node.right = lst[0]
-                        lst[0] = node
-                    elif isinstance(node, BlockStmt):
-                        if len(lst) > 0:
-                            lst.insert(0, node)
-                        else:
-                            lst.append(node)
-                            # res = node
-                    elif isinstance(node, IfStmt):
-                        node.then_block = lst[0]
-                        if len(lst) > 1:
-                            node.else_block = lst[1]
-                        lst.clear()
-                        lst.append(node)
-                    elif isinstance(node, WhileStmt) or isinstance(node, ForLoopStmt):
-                        node.body = lst[0] if len(lst) > 0 else None
-                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    elif isinstance(node, DefStmt):
-                        node.body = lst[0] if len(lst) > 0 else None
-                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    elif isinstance(node, CatchStmt):
-                        node.then = lst[0] if len(lst) > 0 else None
-                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    elif isinstance(node, TryStmt):
-                        node.try_block = lst[0]
-                        if isinstance(lst[-1], CatchStmt):
-                            node.catch_blocks = lst[1:]
-                        else:
-                            node.catch_blocks = lst[1:-1]
-                            node.finally_block = lst[-1]
-                        lst.clear()
-                        lst.append(node)
-                    else:
-                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                        # res = node
-                self.elements.add_line(lst[0])
-
-    def get_as_block(self):
-        return self.elements
-
-
-def get_number_node(line, v: str):
-    if "." in v:
-        return FloatNode(line, v)
-    else:
-        return IntNode(line, v)
-
-
 class Node:
     line_num = 0
     file = None
@@ -511,35 +89,6 @@ class BinaryExpr(Node):
 
     def __repr__(self):
         return self.__str__()
-
-
-class NumNode(LeafNode):
-    value = 0
-
-    def __init__(self, line, v):
-        LeafNode.__init__(self, line)
-
-        self.value = v
-
-    def __str__(self):
-        return "Num(" + str(self.value) + ")"
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class IntNode(NumNode):
-    def __init__(self, line, v):
-        NumNode.__init__(self, line, int(v))
-
-        self.node_type = INT_NODE
-
-
-class FloatNode(NumNode):
-    def __init__(self, line, v):
-        NumNode.__init__(self, line, float(v))
-
-        self.node_type = FLOAT_NODE
 
 
 class LiteralNode(LeafNode):
@@ -622,6 +171,7 @@ class NameNode(LeafNode):
 
 class AssignmentNode(BinaryExpr):
     level = ASSIGN
+
     # var_type: NameNode
 
     def __init__(self, line, level):
@@ -806,11 +356,8 @@ class DefStmt(TitleNode):
 
 
 class FuncCall(LeafNode):
-    """
-    :type args: BlockStmt
-    """
-    f_name = None
-    args = None
+    f_name: str
+    args: BlockStmt = None
     is_get_set = False
 
     def __init__(self, line, f_name):
@@ -824,6 +371,9 @@ class FuncCall(LeafNode):
 
     def __repr__(self):
         return self.__str__()
+
+    def fulfilled(self):
+        return self.args is not None
 
 
 class ClassStmt(Node):
@@ -865,16 +415,6 @@ class ClassInit(LeafNode):
 
     def __repr__(self):
         return self.__str__()
-
-
-# class ArrayInit(FuncCall):
-#     def __init__(self, line, type_name):
-#         FuncCall.__init__(self, line, type_name)
-#
-#         self.node_type = ARRAY_INIT
-#
-#     def __str__(self):
-#         return "arr<{}>({})".format(self.f_name, self.args)
 
 
 class Dot(OperatorNode):
@@ -954,6 +494,425 @@ class UndefinedNode(LeafNode):
 
     def __repr__(self):
         return self.__str__()
+
+
+class AbstractSyntaxTree:
+    """
+    :type inner: AbstractSyntaxTree
+    """
+
+    def __init__(self):
+        self.elements: BlockStmt = BlockStmt((0, "parser"))
+        self.stack = []
+        self.inner = None
+        self.in_expr = False
+        self.in_get = False
+
+    def __str__(self):
+        return str(self.elements)
+
+    def get_active(self):
+        if self.inner:
+            return self.inner.get_active()
+        else:
+            return self
+
+    def add_name(self, line, n):
+        if self.inner:
+            self.inner.add_name(line, n)
+        else:
+            node = NameNode(line, n)
+            self.stack.append(node)
+
+    def add_number(self, line, v):
+        if self.inner:
+            self.inner.add_number(line, v)
+        else:
+            num = get_number(line, v)
+            self.stack.append(num)
+
+    def add_literal(self, line, lit):
+        if self.inner:
+            self.inner.add_literal(line, lit)
+        else:
+            node = LiteralNode(line, lit)
+            self.stack.append(node)
+
+    def add_operator(self, line, op, extra_precedence, assignment=False):
+        if self.inner:
+            self.inner.add_operator(line, op, extra_precedence, assignment)
+        else:
+            self.in_expr = True
+            op_node = OperatorNode(line, extra_precedence)
+            op_node.assignment = assignment
+            op_node.operation = op
+            self.stack.append(op_node)
+
+    def add_unary(self, line, op, extra_precedence):
+        if self.inner:
+            self.inner.add_unary(line, op, extra_precedence)
+        else:
+            self.in_expr = True
+            node = UnaryOperator(line, op, extra_precedence)
+            self.stack.append(node)
+
+    def add_assignment(self, line, var_level):
+        if self.inner:
+            self.inner.add_assignment(line, var_level)
+        else:
+            name = self.stack.pop()
+            ass_node = AssignmentNode(line, var_level)
+            ass_node.left = name
+            self.stack.append(ass_node)
+
+    def add_undefined(self, line):
+        if self.inner:
+            self.inner.add_undefined(line)
+        else:
+            node = UndefinedNode(line)
+            self.stack.append(node)
+
+    def add_type(self, line):
+        if self.inner:
+            self.inner.add_type(line)
+        else:
+            name = self.stack.pop()
+            tp_node = TypeNode(line)
+            tp_node.left = name
+            self.stack.append(tp_node)
+
+    def add_if(self, line):
+        if self.inner:
+            self.inner.add_if(line)
+        else:
+            ifs = IfStmt(line)
+            self.stack.append(ifs)
+            self.inner = AbstractSyntaxTree()
+
+    def add_else(self):
+        if self.inner:
+            self.inner.add_else()
+        else:
+            pass
+            # node = self.stack.pop()
+
+    def add_while(self, line):
+        if self.inner:
+            self.inner.add_while(line)
+        else:
+            whs = WhileStmt(line)
+            self.stack.append(whs)
+            self.inner = AbstractSyntaxTree()
+
+    def add_for_loop(self, line):
+        if self.inner:
+            self.inner.add_for_loop(line)
+        else:
+            fls = ForLoopStmt(line)
+            self.stack.append(fls)
+            self.inner = AbstractSyntaxTree()
+
+    def add_try(self, line):
+        if self.inner:
+            self.inner.add_try(line)
+        else:
+            tb = TryStmt(line)
+            self.stack.append(tb)
+
+    def add_catch(self, line):
+        if self.inner:
+            self.inner.add_catch(line)
+        else:
+            cat = CatchStmt(line)
+            self.stack.append(cat)
+            self.inner = AbstractSyntaxTree()
+
+    def add_finally(self, line):
+        if self.inner:
+            self.inner.add_finally(line)
+        else:
+            pass
+
+    def add_function(self, line, f_name, abstract: bool, tags: list):
+        if self.inner:
+            self.inner.add_function(line, f_name, abstract, tags)
+        else:
+            func = DefStmt(line, f_name, abstract, tags)
+            self.stack.append(func)
+            self.inner = AbstractSyntaxTree()
+
+    def build_func_params(self):
+        if self.inner.inner:
+            self.inner.build_func_params()
+        else:
+            self.inner.build_line()
+            block = self.inner.get_as_block()
+            self.inner = None
+            function = self.stack.pop()
+            function.params = block
+            self.stack.append(function)
+
+    def add_call(self, line, f_name):
+        # print(f_name)
+        if self.inner:
+            self.inner.add_call(line, f_name)
+        else:
+            fc = FuncCall(line, f_name)
+            self.stack.append(fc)
+            self.inner = AbstractSyntaxTree()
+
+    def add_anonymous_call(self, line, extra):
+        if self.inner:
+            self.inner.add_anonymous_call(line, extra)
+        else:
+            self.in_expr = True
+            op_node = AnonymousCall(line, extra)
+            op_node.assignment = False
+            op_node.operation = "=>"
+            self.stack.append(op_node)
+            self.add_call(line, "=>")
+
+    def is_in_get(self):
+        if self.inner:
+            return self.inner.is_in_get()
+        else:
+            return self.in_get
+
+    def add_get_set(self, line):
+        if self.inner:
+            self.inner.add_get_set(line)
+        else:
+            self.add_call(line, "get/set")
+            self.inner.in_get = True
+
+    def build_get_set(self, is_set):
+        if self.inner.inner:
+            self.inner.build_get_set(is_set)
+        else:
+            i = len(self.stack) - 1
+            if is_set:
+                while i >= 0:
+                    node = self.stack[i]
+                    if isinstance(node, FuncCall) and node.f_name == "get/set":
+                        node.f_name = "__setitem__"
+                        break
+                    i -= 1
+            else:
+                while i >= 0:
+                    node = self.stack[i]
+                    if isinstance(node, FuncCall) and node.f_name == "get/set":
+                        node.f_name = "__getitem__"
+                        break
+                    i -= 1
+
+    def add_break(self, line):
+        if self.inner:
+            self.inner.add_break(line)
+        else:
+            node = BreakStmt(line)
+            self.stack.append(node)
+
+    def add_continue(self, line):
+        if self.inner:
+            self.inner.add_continue(line)
+        else:
+            node = ContinueStmt(line)
+            self.stack.append(node)
+
+    def add_bool(self, line, v):
+        if self.inner:
+            self.inner.add_bool(line, v)
+        else:
+            node = BooleanStmt(line, v)
+            self.stack.append(node)
+
+    def add_null(self, line):
+        if self.inner:
+            self.inner.add_null(line)
+        else:
+            node = NullStmt(line)
+            self.stack.append(node)
+
+    def build_call(self):
+        if self.inner.inner:
+            self.inner.build_call()
+        else:
+            self.inner.build_line()
+
+            block: BlockStmt = self.inner.get_as_block()
+            self.inner = None
+            call: FuncCall = self.stack.pop()
+            if len(self.stack) > 0 and isinstance(self.stack[-1], ClassInit):
+                call = self.stack.pop()
+            call.args = block
+            self.stack.append(call)
+
+    def build_condition(self):
+        if self.inner.inner:
+            self.inner.build_condition()
+        else:
+            self.inner.build_line()
+            expr = self.inner.get_as_block()
+            # print(expr)
+            self.inner = None
+            cond_stmt: CondStmt = self.stack.pop()
+            cond_stmt.condition = expr
+            # print(cond_stmt)
+            self.stack.append(cond_stmt)
+
+    def new_block(self):
+        if self.inner:
+            self.inner.new_block()
+        else:
+            self.inner = AbstractSyntaxTree()
+
+    def add_class(self, line, class_name, abstract: bool):
+        if self.inner:
+            self.inner.add_class(line, class_name, abstract)
+        else:
+            cs = ClassStmt(line, class_name, abstract)
+            self.stack.append(cs)
+
+    def get_current_class(self):
+        if self.inner:
+            return self.inner.get_current_class()
+        else:
+            return self.stack[-1]
+
+    def add_extends(self, superclass_name: str, target_class):
+        if self.inner:
+            self.inner.add_extends(superclass_name, target_class)
+        else:
+            target_class: ClassStmt
+            target_class.superclass_names.append(superclass_name)
+
+    def build_class(self):
+        if self.inner:
+            self.inner.build_class()
+        else:
+            node = self.stack.pop()
+            class_node = self.stack.pop()
+            class_node.block = node
+            self.stack.append(class_node)
+
+    def add_class_new(self, line, class_name):
+        if self.inner:
+            self.inner.add_class_new(line, class_name)
+        else:
+            node = ClassInit(line, class_name)
+            self.stack.append(node)
+
+    def add_dot(self, line, extra_precedence):
+        if self.inner:
+            self.inner.add_dot(line, extra_precedence)
+        else:
+            self.in_expr = True
+            node = Dot(line, extra_precedence)
+            self.stack.append(node)
+
+    def build_block(self):
+        if self.inner.inner:
+            self.inner.build_block()
+        else:
+            root = self.inner.get_as_block()
+            self.inner = None
+            self.stack.append(root)
+
+    def build_expr(self):
+        if self.inner:
+            self.inner.build_expr()
+        else:
+            if not self.in_expr:
+                return
+            self.in_expr = False
+            # print(type(self.stack[1]))
+            lst = []
+            while len(self.stack) > 0:
+                node = self.stack[-1]
+                if isinstance(node, int) or \
+                        isinstance(node, float) or \
+                        isinstance(node, NameNode) or \
+                        isinstance(node, OperatorNode) or \
+                        isinstance(node, UnaryOperator) or \
+                        isinstance(node, LiteralNode) or \
+                        (isinstance(node, FuncCall) and node.fulfilled()) or \
+                        isinstance(node, ClassInit) or \
+                        isinstance(node, NullStmt) or \
+                        isinstance(node, BooleanStmt):
+                    lst.append(node)
+                    self.stack.pop()
+                else:
+                    break
+            lst.reverse()
+
+            # print(lst)
+            if len(lst) > 0:
+                node = parse_expr(lst)
+                self.stack.append(node)
+
+    def build_line(self):
+        if self.inner:
+            self.inner.build_line()
+        else:
+            # print(self.stack)
+            self.build_expr()
+            if len(self.stack) > 0:
+                lst = [self.stack.pop()]
+                while len(self.stack) > 0:
+                    node = self.stack.pop()
+                    if isinstance(node, LeafNode):
+                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
+                        # res = node
+                    elif isinstance(node, BinaryExpr) and len(lst) > 0:
+                        node.right = lst[0]
+                        lst[0] = node
+                    elif isinstance(node, BlockStmt):
+                        if len(lst) > 0:
+                            lst.insert(0, node)
+                        else:
+                            lst.append(node)
+                            # res = node
+                    elif isinstance(node, IfStmt):
+                        node.then_block = lst[0]
+                        if len(lst) > 1:
+                            node.else_block = lst[1]
+                        lst.clear()
+                        lst.append(node)
+                    elif isinstance(node, WhileStmt) or isinstance(node, ForLoopStmt):
+                        node.body = lst[0] if len(lst) > 0 else None
+                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
+                    elif isinstance(node, DefStmt):
+                        node.body = lst[0] if len(lst) > 0 else None
+                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
+                    elif isinstance(node, CatchStmt):
+                        node.then = lst[0] if len(lst) > 0 else None
+                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
+                    elif isinstance(node, TryStmt):
+                        node.try_block = lst[0]
+                        if isinstance(lst[-1], CatchStmt):
+                            node.catch_blocks = lst[1:]
+                        else:
+                            node.catch_blocks = lst[1:-1]
+                            node.finally_block = lst[-1]
+                        lst.clear()
+                        lst.append(node)
+                    else:
+                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
+                        # res = node
+                self.elements.add_line(lst[0])
+
+    def get_as_block(self):
+        return self.elements
+
+
+def get_number(line, v: str):
+    try:
+        if "." in v:
+            return float(v)
+        else:
+            return int(v)
+    except TypeError:
+        raise stl.ParseException("Unexpected syntax: '{}', at line {}".format(v, line))
 
 
 def parse_expr(lst):

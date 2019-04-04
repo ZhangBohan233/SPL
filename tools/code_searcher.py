@@ -32,3 +32,5 @@ if __name__ == "__main__":
         lst = []
         search_dir(obj, root_dir, lst)
         print(lst)
+    else:
+        print("Usage: TARGET DIR")

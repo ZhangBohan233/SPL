@@ -1,3 +1,13 @@
+===== Build 0056 =====
+
+1 million while loop: ~31000 ms
+25 fib: ~7700 ms
+1k elements merge sort: ~3200 ms
+
+100 k while loop: ~3050 ms
+20 fib: ~700 ms
+500 elements merge sort: ~1450 ms
+
 ===== Build 0042 =====
 
 -o2:

@@ -10,3 +10,8 @@
 * pair creation with {}   ...discard
 
 * array   ...done
+
+
+===== 1.5 =====
+
+* Import optimize
