@@ -7,13 +7,11 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               ".": 500, "!": 200, "neg": 200, "return": 1, "throw": 1,
               "+=": 2, "-=": 2, "*=": 2, "/=": 2, "%=": 2,
               "&=": 2, "^=": 2, "|=": 2, "<<=": 2, ">>=": 2, "=>": 500,
-              "===": 20, "is": 20, "!==": 20, "instanceof": 25, "assert": 1}
+              "===": 20, "is": 20, "!==": 20, "instanceof": 25, "assert": 1,
+              "?": 3}
 
 MULTIPLIER = 1000
 
-# NODE = 0
-# INT_NODE = 1
-# FLOAT_NODE = 2
 LITERAL_NODE = 3
 NAME_NODE = 4
 BOOLEAN_STMT = 5
@@ -25,9 +23,8 @@ DOT = 10
 ANONYMOUS_CALL = 11
 OPERATOR_NODE = 12
 UNARY_OPERATOR = 14
-# NEGATIVE_EXPR = 13
-# NOT_EXPR = 14
-# RETURN_STMT = 15
+TERNARY_OPERATOR = 15
+
 BLOCK_STMT = 16
 IF_STMT = 17
 WHILE_STMT = 18
@@ -115,6 +112,31 @@ class TitleNode(Node):
 
     def __init__(self, line):
         Node.__init__(self, line)
+
+
+class TernaryOperator(Node):
+    extra_precedence = 0
+    first_op: str
+    second_op: str = None
+    left: Node = None
+    mid: Node = None
+    right: Node = None
+
+    def __init__(self, line, first_op, extra):
+        Node.__init__(self, line)
+
+        self.node_type = TERNARY_OPERATOR
+        self.extra_precedence = extra
+        self.first_op = first_op
+
+    def precedence(self):
+        return PRECEDENCE[self.first_op] + self.extra_precedence
+
+    def __str__(self):
+        return "TE({} {} {} {} {})".format(self.left, self.first_op, self.mid, self.second_op, self.right)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class OperatorNode(BinaryExpr):
@@ -506,6 +528,7 @@ class AbstractSyntaxTree:
         self.stack = []
         self.inner = None
         self.in_expr = False
+        self.in_ternary = False
         self.in_get = False
 
     def __str__(self):
@@ -516,6 +539,12 @@ class AbstractSyntaxTree:
             return self.inner.get_active()
         else:
             return self
+
+    def is_in_ternary(self):
+        if self.inner:
+            return self.inner.is_in_ternary()
+        else:
+            return self.in_ternary
 
     def add_name(self, line, n):
         if self.inner:
@@ -565,6 +594,23 @@ class AbstractSyntaxTree:
             ass_node.left = name
             self.stack.append(ass_node)
 
+    def add_ternary(self, line, op1, extra_precedence):
+        if self.inner:
+            self.inner.add_ternary(line, op1, extra_precedence)
+        else:
+            self.in_expr = True
+            self.in_ternary = True
+            node = TernaryOperator(line, op1, extra_precedence)
+            self.stack.append(node)
+
+    def finish_ternary(self, line, op2):
+        if self.inner:
+            self.inner.finish_ternary(line, op2)
+        else:
+            self.in_ternary = False
+            node: TernaryOperator = self.stack[-2]
+            node.second_op = op2
+
     def add_undefined(self, line):
         if self.inner:
             self.inner.add_undefined(line)
@@ -594,7 +640,6 @@ class AbstractSyntaxTree:
             self.inner.add_else()
         else:
             pass
-            # node = self.stack.pop()
 
     def add_while(self, line):
         if self.inner:
@@ -834,6 +879,7 @@ class AbstractSyntaxTree:
                         isinstance(node, NameNode) or \
                         isinstance(node, OperatorNode) or \
                         isinstance(node, UnaryOperator) or \
+                        isinstance(node, TernaryOperator) or \
                         isinstance(node, LiteralNode) or \
                         (isinstance(node, FuncCall) and node.fulfilled()) or \
                         isinstance(node, ClassInit) or \
@@ -863,9 +909,15 @@ class AbstractSyntaxTree:
                     if isinstance(node, LeafNode):
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                         # res = node
-                    elif isinstance(node, BinaryExpr) and len(lst) > 0:
+                    elif isinstance(node, AssignmentNode) and len(lst) > 0:
                         node.right = lst[0]
                         lst[0] = node
+                    # elif isinstance(node, BinaryExpr) and len(lst) > 0:
+                    #     node.right = lst[0]
+                    #     lst[0] = node
+                    # elif isinstance(node, TernaryOperator) and len(lst) > 0:
+                    #     node.right = lst[0]
+                    #     lst[0] = node
                     elif isinstance(node, BlockStmt):
                         if len(lst) > 0:
                             lst.insert(0, node)
@@ -932,13 +984,27 @@ def parse_expr(lst):
                 if pre > max_pre and not node.left and not node.right:
                     max_pre = pre
                     index = i
+            elif isinstance(node, TernaryOperator):
+                pre = node.precedence()
+                if pre > max_pre and not node.left and not node.mid and not node.right:
+                    max_pre = pre
+                    index = i
         operator = lst[index]
         if isinstance(operator, UnaryOperator):
             operator.value = lst[index + 1]
             lst.pop(index + 1)
-        else:
+        elif isinstance(operator, OperatorNode):
             operator.left = lst[index - 1]
             operator.right = lst[index + 1]
             lst.pop(index + 1)
             lst.pop(index - 1)
+        elif isinstance(operator, TernaryOperator):
+            operator.left = lst[index - 1]
+            operator.mid = lst[index + 1]
+            operator.right = lst[index + 2]
+            lst.pop(index + 1)
+            lst.pop(index + 1)
+            lst.pop(index - 1)
+        else:
+            raise stl.ParseException("Unknown error while parsing operators")
     return lst[0]

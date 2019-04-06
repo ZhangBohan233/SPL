@@ -108,10 +108,6 @@ class Parser:
                         else:
                             # if parser.in_expr:
                             extra_precedence -= 1
-                    # elif sym == "[":
-                    #     # list_creation += 1
-                    #     square_count += 1
-                    #     parser.add_call(line, "list")
                     elif sym == "]":
                         next_token = self.tokens[i + 1]
                         if isinstance(next_token, stl.IdToken) and next_token.symbol == "=":
@@ -133,9 +129,6 @@ class Parser:
                         parser.build_expr()
                         parser.add_assignment(line, var_level)
                         var_level = ast.ASSIGN
-                    elif sym == ":":
-                        parser.build_expr()
-                        parser.add_type(line)
                     elif sym == ",":
                         # parser.build_expr()
                         if len(call_nest_list) > 0 or len(param_nest_list) > 0:
@@ -211,12 +204,6 @@ class Parser:
                                 call_nest_list.append(par_count)
                                 par_count += 1
                                 parser.add_call((c_token.line_number(), c_token.file_name()), class_name)
-                            elif next_token.symbol == "[":
-                                i += 1
-                                call_nest_list.append(par_count)
-                                array_init_pos = par_count
-                                par_count += 1
-                                parser.add_array_init(line, class_name)
                             else:
                                 parser.add_class_new((c_token.line_number(), c_token.file_name()), class_name)
                     elif sym == "throw":
@@ -233,35 +220,34 @@ class Parser:
                         parser.add_finally(line)
                     elif sym == "assert":
                         parser.add_unary(line, "assert", 0)
-                        # parser.add_assert(line)
-                    # elif sym == "del":
-                    #     parser.add_unary(line, "del", 0)
+                    elif sym in stl.TERNARY_OPERATORS:  # This check should be strictly before the check of binary ops
+                        if parser.is_in_ternary():
+                            parser.finish_ternary(line, sym)
+                        else:
+                            parser.add_ternary(line, sym, extra_precedence)
                     elif sym in stl.BINARY_OPERATORS:
                         if sym == "-" and (i == 0 or is_unary(self.tokens[i - 1])):
-                            # parser.add_neg(line, extra_precedence)
                             parser.add_unary(line, "neg", extra_precedence)
                         elif sym == "*" and (i == 0 or is_unary(self.tokens[i - 1])):
                             next_token = self.tokens[i + 1]
                             if isinstance(next_token, stl.IdToken) and next_token.symbol == "*":
-                                # parser.add_kw_unpack(line)
                                 parser.add_unary(line, "kw_unpack", 0)
                                 i += 1
                             else:
-                                # parser.add_unpack(line)
                                 parser.add_unary(line, "unpack", 0)
                         else:
                             parser.add_operator(line, sym, extra_precedence)
                     elif sym in stl.UNARY_OPERATORS:
                         if sym == "!" or sym == "not":
                             parser.add_unary(line, "!", extra_precedence)
-                            # parser.add_not(line, extra_precedence)
                     elif sym[:-1] in stl.OP_EQ:
                         parser.add_operator(line, sym, extra_precedence, True)
+                    elif sym == ":":
+                        parser.build_expr()
+                        parser.add_type(line)
                     elif token.is_eol():
                         if parser.is_in_get():
-                            # parser.build_line()
                             parser.build_call()
-                            # parser.in_get = False
                             call_nest_list.pop()
                             par_count -= 1
                         parser.build_expr()

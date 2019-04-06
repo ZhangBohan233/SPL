@@ -1,24 +1,29 @@
-class A:
-    child = 3
-
-    def __init__(self, b):
-        pass
-        # self.child = b
-        # type(self).child = b
-
-    # def p(self):
-    #     return self.child
-
-
-class B(A):
+class B:
     def __init__(self):
-        # A.__init__(self, 1)
         pass
 
-    def b(self):
-        return self.child
+
+class A(B):
+    def __init__(self):
+        B.__init__(self)
+
+    def asd(self):
+        pass
+
+    def efg(self):
+        pass
+
+    def fgh(self):
+        return self.efg()
+
+    def jkl(self):
+        return 1 + 2 + 3
 
 
 if __name__ == "__main__":
-    a = B()
-    print(a.b())
+    import time
+    st = time.time()
+    for i in range(1000000):
+        A()
+    end = time.time()
+    print(end - st)

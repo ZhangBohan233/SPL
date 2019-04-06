@@ -5,15 +5,11 @@ import spl_parser as psr
 import spl_token_lib as stl
 import spl_lib as lib
 import multiprocessing
+from environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
+    FunctionEnvironment, ClassEnvironment
 
 LST = [72, 97, 112, 112, 121, 32, 66, 105, 114, 116, 104, 100, 97, 121, 32,
        73, 115, 97, 98, 101, 108, 108, 97, 33, 33, 33]
-
-GLOBAL_SCOPE = 0
-CLASS_SCOPE = 1
-FUNCTION_SCOPE = 2
-LOOP_SCOPE = 3
-SUB_SCOPE = 4
 
 LINE_FILE = 0, "interpreter"
 INVALID = lib.InvalidArgument()
@@ -39,7 +35,7 @@ class Interpreter:
         self.ast = None
         self.argv = argv
         self.encoding = encoding
-        self.env = Environment(GLOBAL_SCOPE, None)
+        self.env = GlobalEnvironment()
         self.env.scope_name = "Global"
         self.set_up_env()
 
@@ -120,291 +116,6 @@ def add_natives(self):
 
     # global variables
     self.add_heap("cwf", None)
-
-
-class Environment:
-    heap: dict
-    variables: dict
-    constants: dict
-    scope_type: int
-
-    """
-    ===== Attributes =====
-    :param scope_type: the type of scope, whether it is global, class, function or inner
-    :param heap: the shared-heap space, all pointed to one
-    """
-
-    def __init__(self, scope_type, outer):
-        self.scope_type = scope_type
-        if outer is None:
-            self.heap: dict = {}
-        else:
-            self.heap: dict = outer.heap  # Heap-allocated variables (global)
-        self.variables: dict = {}  # Stack variables
-        self.constants: dict = {}  # Constants
-
-        self.outer: Environment = outer
-        self.scope_name = None
-
-        # environment signals
-        self.terminated = False
-        self.exit_value = None
-        self.broken = False
-        self.paused = False
-
-        if not self.is_sub():
-            self.variables.__setitem__("=>", None)
-
-    def __str__(self):
-        temp = [self.scope_name, "\nConst: "]
-        for c in self.constants:
-            if c != "this":
-                temp.append(str(c))
-                temp.append(": ")
-                temp.append(str(self.constants[c]))
-                temp.append(", ")
-        for v in self.variables:
-            temp.append(str(v))
-            temp.append(": ")
-            temp.append(str(self.variables[v]))
-            temp.append(", ")
-        temp.append("\nHeap: ")
-        for hv in self.heap:
-            temp.append(str(hv))
-            temp.append(": ")
-            temp.append(str(self.heap[hv]))
-            temp.append(", ")
-        return "".join(['null' if k is None else k for k in temp])
-
-    def invalidate(self):
-        """
-        Re-initialize this scope.
-
-        This method will only be called in a scope under level 'LOOP_SCOPE', although this access will not
-        be checked.
-
-        :return: None
-        """
-        self.variables.clear()
-        self.constants.clear()
-
-    def is_global(self):
-        return self.scope_type == GLOBAL_SCOPE
-
-    def is_sub(self):
-        """
-        Returns True iff this scope is a NOT a main scope.
-
-        A 'main scope' is a scope that has its independent variable layer. GLOBAL_SCOPE, CLASS_SCOPE and
-        FUNCTION_SCOPE are main scopes.
-
-        :return:
-        """
-        return self.scope_type == LOOP_SCOPE or self.scope_type == SUB_SCOPE
-
-    def add_heap(self, k, v):
-        self.heap[k] = v
-
-    def has_class(self, class_name):
-        return class_name in self.heap
-
-    def terminate(self, exit_value):
-        if self.scope_type == FUNCTION_SCOPE:
-            self.terminated = True
-            self.exit_value = exit_value
-        elif self.is_sub():
-            if self.scope_type == LOOP_SCOPE:
-                self.broken = True
-            self.outer.terminate(exit_value)
-        else:
-            raise lib.SplException("Return outside function.")
-
-    def is_terminated(self):
-        """
-        Returns True iff this scope or one of its parent scopes had been terminated.
-
-        :return: True iff this scope or one of its parent scopes had been terminated
-        """
-        if self.scope_type == FUNCTION_SCOPE:
-            return self.terminated
-        elif self.is_sub():
-            return self.outer.is_terminated()
-        else:
-            return False
-
-    def terminate_value(self):
-        """
-        Returns the last recorded terminate value of a function scope that the function had returned early.
-
-        :return: the terminate value
-        """
-        if self.scope_type == FUNCTION_SCOPE:
-            return self.exit_value
-        elif self.is_sub():
-            return self.outer.terminate_value()
-        else:
-            raise lib.SplException("Terminate value outside function.")
-
-    def break_loop(self):
-        if self.scope_type == LOOP_SCOPE:
-            self.broken = True
-        elif self.is_sub():
-            self.outer.break_loop()
-        else:
-            raise lib.SplException("Break not inside loop.")
-
-    def pause_loop(self):
-        """
-        Pauses the loop for one iteration.
-
-        This method is called when the keyword 'continue' is executed.
-
-        :return: None
-        """
-        if self.scope_type == LOOP_SCOPE:
-            self.paused = True
-        elif self.is_sub():
-            self.outer.pause_loop()
-        else:
-            raise lib.SplException("Continue not inside loop.")
-
-    def resume_loop(self):
-        """
-        Resumes a paused loop environment.
-
-        If this scope is not paused, this method can still be called but makes no effect.
-
-        :return: None
-        """
-        if self.scope_type == LOOP_SCOPE:
-            self.paused = False
-        elif self.is_sub():
-            self.outer.resume_loop()
-        else:
-            raise lib.SplException("Not inside loop.")
-
-    def define_function(self, key, value, lf, options: dict):
-        if not options["override"] and not options["suppress"] and key[0].islower() and self.contains_key(key):
-            lib.print_waring("Warning: re-declaring method '{}' in '{}', at line {}".format(key, lf[1], lf[0]))
-        self.variables[key] = value
-
-    def define_var(self, key, value, lf):
-        if self.local_contains(key):
-            raise lib.SplException("Name '{}' is already defined in this scope, in '{}', at line {}"
-                                   .format(key, lf[1], lf[0]))
-        else:
-            self.variables[key] = value
-
-    def define_const(self, key, value, lf):
-        if self.contains_key(key):
-            raise lib.SplException("Name '{}' is already defined in this scope, in {}, at line {}"
-                                   .format(key, lf[1], lf[0]))
-        else:
-            self.constants[key] = value
-
-    def assign(self, key, value, lf):
-        if key in self.variables:
-            self.variables[key] = value
-        else:
-            out = self.outer
-            while out:
-                if key in out.variables:
-                    out.variables[key] = value
-                    return
-                out = out.outer
-            raise lib.SplException("Name '{}' is not defined, in '{}', at line {}"
-                                   .format(key, lf[1], lf[0]))
-
-    def local_inner_get(self, key: str):
-        if key in self.constants:
-            return self.constants[key]
-        if key in self.variables:
-            return self.variables[key]
-
-        out = self
-        while out.outer and out.is_sub():
-            out = out.outer
-
-            if key in out.constants:
-                return out.constants[key]
-            if key in out.variables:
-                return out.variables[key]
-
-        return self.heap.get(key, NULLPTR)
-
-    def local_contains(self, key: str) -> bool:
-        """
-        Returns True iff this main scope has this key, or the heap has this key.
-
-        :param key:
-        :return:
-        """
-        v = self.local_inner_get(key)
-        return v is not NULLPTR
-
-    def inner_get(self, key: str):
-        """
-        Internally gets a value stored in this scope, 'NULLPTR' if not found.
-
-        :param key:
-        :return:
-        """
-        if key in self.constants:
-            return self.constants[key]
-        if key in self.variables:
-            return self.variables[key]
-
-        out = self.outer
-        while out:
-            if key in out.constants:
-                return out.constants[key]
-            if key in out.variables:
-                return out.variables[key]
-
-            out = out.outer
-
-        return self.heap.get(key, NULLPTR)
-
-    def get(self, key: str, line_file: tuple):
-        """
-        Returns the value of that key.
-
-        If the value is a pointer, then returns the instance pointed by the pointer instead.
-
-        :param key:
-        :param line_file:
-        :return: the value corresponding to the key. Instance will be returned if the value is a pointer.
-        """
-        v = self.inner_get(key)
-        # print(key + str(v))
-        if v is NULLPTR:
-            raise lib.SplException("Name '{}' is not defined, in file {}, at line {}"
-                                   .format(key, line_file[1], line_file[0]))
-        return v
-
-    def contains_key(self, key: str):
-        v = self.inner_get(key)
-        return v is not NULLPTR
-
-    def get_heap(self, class_name: str):
-        """
-        Returns the heap-variable corresponding to the key 'class_name'.
-
-        This method will return the instance if the value stored in heap is a pointer.
-
-        :param class_name:
-        :return: the heap-variable corresponding to the key 'class_name'. Instance will be returned if the
-        value stored in heap is a pointer.
-        """
-        return self.heap[class_name]
-
-    def attributes(self):
-        """
-        Returns a union of all local variables in this scope.
-
-        :return: a union of all local variables in this scope
-        """
-        return {**self.constants, **self.variables}
 
 
 class NativeFunction:
@@ -490,14 +201,6 @@ class Class:
         return self.__str__()
 
 
-class NullPointer:
-    def __init__(self):
-        pass
-
-    def __str__(self):
-        return "NullPointer"
-
-
 class Undefined:
     def __init__(self):
         pass
@@ -556,23 +259,6 @@ class NativeInvokes(lib.NativeType):
         return Thread(process)
 
 
-# class InstanceArray(lib.PointerArray):
-#     def __init__(self, type_name: str, length):
-#         lib.PointerArray.__init__(self, length)
-#
-#         self.object_type = type_name
-#
-#     def type_name(self):
-#         return "{}[]".format(self.object_type, self.length())
-#
-#     def __setitem__(self, index, value):
-#         obj = mem.MEMORY.get_instance(value.id)
-#         if obj.class_name != self.object_type:
-#             lib.print_waring("Warning: generic array of different types")
-#         self.array[index] = value.id
-
-
-NULLPTR = NullPointer()
 UNDEFINED = Undefined()
 
 
@@ -819,11 +505,9 @@ def eval_for_loop(node: ast.ForLoopStmt, env: Environment):
     end = con.lines[1]
     step = con.lines[2]
 
-    title_scope = Environment(LOOP_SCOPE, env)
-    title_scope.scope_name = "Loop title"
+    title_scope = LoopEnvironment(env)
 
-    block_scope = Environment(SUB_SCOPE, title_scope)
-    block_scope.scope_name = "Block scope for"
+    block_scope = LoopEnvironment(title_scope)
 
     result = evaluate(start, title_scope)
 
@@ -843,11 +527,9 @@ def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
     inv: ast.Node = con.lines[0]
     lf = node.line_num, node.file
 
-    title_scope = Environment(LOOP_SCOPE, env)
-    title_scope.scope_name = "Loop title"
+    title_scope = LoopEnvironment(env)
 
-    block_scope = Environment(SUB_SCOPE, title_scope)
-    block_scope.scope_name = "Block scope for each"
+    block_scope = LoopEnvironment(title_scope)
 
     if inv.node_type == ast.NAME_NODE:
         inv: ast.NameNode
@@ -903,13 +585,11 @@ def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
 
 def eval_try_catch(node: ast.TryStmt, env: Environment):
     try:
-        block_scope = Environment(SUB_SCOPE, env)
-        block_scope.scope_name = "Try scope"
+        block_scope = SubEnvironment(env)
         result = evaluate(node.try_block, block_scope)
         return result
     except RuntimeException as re:  # catches the exceptions thrown by SPL program
-        block_scope = Environment(SUB_SCOPE, env)
-        block_scope.scope_name = "Catch scope"
+        block_scope = SubEnvironment(env)
         exception: ClassInstance = re.exception
         exception_class = block_scope.get_heap(exception.class_name)
         catches = node.catch_blocks
@@ -923,8 +603,7 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
                     return result
         raise re
     except Exception as e:  # catches the exceptions raised by python
-        block_scope = Environment(SUB_SCOPE, env)
-        block_scope.scope_name = "Try scope"
+        block_scope = SubEnvironment(env)
         catches = node.catch_blocks
         for cat in catches:
             block_scope.invalidate()
@@ -936,8 +615,7 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
                     return result
         raise e
     finally:
-        block_scope = Environment(SUB_SCOPE, env)
-        block_scope.scope_name = "Finally scope"
+        block_scope = SubEnvironment(env)
         if node.finally_block is not None:
             return evaluate(node.finally_block, block_scope)
 
@@ -1022,7 +700,8 @@ def init_class(node: ast.ClassInit, env: Environment):
     if cla.abstract:
         raise lib.SplException("Abstract class is not instantiable")
 
-    scope = Environment(CLASS_SCOPE, cla.outer_env)
+    # scope = Environment(CLASS_SCOPE, cla.outer_env)
+    scope = ClassEnvironment(cla.outer_env)
     # scope.outer = env
     scope.scope_name = "Class scope<{}>".format(cla.class_name)
     class_inheritance(cla, env, scope)
@@ -1089,8 +768,9 @@ def call_function(call: ast.FuncCall, func: Function, func_parent_env: Environme
         raise lib.AbstractMethodException("Abstract method is not callable, in '{}', at line {}."
                                           .format(call.file, call.line_num))
 
-    scope = Environment(FUNCTION_SCOPE, func.outer_scope)
-    scope.scope_name = "Function scope<{}>".format(call.f_name)
+    # scope = Environment(FUNCTION_SCOPE, func.outer_scope)
+    # scope.scope_name = "Function scope<{}>".format(call.f_name)
+    scope = FunctionEnvironment(func.outer_scope)
 
     params = func.params
 
@@ -1498,8 +1178,7 @@ def eval_block(node: ast.BlockStmt, env: Environment):
 
 def eval_if_stmt(node: ast.IfStmt, env: Environment):
     cond = evaluate(node.condition, env)
-    block_scope = Environment(SUB_SCOPE, env)
-    block_scope.scope_name = "Block scope if-else"
+    block_scope = SubEnvironment(env)
     if cond:
         return evaluate(node.then_block, block_scope)
     else:
@@ -1507,11 +1186,9 @@ def eval_if_stmt(node: ast.IfStmt, env: Environment):
 
 
 def eval_while(node: ast.WhileStmt, env: Environment):
-    title_scope = Environment(LOOP_SCOPE, env)
-    title_scope.scope_name = "While loop title"
+    title_scope = LoopEnvironment(env)
 
-    block_scope = Environment(SUB_SCOPE, title_scope)
-    block_scope.scope_name = "Block scope while loop"
+    block_scope = SubEnvironment(title_scope)
 
     result = 0
     while not title_scope.broken and evaluate(node.condition, title_scope):
@@ -1613,6 +1290,26 @@ def eval_unary_expression(node: ast.UnaryOperator, env: Environment):
     return op(node.value, env)
 
 
+def eval_conditional_operator(left: ast.Node, mid: ast.Node, right: ast.Node, env: Environment):
+    cond = evaluate(left, env)
+    if cond:
+        return evaluate(mid, env)
+    else:
+        return evaluate(right, env)
+
+
+TERNARY_TABLE = {
+    ("?", ":"): eval_conditional_operator
+}
+
+
+def eval_ternary_expression(node: ast.TernaryOperator, env: Environment):
+    op1 = node.first_op
+    op2 = node.second_op
+    op = TERNARY_TABLE[(op1, op2)]
+    return op(node.left, node.mid, node.right, env)
+
+
 def raise_exception(e: Exception):
     raise e
 
@@ -1635,6 +1332,7 @@ NODE_TABLE = {
     ast.ANONYMOUS_CALL: eval_anonymous_call,
     ast.OPERATOR_NODE: eval_operator,
     ast.UNARY_OPERATOR: eval_unary_expression,
+    ast.TERNARY_OPERATOR: eval_ternary_expression,
     ast.BLOCK_STMT: eval_block,
     ast.IF_STMT: eval_if_stmt,
     ast.WHILE_STMT: eval_while,

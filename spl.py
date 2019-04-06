@@ -6,8 +6,6 @@ import spl_interpreter
 import spl_parser as psr
 import time
 import os
-import spl_optimizer as opt
-import spl_token_lib as stl
 import spl_lib as lib
 
 sys.setrecursionlimit(10000)
@@ -30,8 +28,6 @@ OPTIONS:
     -d,   -debug,   --debugger                enables debugger
     -et,            --execution               shows the execution times of each node
     -e,   -exit,    --exit value              shows the program's exit value
-    -o1,            --optimize 1              enable level 1 optimization
-    -o2,            --optimize 2              enable level 2 optimization
     -t,   -timer,   --timer                   enables the timer
     -tk,  -tokens,  --tokens                  shows language tokens
     -v,   -vars,    --variables               prints out all global variables after execution
@@ -49,8 +45,7 @@ Example
 
 def parse_arg(args):
     d = {"file": None, "dir": None, "debugger": False, "timer": False, "ast": False, "tokens": False,
-         "vars": False, "argv": [], "encoding": None, "exit": False, "optimize": 0, "exec_time": False,
-         "spe": False, "doc": None}
+         "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False}
     # for i in range(1, len(args), 1):
     i = 1
     while i < len(args):
@@ -77,10 +72,6 @@ def parse_arg(args):
                     d["encoding"] = args[i]
                 elif flag == "et":
                     d["exec_time"] = True
-                elif flag == "o1":
-                    d["optimize"] = 1
-                elif flag == "o2":
-                    d["optimize"] = 2
                 else:
                     print("unknown flag: -" + flag)
             elif arg.lower() == "help":
@@ -89,7 +80,6 @@ def parse_arg(args):
             else:
                 d["file"] = arg
                 d["dir"] = spl_lexer.get_dir(arg)
-                d["doc"] = stl.get_doc_name(arg)
                 d["argv"].append(arg)
         i += 1
     if d["file"] is None:
@@ -111,7 +101,7 @@ def interpret():
     lex_start = time.time()
 
     lexer = spl_lexer.Tokenizer()
-    lexer.setup(file_name, argv["dir"], argv["doc"])
+    lexer.setup(file_name, argv["dir"], set())
     lexer.tokenize(f)
 
     if argv["tokens"]:
@@ -121,13 +111,6 @@ def interpret():
 
     parser = psr.Parser(lexer.get_tokens())
     block = parser.parse()
-
-    o_level = argv["optimize"]
-
-    if o_level > 0:
-        optimizer = opt.Optimizer(block)
-        optimizer.optimize(o_level)
-        block = optimizer.ast
 
     if argv["ast"]:
         print("===== Abstract Syntax Tree =====")
@@ -189,9 +172,5 @@ if __name__ == "__main__":
                 raise e
             finally:
                 f.close()
-                try:
-                    os.remove(argv["doc"])
-                finally:
-                    pass
         else:
             raise ArgumentsException("SPL scripts must ended with '.sp'.")

@@ -1,3 +1,15 @@
+********** SPL 1.5 Alpha 2 **********
+===== Build 0057 2019/04/06 =====
+
+* New syntax:
+    * Ternary operator:
+        * Conditional operator: "cond ? if_true : if_false"
+* Import optimization:
+    * The duplicate import will now not be executed
+* Performance optimization:
+    * Optimized variable scopes:
+        * Increase execution speed for about 33%
+
 ********** SPL 1.5 Alpha 1 **********
 ===== Build 0056 2019/04/01 =====
 

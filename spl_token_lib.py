@@ -2,6 +2,7 @@ EOF = -1
 EOL = ";"
 SYMBOLS = {"{", "}", ".", ","}
 MIDDLE = {"(", ")", "[", "]"}
+TERNARY_OPERATORS = {"?", ":"}
 BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mod",
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
@@ -9,7 +10,12 @@ BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mo
                     "and": "and", "or": "or", "is": ""}
 UNARY_OPERATORS = {"!": "not", "not": "not"}
 OTHERS = {"=", "@", ":"}
-ALL = set().union(SYMBOLS).union(BINARY_OPERATORS).union(OTHERS).union(MIDDLE).union(UNARY_OPERATORS)
+ALL = set().union(SYMBOLS)\
+    .union(BINARY_OPERATORS)\
+    .union(OTHERS)\
+    .union(MIDDLE)\
+    .union(UNARY_OPERATORS)\
+    .union(TERNARY_OPERATORS)
 RESERVED = {"class", "function", "def", "if", "else", "new", "extends", "return", "break", "continue",
             "true", "false", "null", "operator", "while", "for", "import", "throw", "try", "catch", "finally",
             "abstract", "const", "var", "assert", "del"}

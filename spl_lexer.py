@@ -1,5 +1,4 @@
 import _io
-import io
 import spl_token_lib as stl
 import os
 
@@ -17,12 +16,12 @@ class Tokenizer:
 
     def __init__(self):
         self.tokens = []
+        self.imported = None
         self.script_dir = ""
         self.file_name = ""
-        self.doc_name = ""
-        self.doc_file: io.TextIOWrapper = None
+        # self.doc_file: io.TextIOWrapper = None
 
-    def setup(self, file_name: str, script_dir: str, doc_name: str):
+    def setup(self, file_name: str, script_dir: str, imported: set):
         """
         Sets up the parameters of this lexer.
 
@@ -33,12 +32,12 @@ class Tokenizer:
 
         :param file_name: the name of the main script
         :param script_dir: the directory of the main script
-        :param doc_name: the file to save the spl document
+        :param imported: the set of imported file names
         :return:
         """
         self.file_name = file_name
         self.script_dir = script_dir
-        self.doc_name = doc_name
+        self.imported = imported
 
     def tokenize(self, source):
         """
@@ -51,13 +50,7 @@ class Tokenizer:
         if isinstance(source, list):
             self.tokenize_text(source)
         else:
-            try:
-                self.doc_file = open(self.doc_name, "w")
-            except IOError:
-                self.doc_file = None
             self.tokenize_file(source)
-            if self.doc_file is not None:
-                self.doc_file.close()
 
     def tokenize_file(self, file: _io.TextIOWrapper):
         """
@@ -98,8 +91,6 @@ class Tokenizer:
         in_double = False
         literal = ""
         non_literal = ""
-        doc = ""
-        # last_ch = ""
 
         length = len(line)
         i = -1
@@ -149,29 +140,11 @@ class Tokenizer:
                         self.line_tokenize(non_literal[:-2], line_num)
                         non_literal = ""
                         break
-            else:
-                doc += ch
 
         if len(non_literal) > 0:
             self.line_tokenize(non_literal, line_num)
 
-        if self.doc_file is not None:
-            if len(doc) > 0:
-                self.doc_file.write("*")
-                self.doc_file.write(doc.strip("/\n *"))
-            self.doc_file.write('\n')
-            self.doc_file.flush()
-
         return in_doc
-
-    def write_mark(self):
-        """
-        Writes a mark to the doc file that shows this line contains non-doc content.
-
-        :return: None
-        """
-        if self.doc_file is not None:
-            self.doc_file.write("+")
 
     def line_tokenize(self, non_literal, line_num):
         """
@@ -182,11 +155,7 @@ class Tokenizer:
         :return: None
         """
         lst = normalize(non_literal)
-        wm = 0
         for part in lst:
-            # if part == "//":
-            #     break
-            wm += 1
             if part.isidentifier():
                 self.tokens.append(stl.IdToken(line_num, part))
             elif is_float(part):
@@ -202,12 +171,9 @@ class Tokenizer:
             elif part == "=>":
                 self.tokens.append(stl.IdToken(line_num, part))
             elif part in stl.OMITS:
-                wm -= 1
+                pass
             else:
                 raise stl.ParseException("Unknown symbol: '{}', at line {}".format(part, line_num))
-
-        if wm > 0:
-            self.write_mark()
 
     def find_import(self, from_, to):
         """
@@ -231,15 +197,16 @@ class Tokenizer:
                     # system lib
                     file_name = "{}{}lib{}{}.sp".format(SPL_PATH, os.sep, os.sep, name)
 
-                self.import_file(file_name)
-                # print(self.tokens)
+                if file_name not in self.imported:
+                    self.imported.add(file_name)
+                    self.import_file(file_name)
                 break
 
     def import_file(self, full_path):
         """
         Imports an external sp file.
 
-        This method tokenizes the imported file, and inserts all tokens except the EOF token of the imported
+        This method tokenize the imported file, and inserts all tokens except the EOF token of the imported
         file into the current file.
 
         :param full_path: the path of the file to be imported
@@ -247,8 +214,9 @@ class Tokenizer:
         """
         with open(full_path, "r") as file:
             lexer = Tokenizer()
-            lexer.file_name = full_path
-            lexer.script_dir = get_dir(full_path)
+            lexer.setup(full_path, get_dir(full_path), self.imported)
+            # lexer.file_name = full_path
+            # lexer.script_dir = get_dir(full_path)
             lexer.tokenize(file)
             # print(lexer.tokens)
             self.tokens += lexer.tokens
