@@ -726,7 +726,8 @@ def init_class(node: ast.ClassInit, env: Environment):
 
 def eval_func_call(node: ast.FuncCall, env: Environment):
     lf = node.line_num, node.file
-    func = env.get(node.f_name, lf)
+    # func = env.get(node.f_name, lf)
+    func = evaluate(node.call_obj, env)
 
     if isinstance(func, Function):
         result = call_function(node, func, func.outer_scope, env)

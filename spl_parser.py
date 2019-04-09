@@ -89,7 +89,12 @@ class Parser:
                             parser.build_expr()
                             parser.build_line()
                     elif sym == "(":
-                        extra_precedence += 1
+                        if i > 0 and is_call(self.tokens[i - 1]):
+                            parser.add_call(line)
+                            call_nest_list.append(par_count)
+                            par_count += 1
+                        else:
+                            extra_precedence += 1
                     elif sym == ")":
                         if extra_precedence == 0:
                             par_count -= 1
@@ -108,6 +113,9 @@ class Parser:
                         else:
                             # if parser.in_expr:
                             extra_precedence -= 1
+                    elif sym == "[":
+                        pass
+                        # TODO: important
                     elif sym == "]":
                         next_token = self.tokens[i + 1]
                         if isinstance(next_token, stl.IdToken) and next_token.symbol == "=":
@@ -135,11 +143,11 @@ class Parser:
                             parser.build_line()
                     elif sym == ".":
                         parser.add_dot(line, extra_precedence)
-                    elif sym == "=>":
-                        parser.add_anonymous_call(line, extra_precedence)
-                        i += 1
-                        call_nest_list.append(par_count)
-                        par_count += 1
+                    # elif sym == "=>":
+                    #     parser.add_anonymous_call(line, extra_precedence)
+                    #     i += 1
+                    #     call_nest_list.append(par_count)
+                    #     par_count += 1
                     elif sym == "function" or sym == "def":
                         i += 1
                         f_token: stl.IdToken = self.tokens[i]
@@ -264,25 +272,25 @@ class Parser:
                             var_level = ast.ASSIGN
                         parser.build_line()
                     else:
-                        next_token = self.tokens[i + 1]
-                        if isinstance(next_token, stl.IdToken):
-                            if next_token.symbol == "(":
-                                # function call
-                                parser.add_call(line, sym)
-                                call_nest_list.append(par_count)
-                                par_count += 1
-                                i += 1
-                            elif next_token.symbol == "[":
-                                parser.add_name(line, sym)
-                                parser.add_dot(line, extra_precedence)
-                                parser.add_get_set(line)
-                                call_nest_list.append(par_count)
-                                par_count += 1
-                                i += 1
-                            else:
-                                parser.add_name(line, sym)
-                        else:
-                            parser.add_name(line, sym)
+                        # next_token = self.tokens[i + 1]
+                        # if isinstance(next_token, stl.IdToken):
+                        #     # if next_token.symbol == "(":
+                        #     #     # function call
+                        #     #     parser.add_call(line, sym)
+                        #     #     call_nest_list.append(par_count)
+                        #     #     par_count += 1
+                        #     #     i += 1
+                        #     # elif next_token.symbol == "[":
+                        #     #     parser.add_name(line, sym)
+                        #     #     parser.add_dot(line, extra_precedence)
+                        #     #     parser.add_get_set(line)
+                        #     #     call_nest_list.append(par_count)
+                        #     #     par_count += 1
+                        #     #     i += 1
+                        #     # else:
+                        #     parser.add_name(line, sym)
+                        # else:
+                        parser.add_name(line, sym)
                         # auth = stl.PUBLIC
 
                 elif isinstance(token, stl.NumToken):
@@ -307,6 +315,14 @@ class Parser:
                 brace_count != 0 or extra_precedence != 0:
             raise stl.ParseEOFException("Reach the end while parsing")
         return parser.get_as_block()
+
+
+def is_call(last_token: stl.Token) -> bool:
+    if last_token.is_identifier():
+        last_token: stl.IdToken
+        if last_token.symbol.isidentifier() or last_token.symbol == "." or last_token.symbol == ")":
+            return True
+    return False
 
 
 def is_this_list(lst: list, count: int) -> bool:

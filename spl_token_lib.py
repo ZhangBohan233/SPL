@@ -10,11 +10,11 @@ BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mo
                     "and": "and", "or": "or", "is": ""}
 UNARY_OPERATORS = {"!": "not", "not": "not"}
 OTHERS = {"=", "@", ":"}
-ALL = set().union(SYMBOLS)\
-    .union(BINARY_OPERATORS)\
-    .union(OTHERS)\
-    .union(MIDDLE)\
-    .union(UNARY_OPERATORS)\
+ALL = set().union(SYMBOLS) \
+    .union(BINARY_OPERATORS) \
+    .union(OTHERS) \
+    .union(MIDDLE) \
+    .union(UNARY_OPERATORS) \
     .union(TERNARY_OPERATORS)
 RESERVED = {"class", "function", "def", "if", "else", "new", "extends", "return", "break", "continue",
             "true", "false", "null", "operator", "while", "for", "import", "throw", "try", "catch", "finally",
@@ -24,6 +24,7 @@ OMITS = {"\n", "\r", "\t", " "}
 OP_EQ = {"+", "-", "*", "/", "%", "&", "^", "|", "<<", ">>"}
 ESCAPES = {"n": "\n", "t": "\t", "0": "\0", "a": "\a", "r": "\r", "f": "\f", "v": "\v", "b": "\b", "\\": "\\"}
 NO_BUILD_LINE = {"else", "catch", "finally"}
+
 
 # PUBLIC = 0
 # PRIVATE = 1
@@ -143,7 +144,7 @@ class IdToken(Token):
     def __init__(self, line, s):
         Token.__init__(self, line)
 
-        self.symbol = s
+        self.symbol: str = s
 
     def __eq__(self, other):
         return isinstance(other, IdToken) and other.symbol == self.symbol

@@ -378,18 +378,18 @@ class DefStmt(TitleNode):
 
 
 class FuncCall(LeafNode):
-    f_name: str
+    call_obj: Node
     args: BlockStmt = None
     is_get_set = False
 
-    def __init__(self, line, f_name):
+    def __init__(self, line, call_obj):
         LeafNode.__init__(self, line)
 
         self.node_type = FUNCTION_CALL
-        self.f_name = f_name
+        self.call_obj = call_obj
 
     def __str__(self):
-        return "{}({})".format(self.f_name, self.args)
+        return "call:[{}({})]".format(self.call_obj, self.args)
 
     def __repr__(self):
         return self.__str__()
@@ -697,25 +697,25 @@ class AbstractSyntaxTree:
             function.params = block
             self.stack.append(function)
 
-    def add_call(self, line, f_name):
+    def add_call(self, line):
         # print(f_name)
         if self.inner:
-            self.inner.add_call(line, f_name)
+            self.inner.add_call(line)
         else:
-            fc = FuncCall(line, f_name)
+            fc = FuncCall(line, self.stack.pop())
             self.stack.append(fc)
             self.inner = AbstractSyntaxTree()
 
-    def add_anonymous_call(self, line, extra):
-        if self.inner:
-            self.inner.add_anonymous_call(line, extra)
-        else:
-            self.in_expr = True
-            op_node = AnonymousCall(line, extra)
-            op_node.assignment = False
-            op_node.operation = "=>"
-            self.stack.append(op_node)
-            self.add_call(line, "=>")
+    # def add_anonymous_call(self, line, extra):
+    #     if self.inner:
+    #         self.inner.add_anonymous_call(line, extra)
+    #     else:
+    #         self.in_expr = True
+    #         op_node = AnonymousCall(line, extra)
+    #         op_node.assignment = False
+    #         op_node.operation = "=>"
+    #         self.stack.append(op_node)
+    #         self.add_call(line, "=>")
 
     def is_in_get(self):
         if self.inner:
@@ -783,7 +783,6 @@ class AbstractSyntaxTree:
             self.inner.build_call()
         else:
             self.inner.build_line()
-
             block: BlockStmt = self.inner.get_as_block()
             self.inner = None
             call: FuncCall = self.stack.pop()
@@ -859,6 +858,7 @@ class AbstractSyntaxTree:
         if self.inner.inner:
             self.inner.build_block()
         else:
+            self.inner.build_line()
             root = self.inner.get_as_block()
             self.inner = None
             self.stack.append(root)
@@ -870,6 +870,7 @@ class AbstractSyntaxTree:
             if not self.in_expr:
                 return
             self.in_expr = False
+            # print(self.stack)
             # print(type(self.stack[1]))
             lst = []
             while len(self.stack) > 0:
@@ -891,10 +892,10 @@ class AbstractSyntaxTree:
                     break
             lst.reverse()
 
-            # print(lst)
             if len(lst) > 0:
                 node = parse_expr(lst)
                 self.stack.append(node)
+            # print(self.stack)
 
     def build_line(self):
         if self.inner:
@@ -912,6 +913,9 @@ class AbstractSyntaxTree:
                     elif isinstance(node, AssignmentNode) and len(lst) > 0:
                         node.right = lst[0]
                         lst[0] = node
+                    # elif isinstance(node, DefStmt):
+                    #     lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
+                    #     print(node)
                     # elif isinstance(node, BinaryExpr) and len(lst) > 0:
                     #     node.right = lst[0]
                     #     lst[0] = node
@@ -934,6 +938,7 @@ class AbstractSyntaxTree:
                         node.body = lst[0] if len(lst) > 0 else None
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                     elif isinstance(node, DefStmt):
+                        # print(node)
                         node.body = lst[0] if len(lst) > 0 else None
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                     elif isinstance(node, CatchStmt):
@@ -954,6 +959,8 @@ class AbstractSyntaxTree:
                 self.elements.add_line(lst[0])
 
     def get_as_block(self):
+        if len(self.stack) > 0 or self.in_expr:
+            raise stl.ParseException("Line is not terminated")
         return self.elements
 
 
