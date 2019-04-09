@@ -20,7 +20,7 @@ BREAK_STMT = 7
 CONTINUE_STMT = 8
 ASSIGNMENT_NODE = 9
 DOT = 10
-ANONYMOUS_CALL = 11
+# ANONYMOUS_CALL = 11
 OPERATOR_NODE = 12
 UNARY_OPERATOR = 14
 TERNARY_OPERATOR = 15
@@ -50,6 +50,23 @@ ASSIGN = 0
 CONST = 1
 VAR = 2
 FUNC_DEFINE = 3
+
+
+class SpaceCounter:
+    def __init__(self):
+        self.count = 0
+
+    def add_space(self):
+        self.count += 2
+
+    def remove_space(self):
+        self.count -= 2
+
+    def get(self):
+        return self.count
+
+
+SPACES = SpaceCounter()
 
 
 class Node:
@@ -214,13 +231,6 @@ class TypeNode(BinaryExpr):
         self.operation = ":"
 
 
-class AnonymousCall(OperatorNode):
-    def __init__(self, line, extra):
-        OperatorNode.__init__(self, line, extra)
-
-        self.node_type = ANONYMOUS_CALL
-
-
 class BreakStmt(LeafNode):
     def __init__(self, line):
         LeafNode.__init__(self, line)
@@ -283,20 +293,19 @@ class BlockStmt(Node):
         Node.__init__(self, line)
 
         self.node_type = BLOCK_STMT
-
         self.lines = []
 
     def add_line(self, node: Node):
         self.lines.append(node)
 
     def __str__(self):
-        s = "Block{\n"
+        s = "\n" + " " * SPACES.get() + "{"
+        SPACES.add_space()
         for line in self.lines:
-            s += (str(line) + ";\n")
-        if self.execution == 0:
-            return s + "}"
-        else:
-            return s + "}: " + str(self.execution)
+            s += "\n" + " " * SPACES.get() + str(line)
+        SPACES.remove_space()
+        s += "\n" + " " * SPACES.get() + "}"
+        return s
 
     def __repr__(self):
         return self.__str__()
@@ -897,18 +906,18 @@ class AbstractSyntaxTree:
                     if isinstance(node, LeafNode):
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                         # res = node
-                    elif isinstance(node, AssignmentNode) and len(lst) > 0:
-                        node.right = lst[0]
-                        lst[0] = node
+                    # elif isinstance(node, AssignmentNode) and len(lst) > 0:
+                    #     node.right = lst[0]
+                    #     lst[0] = node
                     elif isinstance(node, UnaryOperator):
                         if node.value is None and len(lst) > 0:  # The build-expr method was interrupted by something
                             node.value = lst[0]
                             lst[0] = node
                         else:
                             lst.append(node)
-                    # elif isinstance(node, BinaryExpr) and len(lst) > 0:
-                    #     node.right = lst[0]
-                    #     lst[0] = node
+                    elif isinstance(node, BinaryExpr) and len(lst) > 0 and node.right is None:
+                        node.right = lst[0]
+                        lst[0] = node
                     # elif isinstance(node, TernaryOperator) and len(lst) > 0:
                     #     node.right = lst[0]
                     #     lst[0] = node

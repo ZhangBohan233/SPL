@@ -115,7 +115,6 @@ def add_natives(self):
     self.add_heap("void", NativeFunction(None, "void"))
 
     # global variables
-    self.add_heap("cwf", None)
 
 
 class NativeFunction:
@@ -321,7 +320,6 @@ class ClassInstance(lib.SplObject):
         else:
             attr = self.env.attributes()
             attr.pop("this")
-            attr.pop("=>")
             return "<{} at {}>: {}".format(self.class_name, self.id, attr)
 
 
@@ -398,7 +396,7 @@ def dir_(env, obj):
         # instance = inter.ClassInstance(env, obj.class_name)
         create = ast.ClassInit((0, "dir"), obj.class_name)
         instance: ClassInstance = evaluate(create, env)
-        exc = {"=>", "this"}
+        exc = {"this"}
         # for attr in instance.env.variables:
         for attr in instance.env.attributes():
             if attr not in exc:
@@ -418,12 +416,12 @@ def dir_(env, obj):
     return lst
 
 
-def getcwf(env: Environment):
-    return lib.String(env.get_heap("cwf"))
+def getcwf(env: Environment, obj: str):
+    return lib.String(obj)
 
 
-def is_main(env: Environment):
-    return env.get_heap("system").argv[0] == getcwf(env)
+def is_main(env: Environment, obj: str):
+    return env.get_heap("system").argv[0] == getcwf(env, obj)
 
 
 def help_(env, obj):
@@ -718,14 +716,6 @@ def init_class(node: ast.ClassInit, env: Environment):
         if isinstance(v, Function):
             v.outer_scope = scope
 
-    # if node.args:
-    #     print(111)
-    #     # constructor: Function = scope.variables[node.class_name]
-    #     fc = ast.FuncCall((node.line_num, node.file), node.class_name)
-    #     fc.args = node.args
-    #     func = scope.get(node.class_name, (node.line_num, node.file))
-    #     call_function(fc, func, scope, env)
-    # return mem.Pointer(instance.id)
     return instance
 
 
@@ -750,6 +740,8 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
                 kwargs[evaluate(arg.left, env)] = evaluate(arg.right, env)
             else:
                 args.append(evaluate(arg, env))
+        if func.name == "main" or func.name == "getcwf":
+            args.append(node.file)
         result = func.call(args, kwargs)
         if isinstance(result, ast.BlockStmt):
             # Special case for "eval"
@@ -786,7 +778,7 @@ def call_function(call: ast.FuncCall, func: Function, func_parent_env: Environme
 
     if call.args is None:
         raise lib.SplException("Argument of  function '{}' not set, in file '{}', at line {}."
-                               .format(call.f_name, call.file, call.line_num))
+                               .format(call.call_obj, call.file, call.line_num))
     args = call.args.lines
 
     pos_args = []  # Positional arguments
@@ -841,13 +833,12 @@ def call_function(call: ast.FuncCall, func: Function, func_parent_env: Environme
             arg = param.preset
         else:
             raise lib.ArgumentException("Function '{}' missing a positional argument '{}', in file '{}', at line {}"
-                                        .format(call.f_name, param.name, call.file, call.line_num))
+                                        .format(call.call_obj, param.name, call.file, call.line_num))
 
         e = evaluate(arg, call_env)
         scope.define_var(param.name, e, lf)
 
     result = evaluate(func.body, scope)
-    func_parent_env.assign("=>", result, lf)
     return result
 
 
@@ -898,12 +889,10 @@ def eval_dot(node: ast.Dot, env: Environment):
                 raise lib.IndexOutOfRangeException(str(ie) + " in file: '{}', at line {}"
                                                    .format(node.file, node.line_num))
         elif isinstance(instance, ClassInstance):
-            lf = node.line_num, node.file
+            # lf = node.line_num, node.file
             # func = instance.env.get(obj.f_name, lf)
             func = evaluate(obj.call_obj, instance.env)
             result = call_function(obj, func, instance.env, env)
-
-            env.assign("=>", result, lf)
             return result
         else:
             raise lib.InterpretException("Not a class instance; {} instead, in {}, at line {}"
@@ -1169,14 +1158,6 @@ def eval_boolean_stmt(node: ast.BooleanStmt, env):
         raise lib.InterpretException("Unknown boolean value")
 
 
-def eval_anonymous_call(node: ast.AnonymousCall, env: Environment):
-    evaluate(node.left, env)
-    right = node.right.args
-    fc = ast.FuncCall((node.line_num, node.file), "=>")
-    fc.args = right
-    return evaluate(fc, env)
-
-
 def eval_return(node: ast.Node, env: Environment):
     res = evaluate(node, env)
     # print(env.variables)
@@ -1264,7 +1245,6 @@ def eval_def(node: ast.DefStmt, env: Environment):
     f.line_num = node.line_num
     # options = {"override": "Override" in node.tags, "suppress": "Suppress" in node.tags}
     # env.define_function(node.name, f, (node.line_num, node.file), options)
-
     return f
 
 
@@ -1345,7 +1325,6 @@ NODE_TABLE = {
     ast.CONTINUE_STMT: lambda n, env: env.pause_loop(),
     ast.ASSIGNMENT_NODE: assignment,
     ast.DOT: eval_dot,
-    ast.ANONYMOUS_CALL: eval_anonymous_call,
     ast.OPERATOR_NODE: eval_operator,
     ast.UNARY_OPERATOR: eval_unary_expression,
     ast.TERNARY_OPERATOR: eval_ternary_expression,
@@ -1381,7 +1360,6 @@ def evaluate(node: ast.Node, env: Environment):
     t = node.node_type
     node.execution += 1
     tn = NODE_TABLE[t]
-    env.add_heap("cwf", node.file)
     return tn(node, env)
 
 # Processes before run

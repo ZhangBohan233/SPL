@@ -260,7 +260,6 @@ class GlobalEnvironment(Environment):
         Environment.__init__(self, GLOBAL_SCOPE, None)
 
         self.heap = {}
-        self.variables.__setitem__("=>", None)
 
     def is_global(self):
         return True
@@ -279,8 +278,6 @@ class ClassEnvironment(Environment):
     def __init__(self, outer):
         Environment.__init__(self, CLASS_SCOPE, outer)
 
-        self.variables.__setitem__("=>", None)
-
     def is_global(self):
         return False
 
@@ -297,8 +294,6 @@ class ClassEnvironment(Environment):
 class FunctionEnvironment(Environment):
     def __init__(self, outer):
         Environment.__init__(self, FUNCTION_SCOPE, outer)
-
-        self.variables.__setitem__("=>", None)
 
         self.terminated = False
         self.exit_value = None

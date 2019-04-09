@@ -8,8 +8,9 @@ if (main()) {
     println(c);
     var d = !false;
     println(d);
+    println(getcwf());
     try {
-        throw new Exception;
+        throw new Exception("xxs");
     } catch (e: Exception) {
         println(e);
     }

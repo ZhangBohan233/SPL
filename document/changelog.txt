@@ -1,3 +1,13 @@
+********** SPL 1.5 Alpha 4 **********
+===== Build 0059 2019/04/09 =====
+
+* Performance optimization:
+    * Removed the cwf updates in every evaluation:
+        * Increase execution speed for about 19%
+* Bug fixes:
+    * Fixed that the parser did not recognize type notation ':'
+    * Fixed that binary expressions sometimes not linked
+
 ********** SPL 1.5 Alpha 3 **********
 ===== Build 0058 2019/04/09 =====
 

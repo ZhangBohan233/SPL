@@ -2,7 +2,8 @@ EOF = -1
 EOL = ";"
 SYMBOLS = {"{", "}", ".", ","}
 MIDDLE = {"(", ")", "[", "]"}
-TERNARY_OPERATORS = {"?", ":"}
+TERNARY_OPERATORS = {"?": True, ":": False}  # the bool value indicate whether this operator can begin a ternary
+# operator
 BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mod",
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
