@@ -164,9 +164,10 @@ class Function:
     :type outer_scope: Environment
     """
 
-    def __init__(self, params, body, outer, abstract: bool):
+    def __init__(self, params, body, outer, abstract: bool, options: dict):
         # self.name = f_name
         self.params: [ParameterPair] = params
+        self.options = options
         # self.presets: list = presets
         self.body = body
         self.outer_scope = outer
@@ -671,6 +672,9 @@ def assignment(node: ast.AssignmentNode, env: Environment):
         elif node.level == ast.VAR:
             # var_type = generate_var_type(node.var_type, env)
             env.define_var(key.name, value, lf)
+        elif node.level == ast.FUNC_DEFINE:
+            value: Function
+            env.define_function(key.name, value, lf, value.options)
         else:
             raise lib.SplException("Unknown variable level")
         return value
@@ -714,23 +718,29 @@ def init_class(node: ast.ClassInit, env: Environment):
         if isinstance(v, Function):
             v.outer_scope = scope
 
-    if node.args:
-        # constructor: Function = scope.variables[node.class_name]
-        fc = ast.FuncCall((node.line_num, node.file), node.class_name)
-        fc.args = node.args
-        func = scope.get(node.class_name, (node.line_num, node.file))
-        call_function(fc, func, scope, env)
+    # if node.args:
+    #     print(111)
+    #     # constructor: Function = scope.variables[node.class_name]
+    #     fc = ast.FuncCall((node.line_num, node.file), node.class_name)
+    #     fc.args = node.args
+    #     func = scope.get(node.class_name, (node.line_num, node.file))
+    #     call_function(fc, func, scope, env)
     # return mem.Pointer(instance.id)
     return instance
 
 
 def eval_func_call(node: ast.FuncCall, env: Environment):
     lf = node.line_num, node.file
-    func = env.get(node.f_name, lf)
+    # func = env.get(node.f_name, lf)
+    func = evaluate(node.call_obj, env)
 
     if isinstance(func, Function):
         result = call_function(node, func, func.outer_scope, env)
         return result
+    elif isinstance(func, ClassInstance):
+        constructor: Function = func.env.get(func.class_name, lf)
+        call_function(node, constructor, constructor.outer_scope, env)  # call constructor
+        return func
     elif isinstance(func, NativeFunction):
         args = []
         kwargs = {}
@@ -889,7 +899,8 @@ def eval_dot(node: ast.Dot, env: Environment):
                                                    .format(node.file, node.line_num))
         elif isinstance(instance, ClassInstance):
             lf = node.line_num, node.file
-            func: Function = instance.env.get(obj.f_name, lf)
+            # func = instance.env.get(obj.f_name, lf)
+            func = evaluate(obj.call_obj, instance.env)
             result = call_function(obj, func, instance.env, env)
 
             env.assign("=>", result, lf)
@@ -939,13 +950,16 @@ def instance_arithmetic(left: ClassInstance, right, symbol, env: Environment, ri
         else:
             return False
     else:
-        fc = ast.FuncCall(LINE_FILE, "__" + stl.BINARY_OPERATORS[symbol] + "__")
-        if not left.env.contains_key(fc.f_name):
+        op_name = "__" + stl.BINARY_OPERATORS[symbol] + "__"
+        fc = ast.FuncCall(LINE_FILE, op_name)
+        fc.call_obj = ast.NameNode(LINE_FILE, op_name)
+        if not left.env.contains_key(op_name):
             raise lib.AttributeException("Class '{}' does not support operation '{}'".format(left.class_name, symbol))
         block = ast.BlockStmt(LINE_FILE)
         block.add_line(right)
         fc.args = block
-        func: Function = left.env.get(fc.f_name, LINE_FILE)
+        # func: Function = left.env.get(fc.f_name, LINE_FILE)
+        func: Function = evaluate(fc.call_obj, left.env)
         result = call_function(fc, func, left.env, env)
         return result
 
@@ -1115,7 +1129,8 @@ def native_types_call(instance: lib.NativeType, method: ast.FuncCall, env: Envir
     args = []
     for x in method.args.lines:
         args.append(evaluate(x, env))
-    name = method.f_name
+    # name = method.f_name
+    name = method.call_obj.name
     type_ = type(instance)
     method = getattr(type_, name)
     params: tuple = method.__code__.co_varnames
@@ -1243,11 +1258,12 @@ def eval_def(node: ast.DefStmt, env: Environment):
         pair = ParameterPair(name, value)
         params_lst.append(pair)
 
-    f = Function(params_lst, node.body, env, node.abstract)
+    options = {"override": "Override" in node.tags, "suppress": "Suppress" in node.tags}
+    f = Function(params_lst, node.body, env, node.abstract, options)
     f.file = node.file
     f.line_num = node.line_num
-    options = {"override": "Override" in node.tags, "suppress": "Suppress" in node.tags}
-    env.define_function(node.name, f, (node.line_num, node.file), options)
+    # options = {"override": "Override" in node.tags, "suppress": "Suppress" in node.tags}
+    # env.define_function(node.name, f, (node.line_num, node.file), options)
 
     return f
 
