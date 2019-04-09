@@ -114,8 +114,11 @@ class Parser:
                             # if parser.in_expr:
                             extra_precedence -= 1
                     elif sym == "[":
-                        pass
-                        # TODO: important
+                        if i > 0 and is_call(self.tokens[i - 1]):
+                            parser.add_dot(line, extra_precedence)
+                            parser.add_get_set(line)
+                            call_nest_list.append(par_count)
+                            par_count += 1
                     elif sym == "]":
                         next_token = self.tokens[i + 1]
                         if isinstance(next_token, stl.IdToken) and next_token.symbol == "=":
@@ -143,21 +146,18 @@ class Parser:
                             parser.build_line()
                     elif sym == ".":
                         parser.add_dot(line, extra_precedence)
-                    # elif sym == "=>":
-                    #     parser.add_anonymous_call(line, extra_precedence)
-                    #     i += 1
-                    #     call_nest_list.append(par_count)
-                    #     par_count += 1
                     elif sym == "function" or sym == "def":
                         i += 1
                         f_token: stl.IdToken = self.tokens[i]
                         f_name = f_token.symbol
                         push_back = 1
                         if f_name == "(":
-                            f_name = "af-" + str(func_count)
                             func_count += 1
                             push_back = 0
-                        parser.add_function(line, f_name, is_abstract, titles.copy())
+                        else:
+                            parser.add_name(line, f_name)
+                            parser.add_assignment(line, ast.FUNC_DEFINE)
+                        parser.add_function(line, is_abstract, titles.copy())
                         i += push_back
                         param_nest_list.append(par_count)
                         par_count += 1
@@ -167,7 +167,9 @@ class Parser:
                         i += 1
                         op_token: stl.IdToken = self.tokens[i]
                         op_name = "__" + stl.BINARY_OPERATORS[op_token.symbol] + "__"
-                        parser.add_function(line, op_name, False, titles.copy())
+                        parser.add_name(line, op_name)
+                        parser.add_assignment(line, ast.FUNC_DEFINE)
+                        parser.add_function(line, False, titles.copy())
                         param_nest_list.append(par_count)
                         par_count += 1
                         titles.clear()
@@ -203,17 +205,7 @@ class Parser:
                         i += 1
                         c_token = self.tokens[i]
                         class_name = c_token.symbol
-
-                        next_token = self.tokens[i + 1]
-                        if isinstance(next_token, stl.IdToken):
-                            if next_token.symbol == "(":
-                                parser.add_class_new((c_token.line_number(), c_token.file_name()), class_name)
-                                i += 1
-                                call_nest_list.append(par_count)
-                                par_count += 1
-                                parser.add_call((c_token.line_number(), c_token.file_name()), class_name)
-                            else:
-                                parser.add_class_new((c_token.line_number(), c_token.file_name()), class_name)
+                        parser.add_class_new((c_token.line_number(), c_token.file_name()), class_name)
                     elif sym == "throw":
                         parser.add_unary(line, "throw", 0)
                         # parser.add_throw(line)
@@ -248,6 +240,8 @@ class Parser:
                     elif sym in stl.UNARY_OPERATORS:
                         if sym == "!" or sym == "not":
                             parser.add_unary(line, "!", extra_precedence)
+                        else:
+                            print("Should not be here")
                     elif sym[:-1] in stl.OP_EQ:
                         parser.add_operator(line, sym, extra_precedence, True)
                     elif sym == ":":
@@ -272,24 +266,6 @@ class Parser:
                             var_level = ast.ASSIGN
                         parser.build_line()
                     else:
-                        # next_token = self.tokens[i + 1]
-                        # if isinstance(next_token, stl.IdToken):
-                        #     # if next_token.symbol == "(":
-                        #     #     # function call
-                        #     #     parser.add_call(line, sym)
-                        #     #     call_nest_list.append(par_count)
-                        #     #     par_count += 1
-                        #     #     i += 1
-                        #     # elif next_token.symbol == "[":
-                        #     #     parser.add_name(line, sym)
-                        #     #     parser.add_dot(line, extra_precedence)
-                        #     #     parser.add_get_set(line)
-                        #     #     call_nest_list.append(par_count)
-                        #     #     par_count += 1
-                        #     #     i += 1
-                        #     # else:
-                        #     parser.add_name(line, sym)
-                        # else:
                         parser.add_name(line, sym)
                         # auth = stl.PUBLIC
 
@@ -313,7 +289,8 @@ class Parser:
 
         if par_count != 0 or len(call_nest_list) != 0 or len(cond_nest_list) != 0 or len(param_nest_list) or \
                 brace_count != 0 or extra_precedence != 0:
-            raise stl.ParseEOFException("Reach the end while parsing")
+            raise stl.ParseEOFException("Reach the end while parsing, {},{},{},{}".format(par_count, call_nest_list,
+                                                                                          cond_nest_list, param_nest_list))
         return parser.get_as_block()
 
 

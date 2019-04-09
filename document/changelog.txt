@@ -1,3 +1,14 @@
+********** SPL 1.5 Alpha 3 **********
+===== Build 0058 2019/04/09 =====
+
+* New syntax:
+    * Anonymous call operator '=>' is deprecated
+    * Builder structure now works in SPL
+* Structural optimization:
+    * Changed the method of calling a function
+* Bug fixes:
+    * Directly return an inner function inside function did not work
+
 ********** SPL 1.5 Alpha 2 **********
 ===== Build 0057 2019/04/06 =====
 

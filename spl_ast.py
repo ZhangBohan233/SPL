@@ -49,6 +49,7 @@ UNDEFINED_NODE = 31
 ASSIGN = 0
 CONST = 1
 VAR = 2
+FUNC_DEFINE = 3
 
 
 class Node:
@@ -355,23 +356,21 @@ class ForLoopStmt(CondStmt):
 
 
 class DefStmt(TitleNode):
-    name = None
     params: BlockStmt = None
     body = None
     abstract: bool = False
     tags: list
 
-    def __init__(self, line, f_name, abstract: bool, tags: list):
+    def __init__(self, line, abstract: bool, tags: list):
         TitleNode.__init__(self, line)
 
         self.node_type = DEF_STMT
-        self.name = f_name
         self.params = None
         self.abstract = abstract
         self.tags = tags
 
     def __str__(self):
-        return "func({}({}) -> {})".format(self.name, self.params, self.body)
+        return "func(({}) -> {})".format(self.params, self.body)
 
     def __repr__(self):
         return self.__str__()
@@ -678,11 +677,11 @@ class AbstractSyntaxTree:
         else:
             pass
 
-    def add_function(self, line, f_name, abstract: bool, tags: list):
+    def add_function(self, line, abstract: bool, tags: list):
         if self.inner:
-            self.inner.add_function(line, f_name, abstract, tags)
+            self.inner.add_function(line, abstract, tags)
         else:
-            func = DefStmt(line, f_name, abstract, tags)
+            func = DefStmt(line, abstract, tags)
             self.stack.append(func)
             self.inner = AbstractSyntaxTree()
 
@@ -706,17 +705,6 @@ class AbstractSyntaxTree:
             self.stack.append(fc)
             self.inner = AbstractSyntaxTree()
 
-    # def add_anonymous_call(self, line, extra):
-    #     if self.inner:
-    #         self.inner.add_anonymous_call(line, extra)
-    #     else:
-    #         self.in_expr = True
-    #         op_node = AnonymousCall(line, extra)
-    #         op_node.assignment = False
-    #         op_node.operation = "=>"
-    #         self.stack.append(op_node)
-    #         self.add_call(line, "=>")
-
     def is_in_get(self):
         if self.inner:
             return self.inner.is_in_get()
@@ -727,7 +715,9 @@ class AbstractSyntaxTree:
         if self.inner:
             self.inner.add_get_set(line)
         else:
-            self.add_call(line, "get/set")
+            self.add_name(line, "get/set")
+            self.add_call(line)
+            # self.add_call(line, "get/set")
             self.inner.in_get = True
 
     def build_get_set(self, is_set):
@@ -738,15 +728,15 @@ class AbstractSyntaxTree:
             if is_set:
                 while i >= 0:
                     node = self.stack[i]
-                    if isinstance(node, FuncCall) and node.f_name == "get/set":
-                        node.f_name = "__setitem__"
+                    if isinstance(node, FuncCall) and node.call_obj.name == "get/set":
+                        node.call_obj = NameNode((node.line_num, node.file), "__setitem__")
                         break
                     i -= 1
             else:
                 while i >= 0:
                     node = self.stack[i]
-                    if isinstance(node, FuncCall) and node.f_name == "get/set":
-                        node.f_name = "__getitem__"
+                    if isinstance(node, FuncCall) and node.call_obj.name == "get/set":
+                        node.call_obj = NameNode((node.line_num, node.file), "__getitem__")
                         break
                     i -= 1
 
@@ -870,8 +860,6 @@ class AbstractSyntaxTree:
             if not self.in_expr:
                 return
             self.in_expr = False
-            # print(self.stack)
-            # print(type(self.stack[1]))
             lst = []
             while len(self.stack) > 0:
                 node = self.stack[-1]
@@ -901,7 +889,6 @@ class AbstractSyntaxTree:
         if self.inner:
             self.inner.build_line()
         else:
-            # print(self.stack)
             self.build_expr()
             if len(self.stack) > 0:
                 lst = [self.stack.pop()]
@@ -913,9 +900,12 @@ class AbstractSyntaxTree:
                     elif isinstance(node, AssignmentNode) and len(lst) > 0:
                         node.right = lst[0]
                         lst[0] = node
-                    # elif isinstance(node, DefStmt):
-                    #     lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    #     print(node)
+                    elif isinstance(node, UnaryOperator):
+                        if node.value is None and len(lst) > 0:  # The build-expr method was interrupted by something
+                            node.value = lst[0]
+                            lst[0] = node
+                        else:
+                            lst.append(node)
                     # elif isinstance(node, BinaryExpr) and len(lst) > 0:
                     #     node.right = lst[0]
                     #     lst[0] = node
