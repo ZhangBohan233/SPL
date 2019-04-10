@@ -19,9 +19,9 @@ class Tokenizer:
         self.imported = None
         self.script_dir = ""
         self.file_name = ""
-        # self.doc_file: io.TextIOWrapper = None
+        self.link = False
 
-    def setup(self, file_name: str, script_dir: str, imported: set):
+    def setup(self, file_name: str, script_dir: str, imported: set, link: bool):
         """
         Sets up the parameters of this lexer.
 
@@ -33,11 +33,13 @@ class Tokenizer:
         :param file_name: the name of the main script
         :param script_dir: the directory of the main script
         :param imported: the set of imported file names
+        :param link: whether to write the result to file
         :return:
         """
         self.file_name = file_name
         self.script_dir = script_dir
         self.imported = imported
+        self.link = link
 
     def tokenize(self, source):
         """
@@ -69,7 +71,9 @@ class Tokenizer:
             line = file.readline()
             line_num += 1
 
-        self.tokens.append(stl.Token((stl.EOF, self.file_name)))
+        self.tokens.append(stl.Token((stl.EOF, None)))
+        if self.link:
+            self._write_to_file()
 
     def tokenize_text(self, lines):
         for i in range(len(lines)):
@@ -77,7 +81,28 @@ class Tokenizer:
             line = lines[i]
             self.proceed_line(line, (line_number, "console"), False)
 
-        self.tokens.append(stl.Token((stl.EOF, self.file_name)))
+        self.tokens.append(stl.Token((stl.EOF, None)))
+
+    def restore_tokens(self, file: _io.BytesIO):
+        self.tokens.clear()
+        while True:
+            flag = int.from_bytes(file.read(1), "big")
+            if flag == 0:
+                self.tokens.append(stl.Token((stl.EOF, None)))
+                break
+            else:
+                line = int(stl.read_string(file))
+                file_name = stl.read_string(file)
+                lf = line, file_name
+                if flag == 1:
+                    token: stl.NumToken = stl.NumToken(lf, stl.read_string(file))
+                elif flag == 2:
+                    token: stl.LiteralToken = stl.LiteralToken(lf, stl.read_string(file))
+                elif flag == 3:
+                    token: stl.IdToken = stl.IdToken(lf, stl.read_string(file))
+                else:
+                    raise stl.ParseException("Unknown flag: {}".format(flag))
+                self.tokens.append(token)
 
     def proceed_line(self, line: str, line_num: (int, str), in_doc: bool):
         """ Tokenize a line.
@@ -214,8 +239,7 @@ class Tokenizer:
         """
         with open(full_path, "r") as file:
             lexer = Tokenizer()
-            lexer.setup(full_path, get_dir(full_path), self.imported)
-            # lexer.file_name = full_path
+            lexer.setup(full_path, get_dir(full_path), self.imported, False)
             # lexer.script_dir = get_dir(full_path)
             lexer.tokenize(file)
             # print(lexer.tokens)
@@ -229,6 +253,12 @@ class Tokenizer:
         :return: the tokens list
         """
         return self.tokens
+
+    def _write_to_file(self):
+        name = stl.replace_extension(self.file_name, "lsp")
+        with open(name, "wb") as wf:
+            for token in self.tokens:
+                wf.write(token.to_binary())
 
 
 def normalize(string):

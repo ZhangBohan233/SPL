@@ -164,10 +164,8 @@ class Function:
     """
 
     def __init__(self, params, body, outer, abstract: bool, options: dict):
-        # self.name = f_name
         self.params: [ParameterPair] = params
         self.options = options
-        # self.presets: list = presets
         self.body = body
         self.outer_scope = outer
         self.abstract = abstract
@@ -204,9 +202,6 @@ class Class:
 class Undefined:
     def __init__(self):
         pass
-
-    def __eq__(self, other):
-        return isinstance(other, Undefined)
 
     def __str__(self):
         return "undefined"
@@ -249,13 +244,13 @@ class NativeInvokes(lib.NativeType):
         else:
             raise lib.TypeException("Object is not a native-iterable object.")
 
-    def thread(self, env: Environment, target: Function, name: str, args: lib.List):
-        call = ast.FuncCall(LINE_FILE, name)
+    def thread(self, env: Environment, target: Function, args: lib.List):
+        call = ast.FuncCall(LINE_FILE, target)
         call.args = ast.BlockStmt(LINE_FILE)
         for x in args.list:
-            call.args.lines.append(x)
+            call.args.add_line(x)
 
-        process = multiprocessing.Process(target=call_function, args=(call, target, target.outer_scope, env))
+        process = multiprocessing.Process(target=call_function, args=(call, target, env))
         return Thread(process)
 
 
@@ -341,7 +336,7 @@ def to_str(v) -> lib.String:
         block: ast.BlockStmt = ast.BlockStmt(LINE_FILE)
         fc.args = block
         func: Function = v.env.get("__str__", LINE_FILE)
-        result: lib.String = call_function(fc, func, v.env, None)
+        result: lib.String = call_function(fc, func, None)
         return result
     else:
         return lib.String(v)
@@ -353,7 +348,7 @@ def to_repr(v) -> lib.String:
         block: ast.BlockStmt = ast.BlockStmt(LINE_FILE)
         fc.args = block
         func: Function = v.env.get("__repr__", LINE_FILE)
-        result: lib.String = call_function(fc, func, v.env, None)
+        result: lib.String = call_function(fc, func, None)
         return result
     else:
         return lib.String(v)
@@ -725,11 +720,11 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
     func = evaluate(node.call_obj, env)
 
     if isinstance(func, Function):
-        result = call_function(node, func, func.outer_scope, env)
+        result = call_function(node, func, env)
         return result
     elif isinstance(func, ClassInstance):
         constructor: Function = func.env.get(func.class_name, lf)
-        call_function(node, constructor, constructor.outer_scope, env)  # call constructor
+        call_function(node, constructor, env)  # call constructor
         return func
     elif isinstance(func, NativeFunction):
         args = []
@@ -753,14 +748,12 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
         raise lib.InterpretException("Not a function call, in {}, at line {}.".format(node.file, node.line_num))
 
 
-def call_function(call: ast.FuncCall, func: Function, func_parent_env: Environment, call_env: Environment) \
-        -> object:
+def call_function(call: ast.FuncCall, func: Function, call_env: Environment) -> object:
     """
     Calls a function
 
     :param call: the call
     :param func: the function object itself
-    :param func_parent_env: the parent environment of the function where it was defined
     :param call_env: the environment where the function call was made
     :return: the function result
     """
@@ -770,14 +763,12 @@ def call_function(call: ast.FuncCall, func: Function, func_parent_env: Environme
         raise lib.AbstractMethodException("Abstract method is not callable, in '{}', at line {}."
                                           .format(call.file, call.line_num))
 
-    # scope = Environment(FUNCTION_SCOPE, func.outer_scope)
-    # scope.scope_name = "Function scope<{}>".format(call.f_name)
     scope = FunctionEnvironment(func.outer_scope)
 
     params = func.params
 
     if call.args is None:
-        raise lib.SplException("Argument of  function '{}' not set, in file '{}', at line {}."
+        raise lib.SplException("Argument of function '{}' not set, in file '{}', at line {}."
                                .format(call.call_obj, call.file, call.line_num))
     args = call.args.lines
 
@@ -892,7 +883,7 @@ def eval_dot(node: ast.Dot, env: Environment):
             # lf = node.line_num, node.file
             # func = instance.env.get(obj.f_name, lf)
             func = evaluate(obj.call_obj, instance.env)
-            result = call_function(obj, func, instance.env, env)
+            result = call_function(obj, func, env)
             return result
         else:
             raise lib.InterpretException("Not a class instance; {} instead, in {}, at line {}"
@@ -949,7 +940,7 @@ def instance_arithmetic(left: ClassInstance, right, symbol, env: Environment, ri
         fc.args = block
         # func: Function = left.env.get(fc.f_name, LINE_FILE)
         func: Function = evaluate(fc.call_obj, left.env)
-        result = call_function(fc, func, left.env, env)
+        result = call_function(fc, func, env)
         return result
 
 

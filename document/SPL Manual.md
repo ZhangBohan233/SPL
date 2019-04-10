@@ -1,4 +1,4 @@
-## **Slowest Programming Language**
+# **Slowest Programming Language**
 
 ###### _Product of Trash Software Studio_
 
@@ -152,10 +152,10 @@ print(res);
 ```
 Which will print out an integer value `5`.
 
-Use `=>` symbol for calling the returning function of the last called function.
+SPL allows multiple call-chain. 
 For example:
 ```
-foo(3)=>();
+foo(3)();
 ```
 will be equivalent to:
 ```

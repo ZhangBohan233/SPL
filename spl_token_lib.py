@@ -1,3 +1,6 @@
+import io
+
+
 EOF = -1
 EOL = ";"
 SYMBOLS = {"{", "}", ".", ","}
@@ -25,6 +28,8 @@ OMITS = {"\n", "\r", "\t", " "}
 OP_EQ = {"+", "-", "*", "/", "%", "&", "^", "|", "<<", ">>"}
 ESCAPES = {"n": "\n", "t": "\t", "0": "\0", "a": "\a", "r": "\r", "f": "\f", "v": "\v", "b": "\b", "\\": "\\"}
 NO_BUILD_LINE = {"else", "catch", "finally"}
+
+NO_CLASS_NAME = {"Object"}
 
 
 # PUBLIC = 0
@@ -70,11 +75,35 @@ def get_doc_name(sp_name: str):
     return sp_name[:-2] + "sdoc"
 
 
+def replace_extension(name: str, new_extension: str) -> str:
+    """
+    Replaces the content after the last '.' with the <new_extension>
+
+    :param name:
+    :param new_extension:
+    :return:
+    """
+    dot_index = name.rfind(".")
+    return name[:dot_index + 1] + new_extension
+
+
+def string_to_bytes(s: str) -> bytes:
+    b_value = s.encode("utf-8")
+    return len(b_value).to_bytes(4, "big") + b_value
+
+
+def read_string(f: io.BytesIO) -> str:
+    b = f.read(4)
+    length = int.from_bytes(b, "big")
+    byte_str = f.read(length)
+    return byte_str.decode("utf-8")
+
+
 class Token:
 
     def __init__(self, line):
-        self.line = line[0]
-        self.file = line[1]
+        self.line: int = line[0]
+        self.file: str = line[1]
 
     def __str__(self):
         if self.is_eof():
@@ -84,6 +113,15 @@ class Token:
 
     def __repr__(self):
         return self.__str__()
+
+    def line_file_bytes(self) -> bytes:
+        return string_to_bytes(str(self.line)) + string_to_bytes(self.file)
+
+    def to_binary(self) -> bytes:
+        if self.is_eof():
+            return bytes([0])
+        else:
+            raise LexerException("Not Implemented")
 
     def is_eof(self):
         return self.line == EOF
@@ -111,7 +149,10 @@ class NumToken(Token):
     def __init__(self, line, v):
         Token.__init__(self, line)
 
-        self.value = v
+        self.value: str = v
+
+    def to_binary(self) -> bytes:
+        return bytes([1]) + self.line_file_bytes() + string_to_bytes(self.value)
 
     def is_number(self):
         return True
@@ -127,9 +168,10 @@ class LiteralToken(Token):
     def __init__(self, line, t: str):
         Token.__init__(self, line)
 
-        # self.text = t.encode().decode('unicode_escape').encode('utf8').decode('utf8')
-        # self.text = t.encode().decode('unicode_escape')
-        self.text = replace_escapes(t)
+        self.text: str = replace_escapes(t)
+
+    def to_binary(self) -> bytes:
+        return bytes([2]) + self.line_file_bytes() + string_to_bytes(self.text)
 
     def is_literal(self):
         return True
@@ -149,6 +191,9 @@ class IdToken(Token):
 
     def __eq__(self, other):
         return isinstance(other, IdToken) and other.symbol == self.symbol
+
+    def to_binary(self) -> bytes:
+        return bytes([3]) + self.line_file_bytes() + string_to_bytes(self.symbol)
 
     def is_identifier(self):
         return True

@@ -154,9 +154,11 @@ class Parser:
                         if f_name == "(":
                             func_count += 1
                             push_back = 0
-                        else:
+                        elif f_name.isidentifier():
                             parser.add_name(line, f_name)
                             parser.add_assignment(line, ast.FUNC_DEFINE)
+                        else:
+                            raise stl.ParseException("Illegal function name '{}'".format(f_name))
                         parser.add_function(line, is_abstract, titles.copy())
                         i += push_back
                         param_nest_list.append(par_count)
@@ -178,6 +180,8 @@ class Parser:
                         i += 1
                         c_token: stl.IdToken = self.tokens[i]
                         class_name = c_token.symbol
+                        if class_name in stl.NO_CLASS_NAME:
+                            raise stl.ParseException("Name '{}' is forbidden for class name".format(class_name))
                         parser.add_class((c_token.line_number(), c_token.file_name()), class_name, is_abstract)
                         class_brace = brace_count
                         is_abstract = False

@@ -14,6 +14,7 @@ class StringBuilder {
         var v = string(s);
         len += v.length();
         lst.append(v);
+        return this;
     }
 
     function to_string() {

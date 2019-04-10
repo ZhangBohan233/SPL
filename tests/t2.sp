@@ -1,6 +1,15 @@
-class A {
+class Obj {
+    abstract function Obj();
+}
+
+class A extends Obj {
     var a = 1;
-    def A() {
+    def A(a) {
+        this.a = a;
+    }
+
+    def copy() {
+        return new A(a);
     }
 
     def __add__(o) {
@@ -16,6 +25,9 @@ class A {
     }
 }
 
-var a = new A();
-var b = new A();
-println(b[3]);
+var a = new A(3);
+var b = new A(4);
+var c = a.copy();
+a.a = 5;
+println(c);
+println(a);

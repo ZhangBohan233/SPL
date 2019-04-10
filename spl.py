@@ -24,13 +24,14 @@ Usage
     
 Description
 OPTIONS:    
-    -a,   -ast,     --abstract syntax tree    shows the structure of the abstract syntax tree     
-    -d,   -debug,   --debugger                enables debugger
-    -et,            --execution               shows the execution times of each node
-    -e,   -exit,    --exit value              shows the program's exit value
-    -t,   -timer,   --timer                   enables the timer
-    -tk,  -tokens,  --tokens                  shows language tokens
-    -v,   -vars,    --variables               prints out all global variables after execution
+    -a,   --ast,     abstract syntax tree    shows the structure of the abstract syntax tree     
+    -d,   --debug,   debugger                enables debugger
+    -et,             execution               shows the execution times of each node
+    -e,   --exit,    exit value              shows the program's exit value
+    -l,   --link,    link                    write the linked script to file
+    -t,   --timer,   timer                   enables the timer
+    -tk,  -tokens,   tokens                  shows language tokens
+    -v,   --vars,    variables               prints out all global variables after execution
     
 FLAGS:
     -Dfile ENCODING    --file encoding    changes the sp file decoding
@@ -45,7 +46,7 @@ Example
 
 def parse_arg(args):
     d = {"file": None, "dir": None, "debugger": False, "timer": False, "ast": False, "tokens": False,
-         "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False}
+         "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False, "link": False}
     # for i in range(1, len(args), 1):
     i = 1
     while i < len(args):
@@ -55,18 +56,20 @@ def parse_arg(args):
         else:
             if arg[0] == "-":
                 flag = arg[1:]
-                if flag == "d" or flag == "debug":
+                if flag == "d" or flag == "-debug":
                     d["debugger"] = True
-                elif flag == "t" or flag == "timer":
+                elif flag == "t" or flag == "-timer":
                     d["timer"] = True
-                elif flag == "a" or flag == "ast":
+                elif flag == "a" or flag == "-ast":
                     d["ast"] = True
-                elif flag == "tk" or flag == "tokens":
+                elif flag == "tk" or flag == "-tokens":
                     d["tokens"] = True
-                elif flag == "v" or flag == "vars":
+                elif flag == "v" or flag == "-vars":
                     d["vars"] = True
-                elif flag == "e" or flag == "exit":
+                elif flag == "e" or flag == "-exit":
                     d["exit"] = True
+                elif flag == "l" or flag == "-link":
+                    d["link"] = True
                 elif flag == "Dfile":
                     i += 1
                     d["encoding"] = args[i]
@@ -97,12 +100,18 @@ def print_help():
     print(HELP)
 
 
-def interpret():
+def interpret(mode: str):
     lex_start = time.time()
 
-    lexer = spl_lexer.Tokenizer()
-    lexer.setup(file_name, argv["dir"], set())
-    lexer.tokenize(f)
+    if mode == "sp":
+        lexer = spl_lexer.Tokenizer()
+        lexer.setup(file_name, argv["dir"], set(), link=argv["link"])
+        lexer.tokenize(f)
+    elif mode == "lsp":
+        lexer = spl_lexer.Tokenizer()
+        lexer.restore_tokens(f)
+    else:
+        raise Exception
 
     if argv["tokens"]:
         print(lexer.tokens)
@@ -158,8 +167,8 @@ if __name__ == "__main__":
             print("File Not Found!")
             exit(1)
 
+        encoding = argv["encoding"]
         if file_name[-3:] == ".sp":
-            encoding = argv["encoding"]
             if encoding is not None:
                 assert isinstance(encoding, str)
                 f = open(file_name, "r", encoding=encoding)
@@ -167,10 +176,19 @@ if __name__ == "__main__":
                 f = open(file_name, "r")
 
             try:
-                interpret()
+                interpret("sp")
+            except Exception as e:
+                raise e
+            finally:
+                f.close()
+        elif file_name[-4:] == ".lsp":
+            f = open(file_name, "rb")
+
+            try:
+                interpret("lsp")
             except Exception as e:
                 raise e
             finally:
                 f.close()
         else:
-            raise ArgumentsException("SPL scripts must ended with '.sp'.")
+            raise ArgumentsException("Input file can either be SPL script '.sp' or linked SPL script '.lsp'.")

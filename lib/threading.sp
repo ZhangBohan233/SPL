@@ -5,10 +5,8 @@ class Thread {
 
     var process;
 
-    function Thread(tar_name, args) {
-        var target = eval(tar_name);
-
-        process = natives.thread(target, tar_name, args);
+    function Thread(target, args) {
+        process = natives.thread(target, args);
     }
 
     function set_daemon(d) {
