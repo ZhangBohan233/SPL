@@ -4,8 +4,10 @@ import os
 
 SPL_PATH = os.getcwd()
 
-SELF_CONCATENATE = {0, 1, 8, 9, 10, 11, 14}
-CROSS_CONCATENATE = {(8, 9), (1, 0), (0, 12), (12, 0), (15, 9), (17, 9), (16, 9), (10, 9), (11, 9),
+PLUS_MINUS = {"+", "-"}
+OTHER_ARITHMETIC = {"*", "/", "%"}
+SELF_CONCATENATE = {0, 1, 8, 9, 10, 11, 14, 17}
+CROSS_CONCATENATE = {(8, 9), (1, 0), (0, 12), (12, 0), (15, 9), (17, 9), (20, 9), (16, 9), (10, 9), (11, 9),
                      (9, 8), (1, 14), (14, 1), (0, 14), (14, 0)}
 
 
@@ -339,12 +341,14 @@ def char_type(ch):
         return 15
     elif ch == "^":
         return 16
-    elif ch in {"+", "-", "*", "/", "%"}:
+    elif ch in PLUS_MINUS:
         return 17
     elif ch == "@":
         return 18
     elif ch == ":":
         return 19
+    elif ch in OTHER_ARITHMETIC:
+        return 20
     else:
         return -1
 

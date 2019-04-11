@@ -500,16 +500,23 @@ def eval_for_loop(node: ast.ForLoopStmt, env: Environment):
     step = con.lines[2]
 
     title_scope = LoopEnvironment(env)
-
     block_scope = LoopEnvironment(title_scope)
 
     result = evaluate(start, title_scope)
 
-    while not title_scope.broken and evaluate(end, title_scope):
-        block_scope.invalidate()
-        result = evaluate(node.body, block_scope)
-        title_scope.resume_loop()
-        evaluate(step, title_scope)
+    step_type = step.node_type
+    if step_type == ast.IN_DECREMENT_OPERATOR and not step.is_post:
+        while not title_scope.broken and evaluate(end, title_scope):
+            block_scope.invalidate()
+            evaluate(step, title_scope)
+            result = evaluate(node.body, block_scope)
+            title_scope.resume_loop()
+    else:
+        while not title_scope.broken and evaluate(end, title_scope):
+            block_scope.invalidate()
+            result = evaluate(node.body, block_scope)
+            title_scope.resume_loop()
+            evaluate(step, title_scope)
 
     del title_scope
     del block_scope
@@ -638,41 +645,41 @@ def eval_operator(node: ast.OperatorNode, env: Environment):
         right = evaluate(node.right, env)
         symbol = node.operation[:-1]
         res = arithmetic(left, right, symbol, env)
-        asg = ast.AssignmentNode((node.line_num, node.file), False)
-        asg.left = node.left
-        asg.operation = "="
-        asg.right = res
-        return evaluate(asg, env)
+        return assignment(node.left, res, env, ast.ASSIGN)
     else:
         symbol = node.operation
         right_node = node.right
         return arithmetic(left, right_node, symbol, env)
 
 
-def assignment(node: ast.AssignmentNode, env: Environment):
+def eval_assignment_node(node: ast.AssignmentNode, env: Environment):
     key = node.left
     value = evaluate(node.right, env)
+    return assignment(key, value, env, node.level)
+
+
+def assignment(key: ast.Node, value, env: Environment, level):
     t = key.node_type
-    lf = node.line_num, node.file
+    lf = key.line_num, key.file
     # print(key)
     if t == ast.NAME_NODE:
         key: ast.NameNode
-        if node.level == ast.ASSIGN:
+        if level == ast.ASSIGN:
             env.assign(key.name, value, lf)
-        elif node.level == ast.CONST:
+        elif level == ast.CONST:
             # var_type = generate_var_type(node.var_type, env)
             env.define_const(key.name, value, lf)
-        elif node.level == ast.VAR:
+        elif level == ast.VAR:
             # var_type = generate_var_type(node.var_type, env)
             env.define_var(key.name, value, lf)
-        elif node.level == ast.FUNC_DEFINE:
+        elif level == ast.FUNC_DEFINE:
             value: Function
             env.define_function(key.name, value, lf, value.options)
         else:
             raise lib.SplException("Unknown variable level")
         return value
     elif t == ast.DOT:
-        if node.level == ast.CONST:
+        if level == ast.CONST:
             raise lib.SplException("Unsolved syntax: assigning a constant to an instance")
         node = key
         name_lst = []
@@ -688,7 +695,7 @@ def assignment(node: ast.AssignmentNode, env: Environment):
         scope.assign(name_lst[-1], value, lf)
         return value
     else:
-        raise lib.InterpretException("Unknown assignment, in {}, at line {}".format(node.file, node.line_num))
+        raise lib.InterpretException("Unknown assignment, in {}, at line {}".format(key.file, key.line_num))
 
 
 def init_class(node: ast.ClassInit, env: Environment):
@@ -1140,15 +1147,6 @@ def self_return(node):
     return node
 
 
-def eval_boolean_stmt(node: ast.BooleanStmt, env):
-    if node.value == "true":
-        return True
-    elif node.value == "false":
-        return False
-    else:
-        raise lib.InterpretException("Unknown boolean value")
-
-
 def eval_return(node: ast.Node, env: Environment):
     res = evaluate(node, env)
     # print(env.variables)
@@ -1279,10 +1277,7 @@ def eval_unary_expression(node: ast.UnaryOperator, env: Environment):
 
 def eval_conditional_operator(left: ast.Node, mid: ast.Node, right: ast.Node, env: Environment):
     cond = evaluate(left, env)
-    if cond:
-        return evaluate(mid, env)
-    else:
-        return evaluate(right, env)
+    return evaluate(mid, env) if cond else evaluate(right, env)
 
 
 TERNARY_TABLE = {
@@ -1297,6 +1292,32 @@ def eval_ternary_expression(node: ast.TernaryOperator, env: Environment):
     return op(node.left, node.mid, node.right, env)
 
 
+INCREMENT_TABLE = {
+    int: lambda n: n + 1,
+}
+
+DECREMENT_TABLE = {
+    int: lambda n: n - 1
+}
+
+
+def eval_increment_decrement(node: ast.InDecrementOperator, env: Environment):
+    current = evaluate(node.value, env)
+    if node.operation == "++":
+        f = INCREMENT_TABLE[type(current)]
+    elif node.operation == "--":
+        f = DECREMENT_TABLE[type(current)]
+    else:
+        raise lib.SplException("No such operator '{}'".format(node.operation))
+
+    post_val = f(current)
+    assignment(node.value, post_val, env, ast.ASSIGN)
+    if node.is_post:
+        return current
+    else:
+        return post_val
+
+
 def raise_exception(e: Exception):
     raise e
 
@@ -1306,15 +1327,11 @@ SELF_RETURN_TABLE = {int, float, bool, lib.String, lib.List, lib.Set, lib.Pair, 
 
 # Operation table of every non-abstract node types
 NODE_TABLE = {
-    # ast.INT_NODE: lambda n, env: n.value,
-    # ast.FLOAT_NODE: lambda n, env: n.value,
     ast.LITERAL_NODE: lambda n, env: lib.String(n.literal),
     ast.NAME_NODE: lambda n, env: env.get(n.name, (n.line_num, n.file)),
-    ast.BOOLEAN_STMT: eval_boolean_stmt,
-    ast.NULL_STMT: lambda n, env: None,
     ast.BREAK_STMT: lambda n, env: env.break_loop(),
     ast.CONTINUE_STMT: lambda n, env: env.pause_loop(),
-    ast.ASSIGNMENT_NODE: assignment,
+    ast.ASSIGNMENT_NODE: eval_assignment_node,
     ast.DOT: eval_dot,
     ast.OPERATOR_NODE: eval_operator,
     ast.UNARY_OPERATOR: eval_unary_expression,
@@ -1330,7 +1347,7 @@ NODE_TABLE = {
     ast.TRY_STMT: eval_try_catch,
     ast.JUMP_NODE: eval_jump,
     ast.UNDEFINED_NODE: lambda n, env: UNDEFINED,
-    # ast.ARRAY_INIT: eval_array_init
+    ast.IN_DECREMENT_OPERATOR: eval_increment_decrement
 }
 
 

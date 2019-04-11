@@ -224,6 +224,8 @@ class Parser:
                         parser.add_finally(line)
                     elif sym == "assert":
                         parser.add_unary(line, "assert", 0)
+                    elif sym == "++" or sym == "--":
+                        parser.add_increment_decrement(line, sym, extra_precedence)
                     elif sym in stl.TERNARY_OPERATORS and \
                             (parser.is_in_ternary() or stl.TERNARY_OPERATORS[sym]):
                         # This check should go strictly before the check of binary ops

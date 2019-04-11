@@ -59,12 +59,10 @@ function merge_sort(lst) {
  */
 function rand_list(length, min, max) {
     var lst = list();
-    var x = 0;
     var r = max - min;
-    var xi;
     for (var i = 0; i < length; i += 1) {
-        x = random() * r + min;
-        xi = int(x);
+        var x = random() * r + min;
+        var xi = int(x);
         lst.append(xi);
     }
     return lst;

@@ -3,7 +3,7 @@ import "algorithm";
 if (main()) {
     const t0 = system.time();
 
-    for (var i = 0; i < 100_000; i += 1);
+    for (var i = 0; i < 100_000; i++);
 
     const t1 = system.time();
     println(t1 - t0);

@@ -1,3 +1,13 @@
+********** SPL 1.5 Beta 2 **********
+===== Build 0061 2019/04/10 =====
+
+* New syntax:
+    * Increment and decrement operator '++', '--'
+* Performance optimization:
+    * Optimized the performance of evaluation-assignment expression (like '+=')
+    * Optimized boolean value and null
+    * Loop speed increased for about 20%
+
 ********** SPL 1.5 Beta 1 **********
 ===== Build 0060 2019/04/10 =====
 

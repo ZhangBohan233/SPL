@@ -8,23 +8,20 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "+=": 2, "-=": 2, "*=": 2, "/=": 2, "%=": 2,
               "&=": 2, "^=": 2, "|=": 2, "<<=": 2, ">>=": 2, "=>": 500,
               "===": 20, "is": 20, "!==": 20, "instanceof": 25, "assert": 1,
-              "?": 3}
+              "?": 3, "++": 300, "--": 300}
 
 MULTIPLIER = 1000
 
+# Nodes
 LITERAL_NODE = 3
 NAME_NODE = 4
-BOOLEAN_STMT = 5
-NULL_STMT = 6
 BREAK_STMT = 7
 CONTINUE_STMT = 8
 ASSIGNMENT_NODE = 9
 DOT = 10
-# ANONYMOUS_CALL = 11
 OPERATOR_NODE = 12
 UNARY_OPERATOR = 14
 TERNARY_OPERATOR = 15
-
 BLOCK_STMT = 16
 IF_STMT = 17
 WHILE_STMT = 18
@@ -33,19 +30,15 @@ DEF_STMT = 20
 FUNCTION_CALL = 21
 CLASS_STMT = 22
 CLASS_INIT = 23
-# INVALID_TOKEN = 24
 ABSTRACT = 25
-# THROW_STMT = 26
 TRY_STMT = 27
 CATCH_STMT = 28
 TYPE_NODE = 29
 JUMP_NODE = 30
 UNDEFINED_NODE = 31
-# UNPACK_OPERATOR = 32
-# KW_UNPACK_OPERATOR = 33
-# ASSERT_STMT = 34
-# ARRAY_INIT = 35
+IN_DECREMENT_OPERATOR = 32
 
+# Variable levels
 ASSIGN = 0
 CONST = 1
 VAR = 2
@@ -87,7 +80,12 @@ class LeafNode(Node):
         Node.__init__(self, line)
 
 
-class BinaryExpr(Node):
+class Expr(Node):
+    def __init__(self, line):
+        Node.__init__(self, line)
+
+
+class BinaryExpr(Expr):
     """
     :type operation: str
     :type left:
@@ -97,7 +95,7 @@ class BinaryExpr(Node):
     operation = None
 
     def __init__(self, line):
-        Node.__init__(self, line)
+        Expr.__init__(self, line)
 
     def __str__(self):
         return "BE({} {} {})".format(self.left, self.operation, self.right)
@@ -132,7 +130,7 @@ class TitleNode(Node):
         Node.__init__(self, line)
 
 
-class TernaryOperator(Node):
+class TernaryOperator(Expr):
     extra_precedence = 0
     first_op: str
     second_op: str = None
@@ -141,7 +139,7 @@ class TernaryOperator(Node):
     right: Node = None
 
     def __init__(self, line, first_op, extra):
-        Node.__init__(self, line)
+        Expr.__init__(self, line)
 
         self.node_type = TERNARY_OPERATOR
         self.extra_precedence = extra
@@ -171,13 +169,13 @@ class OperatorNode(BinaryExpr):
         return PRECEDENCE[self.operation] + self.extra_precedence
 
 
-class UnaryOperator(Node):
+class UnaryOperator(Expr):
     value = None
     operation = None
     extra_precedence = 0
 
     def __init__(self, line, op, extra):
-        Node.__init__(self, line)
+        Expr.__init__(self, line)
 
         self.node_type = UNARY_OPERATOR
         self.operation = op
@@ -212,15 +210,38 @@ class NameNode(LeafNode):
 class AssignmentNode(BinaryExpr):
     level = ASSIGN
 
-    # var_type: NameNode
-
     def __init__(self, line, level):
         BinaryExpr.__init__(self, line)
 
         self.node_type = ASSIGNMENT_NODE
-        # self.var_type = None
         self.operation = "="
         self.level = level
+
+
+class InDecrementOperator(Expr):
+    operation: str
+    extra_precedence: int
+    is_post: bool  # if is_post: i++
+    value = None
+
+    def __init__(self, lf, operation, extra):
+        Expr.__init__(self, lf)
+
+        self.operation = operation
+        self.extra_precedence = extra
+        self.node_type = IN_DECREMENT_OPERATOR
+
+    def precedence(self):
+        return PRECEDENCE[self.operation] + self.extra_precedence
+
+    def __str__(self):
+        if self.is_post:
+            return str(self.value) + self.operation
+        else:
+            return self.operation + str(self.value)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class TypeNode(BinaryExpr):
@@ -252,35 +273,6 @@ class ContinueStmt(LeafNode):
 
     def __str__(self):
         return "continue"
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class BooleanStmt(LeafNode):
-    value = None
-
-    def __init__(self, line, v):
-        LeafNode.__init__(self, line)
-
-        self.node_type = BOOLEAN_STMT
-        self.value = v
-
-    def __str__(self):
-        return "Bool:" + self.value
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class NullStmt(LeafNode):
-    def __init__(self, line):
-        LeafNode.__init__(self, line)
-
-        self.node_type = NULL_STMT
-
-    def __str__(self):
-        return "null"
 
     def __repr__(self):
         return self.__str__()
@@ -619,6 +611,14 @@ class AbstractSyntaxTree:
             node: TernaryOperator = self.stack[-2]
             node.second_op = op2
 
+    def add_increment_decrement(self, line, op, extra_precedence):
+        if self.inner:
+            self.inner.add_increment_decrement(line, op, extra_precedence)
+        else:
+            self.in_expr = True
+            node = InDecrementOperator(line, op, extra_precedence)
+            self.stack.append(node)
+
     def add_undefined(self, line):
         if self.inner:
             self.inner.add_undefined(line)
@@ -763,19 +763,23 @@ class AbstractSyntaxTree:
             node = ContinueStmt(line)
             self.stack.append(node)
 
-    def add_bool(self, line, v):
+    def add_bool(self, line, v: str):
         if self.inner:
             self.inner.add_bool(line, v)
         else:
-            node = BooleanStmt(line, v)
+            if v == "true":
+                node = True
+            elif v == "false":
+                node = False
+            else:
+                raise stl.ParseException("Unknown boolean value.")
             self.stack.append(node)
 
     def add_null(self, line):
         if self.inner:
             self.inner.add_null(line)
         else:
-            node = NullStmt(line)
-            self.stack.append(node)
+            self.stack.append(None)
 
     def build_call(self):
         if self.inner.inner:
@@ -872,17 +876,18 @@ class AbstractSyntaxTree:
             lst = []
             while len(self.stack) > 0:
                 node = self.stack[-1]
-                if isinstance(node, int) or \
+                if node is None or \
+                        isinstance(node, bool) or \
+                        isinstance(node, int) or \
                         isinstance(node, float) or \
                         isinstance(node, NameNode) or \
                         isinstance(node, OperatorNode) or \
                         isinstance(node, UnaryOperator) or \
                         isinstance(node, TernaryOperator) or \
+                        isinstance(node, InDecrementOperator) or \
                         isinstance(node, LiteralNode) or \
                         (isinstance(node, FuncCall) and node.fulfilled()) or \
-                        isinstance(node, ClassInit) or \
-                        isinstance(node, NullStmt) or \
-                        isinstance(node, BooleanStmt):
+                        isinstance(node, ClassInit):
                     lst.append(node)
                     self.stack.pop()
                 else:
@@ -982,17 +987,22 @@ def parse_expr(lst):
             node = lst[i]
             if isinstance(node, UnaryOperator):
                 pre = node.precedence()
-                if pre > max_pre and not node.value:
+                if pre > max_pre and node.value is None:
                     max_pre = pre
                     index = i
             elif isinstance(node, OperatorNode):
                 pre = node.precedence()
-                if pre > max_pre and not node.left and not node.right:
+                if pre > max_pre and node.left is None and node.right is None:
                     max_pre = pre
                     index = i
             elif isinstance(node, TernaryOperator):
                 pre = node.precedence()
-                if pre > max_pre and not node.left and not node.mid and not node.right:
+                if pre > max_pre and node.left is None and node.mid is None and node.right is None:
+                    max_pre = pre
+                    index = i
+            elif isinstance(node, InDecrementOperator):
+                pre = node.precedence()
+                if pre > max_pre and node.value is None:
                     max_pre = pre
                     index = i
         operator = lst[index]
@@ -1011,6 +1021,19 @@ def parse_expr(lst):
             lst.pop(index + 1)
             lst.pop(index + 1)
             lst.pop(index - 1)
+        elif isinstance(operator, InDecrementOperator):
+            is_post = True
+            if index < len(lst) - 1:
+                node = lst[index + 1]
+                if isinstance(node, NameNode) or isinstance(node, Dot) or isinstance(node, Expr):
+                    is_post = False
+            operator.is_post = is_post
+            if is_post:
+                operator.value = lst[index - 1]
+                lst.pop(index - 1)
+            else:
+                operator.value = lst[index + 1]
+                lst.pop(index + 1)
         else:
             raise stl.ParseException("Unknown error while parsing operators")
     return lst[0]

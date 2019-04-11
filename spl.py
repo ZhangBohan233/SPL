@@ -47,7 +47,6 @@ Example
 def parse_arg(args):
     d = {"file": None, "dir": None, "debugger": False, "timer": False, "ast": False, "tokens": False,
          "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False, "link": False}
-    # for i in range(1, len(args), 1):
     i = 1
     while i < len(args):
         arg: str = args[i]
@@ -130,7 +129,7 @@ def interpret(mode: str):
 
     interpret_start = time.time()
 
-    itr = spl_interpreter.Interpreter(argv["argv"], encoding)
+    itr = spl_interpreter.Interpreter(argv["argv"], argv["encoding"])
     itr.set_ast(block)
     result = itr.interpret()
 

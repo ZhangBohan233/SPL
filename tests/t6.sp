@@ -25,12 +25,12 @@ if (main()) {
 
     var start = system.time();
 
-    for (var i = 0; i < 8; i += 1) {
-        loop();
-    }
-    //for (var th; threads) {
-    //    th.start();
+    //for (var i = 0; i < 8; i += 1) {
+    //    loop();
     //}
+    for (var th; threads) {
+        th.start();
+    }
 
     await_all(threads);
 
