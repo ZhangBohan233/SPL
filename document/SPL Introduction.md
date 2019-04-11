@@ -1,4 +1,4 @@
-# **Slowest Programming Language**
+# Slowest Programming Language
 
 ###### _Product of Trash Software Studio_
 
@@ -7,13 +7,9 @@ Slowest Programming Language (SPL) is a light-weight scripting language.
 SPL focuses on making codes simpler. Here's the general idea: 
 
 * Code should be simple and easy for reading. 
-fancy-looking codes somehow shows your programming skills but harmful to readers.
-So complicated syntax is not allowed in SPL. There should not be too much code 
-in one line.
-
-For these purpose, SPL does not support the following features:
-
-* Multiple line expressions
+fancy-looking codes somehow shows your programming skills but harmful 
+to readers. So complicated syntax is not recommended in SPL. There 
+should not be too much code in one line.
 
 SPL Key Features:
 
@@ -26,11 +22,13 @@ SPL Key Features:
 
 SPL uses braces `{` `}` as block indentation. 
 
-Lines should be terminated by the line terminator `;`.lines with a back brace `}` can have terminator omitted.
+Lines should be terminated by the line terminator `;`.lines with a 
+back brace `}` can have terminator omitted.
 
-SPL uses `//` as one-line comment. In a line, codes after `//` will be ignored by the
-interpreter. The `/*` symbol is the beginning of a multi-line comment, where
-the `*/` marks the end of the multi-line comment.
+SPL uses `//` as one-line comment. In a line, codes after `//` will be 
+ignored by the interpreter. The `/*` symbol is the beginning of a 
+multi-line comment, where the `*/` marks the end of the multi-line 
+comment.
 
 #### Variable System:
 
@@ -323,6 +321,9 @@ which will output
 3
 ```
 Note that, `i += 1` is equivalent to `i = i + 1`.
+
+If the loop invariant is guaranteed to be integer, `i++` is the 
+recommended way.
 
 SPL supports another type of for-loop, which is called for-each loop.
 The syntax of for-each loop is:

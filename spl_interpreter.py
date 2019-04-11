@@ -50,7 +50,7 @@ class Interpreter:
         system = lib.System(lib.List(*parse_args(self.argv)), self.encoding)
         natives = NativeInvokes()
         os_ = lib.Os()
-        self.env.add_heap("Object", Class("Object", None, True))
+        self.env.add_heap("Object", OBJECT)
         self.env.add_heap("system", system)
         self.env.add_heap("natives", natives)
         self.env.add_heap("os", os_)
@@ -105,7 +105,7 @@ def add_natives(self):
     self.add_heap("f_open", NativeFunction(lib.f_open, "f_open"))
     self.add_heap("eval", NativeFunction(eval_, "eval"))
     self.add_heap("dir", NativeFunction(dir_, "dir", self))
-    self.add_heap("getcwf", NativeFunction(getcwf, "getcwf", self))
+    self.add_heap("getcwf", NativeFunction(getcwf, "getcwf"))
     self.add_heap("main", NativeFunction(is_main, "main", self))
     self.add_heap("exit", NativeFunction(lib.exit_, "exit"))
     self.add_heap("help", NativeFunction(help_, "help", self))
@@ -120,7 +120,7 @@ def add_natives(self):
 class NativeFunction:
     def __init__(self, func: callable, name: str, env: Environment = None):
         self.name = name
-        self.function = func
+        self.function: callable = func
         self.parent_env: Environment = env
 
     def __str__(self):
@@ -163,12 +163,13 @@ class Function:
     :type outer_scope: Environment
     """
 
-    def __init__(self, params, body, outer, abstract: bool, options: dict):
+    def __init__(self, params, body, outer, abstract: bool, options: dict, doc):
         self.params: [ParameterPair] = params
         self.options = options
         self.body = body
         self.outer_scope = outer
         self.abstract = abstract
+        self.doc = lib.String(doc)
         self.file = None
         self.line_num = None
 
@@ -180,10 +181,11 @@ class Function:
 
 
 class Class:
-    def __init__(self, class_name: str, body: ast.BlockStmt, abstract: bool):
+    def __init__(self, class_name: str, body: ast.BlockStmt, abstract: bool, doc: str):
         self.class_name = class_name
         self.body = body
         self.superclass_names = []
+        self.doc = lib.String(doc)
         self.outer_env = None
         self.abstract = abstract
         self.line_num = None
@@ -355,6 +357,12 @@ def to_repr(v) -> lib.String:
 
 
 def typeof(obj) -> lib.String:
+    """
+    Returns the type name of an object.
+
+    :param obj: the object
+    :return: the name of the type
+    """
     if obj is None:
         return lib.String("void")
     elif isinstance(obj, ClassInstance):
@@ -369,6 +377,12 @@ def typeof(obj) -> lib.String:
 
 
 def eval_(expr: lib.String):
+    """
+    Evaluates a <String> as an expression.
+
+    :param expr: the string expression
+    :return: the evaluation result
+    """
     lexer = lex.Tokenizer()
     lexer.file_name = "expression"
     lexer.script_dir = "expression"
@@ -380,15 +394,15 @@ def eval_(expr: lib.String):
 
 def dir_(env, obj):
     """
-    Returns a List containing all attributes of a type or an object.
+    Returns a List containing all attributes of a type.
 
     :param env:
-    :param obj:
-    :return:
+    :param obj: the object
+    :return: a <List> of all attributes of a type.
     """
     lst = lib.List()
     if isinstance(obj, Class):
-        # instance = inter.ClassInstance(env, obj.class_name)
+        mem.MEMORY.store_status()
         create = ast.ClassInit((0, "dir"), obj.class_name)
         instance: ClassInstance = evaluate(create, env)
         exc = {"this"}
@@ -396,9 +410,7 @@ def dir_(env, obj):
         for attr in instance.env.attributes():
             if attr not in exc:
                 lst.append(attr)
-        mem.MEMORY.free_last()
-        # del instance
-        # mem.MEMORY.free()
+        mem.MEMORY.restore_status()
     elif isinstance(obj, NativeFunction):
         for nt in lib.NativeType.__subclasses__():
             if nt.type_name(nt) == obj.name:
@@ -411,83 +423,93 @@ def dir_(env, obj):
     return lst
 
 
-def getcwf(env: Environment, obj: str):
+def getcwf(obj: str):
+    """
+    Returns the name of current working spl script.
+
+    :param obj:
+    :return: the name of current working spl script
+    """
     return lib.String(obj)
 
 
 def is_main(env: Environment, obj: str):
-    return env.get_heap("system").argv[0] == getcwf(env, obj)
+    """
+    Returns <true> iff the interpreter is working on the main script.
+
+    :return: <true> iff the interpreter is working on the main script
+    """
+    return env.get_heap("system").argv[0] == getcwf(obj)
 
 
 def help_(env, obj):
+    """
+    Prints out the doc message of a function or a class.
+    """
     if isinstance(obj, NativeFunction):
-        pass
+        print("========== Help on native function ==========")
+        print("function ", obj.name, "(*args, **kwargs):", sep="")
+        print(obj.function.__doc__)
+        print("========== End of help ==========")
     elif isinstance(obj, Function):
-        print(obj)
+        print("========== Help on function ==========")
+        print(_get_func_title(obj))
+        print(_get_func_doc(obj))
+        print("========== End of help ==========")
     elif isinstance(obj, Class):
-        cla_self = _get_doc(obj)
-        print("Help on class", obj.class_name, "\n")
-        title = ["class ", obj.class_name]
-        if len(obj.superclass_names) > 0:
-            title.append(" extends ")
-            for x in obj.superclass_names:
-                title.append(x)
-                title.append(", ")
-            title.pop()
-        print("".join(title))
-        print(cla_self)
-        print("---------- Attributes ----------")
+        print("========== Help on function ==========")
+        class_doc = _get_class_doc(obj)
+        print(class_doc)
+        print("---------- Methods ----------")
 
+        mem.MEMORY.store_status()
         create = ast.ClassInit((0, "dir"), obj.class_name)
         instance: ClassInstance = evaluate(create, env)
-        # do not add to pointer list
-        exc = {"this"}
-        # for attr in instance.env.variables:
-        for attr in instance.env.attributes():
-            if attr not in exc:
-                print(attr)
-                print(_get_doc(instance.env.get(attr, (0, "help"))))
-        mem.MEMORY.free_last()
-        # del instance
-        # mem.MEMORY.decrement()
+        for attr_name in instance.env.attributes():
+            if attr_name != "this":
+                attr = instance.env.get(attr_name, (0, "help"))
+                if isinstance(attr, Function):
+                    print("  ", _get_func_title(attr, attr_name))
+                    print(_get_func_doc(attr))
+                elif isinstance(attr, ast.AssignmentNode):
+                    print("  ", attr_name)
+                # print(_get_doc(instance.env.get(attr, (0, "help"))))
+        mem.MEMORY.restore_status()
+        print("========== End of help ==========")
 
 
-# Helper functions
-
-def _get_doc(obj):
-    if isinstance(obj, Class) or isinstance(obj, Function) or isinstance(obj, ast.Node):
-        doc_file = stl.get_doc_name(obj.file)
-        try:
-            with open(doc_file, "r") as f:
-                lines = f.readlines()
-
-            pos = obj.line_num - 1
-            result = []
-            result.extend(_filter_doc(lines, pos))
-            return "".join(result)
-        except IOError:
-            return "| "
-    else:
-        return "| " + typeof(obj).literal
+# helper functions
 
 
-def _filter_doc(lines: [str], pos: int):
-    """
+def _get_class_doc(clazz: Class) -> str:
+    doc = ["class ", clazz.class_name]
+    if len(clazz.superclass_names) > 0:
+        doc.append(" extends ")
+        for x in clazz.superclass_names:
+            doc.append(x)
+            doc.append(", ")
+        doc.pop()
+    doc.append(":\n")
+    doc.append(clazz.doc.literal)
+    return "".join(doc)
 
-    :param lines:
-    :return:
-    """
-    lst = []
-    in_doc = False
-    for i in range(pos - 1, -1, -1):
-        line = lines[i]
-        if not in_doc:
-            if line[0] == "+":
-                break
-            elif line[0] == "*":
-                lst.append("| ")
-                lst.append(line[1:])
-    return lst
+
+def _get_func_title(func: Function, name="") -> str:
+    doc = ["function ", name, "("]
+    for pp in func.params:
+        if pp.preset is INVALID:
+            doc.append(pp.name)
+        else:
+            doc.append("{}={}".format(pp.name, lib.replace_bool_none(str(pp.preset))))
+        doc.append(", ")
+    if len(func.params) > 0:
+        doc.pop()
+    doc.append("):")
+    return "".join(doc)
+
+
+def _get_func_doc(func: Function) -> str:
+    return func.doc.literal
 
 
 # Interpreter
@@ -612,6 +634,9 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
                 block_scope.define_var(line.left.name, e, (line.line_num, line.file))
                 catch_name = line.right.name
                 if catch_name == "Exception":
+                    result = evaluate(cat.then, block_scope)
+                    return result
+                elif catch_name == type(e).__name__:
                     result = evaluate(cat.then, block_scope)
                     return result
         raise e
@@ -1229,16 +1254,14 @@ def eval_def(node: ast.DefStmt, env: Environment):
         params_lst.append(pair)
 
     options = {"override": "Override" in node.tags, "suppress": "Suppress" in node.tags}
-    f = Function(params_lst, node.body, env, node.abstract, options)
+    f = Function(params_lst, node.body, env, node.abstract, options, node.doc)
     f.file = node.file
     f.line_num = node.line_num
-    # options = {"override": "Override" in node.tags, "suppress": "Suppress" in node.tags}
-    # env.define_function(node.name, f, (node.line_num, node.file), options)
     return f
 
 
 def eval_class_stmt(node: ast.ClassStmt, env: Environment):
-    cla = Class(node.class_name, node.block, node.abstract)
+    cla = Class(node.class_name, node.block, node.abstract, node.doc)
     cla.superclass_names = node.superclass_names
     cla.outer_env = env
     cla.line_num, cla.file = node.line_num, node.file
@@ -1370,4 +1393,11 @@ def evaluate(node: ast.Node, env: Environment):
     tn = NODE_TABLE[t]
     return tn(node, env)
 
+
 # Processes before run
+
+
+OBJECT_DOC = """
+The superclass of all spl object.
+"""
+OBJECT = Class("Object", None, True, OBJECT_DOC)

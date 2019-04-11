@@ -65,16 +65,6 @@ def unexpected_token(token):
                                                                            token.line_number()))
 
 
-def get_doc_name(sp_name: str):
-    """
-    Returns the auto-generated document name of a .sp file.
-
-    :param sp_name:
-    :return:
-    """
-    return sp_name[:-2] + "sdoc"
-
-
 def replace_extension(name: str, new_extension: str) -> str:
     """
     Replaces the content after the last '.' with the <new_extension>
@@ -138,6 +128,9 @@ class Token:
     def is_identifier(self):
         return False
 
+    def is_doc(self):
+        return False
+
     def file_name(self):
         return self.file
 
@@ -178,6 +171,25 @@ class LiteralToken(Token):
 
     def __str__(self):
         return "LIT({})".format(self.text)
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class DocToken(Token):
+    def __init__(self, line, t: str):
+        Token.__init__(self, line)
+
+        self.text: str = t
+
+    def to_binary(self) -> bytes:
+        return bytes([4]) + self.line_file_bytes() + string_to_bytes(self.text)
+
+    def is_doc(self):
+        return True
+
+    def __str__(self):
+        return "DOC({})".format(self.text)
 
     def __repr__(self):
         return self.__str__()

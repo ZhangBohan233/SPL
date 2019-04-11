@@ -69,9 +69,6 @@ class SplObject:
     def __init__(self):
         self.id = mem.MEMORY.allocate()
 
-    # def pointer(self) -> mem.Pointer:
-    #     return mem.Pointer(self.id)
-
 
 class NativeType(SplObject):
     def __init__(self):
@@ -430,156 +427,6 @@ class File(NativeType):
         return "file"
 
 
-# class Array(NativeType, Iterable):
-#     array: bytearray
-#     element_size: int
-#
-#     def __init__(self, length: int):
-#         NativeType.__init__(self)
-#
-#         # self.generic = type_
-#         self.item_number = length
-#
-#         self.iter_index = 0
-#
-#     def type_name(self):
-#         raise NotImplementedError
-#
-#     def __iter__(self):
-#         self.iter_index = 0
-#         return self
-#
-#     def __next__(self):
-#         if self.iter_index < self.length():
-#             ele = self[self.iter_index]
-#             self.iter_index += 1
-#             return ele
-#         else:
-#             raise StopIteration
-#
-#     def __getitem__(self, index):
-#         raise NotImplementedError
-#
-#     def __setitem__(self, index, value):
-#         raise NotImplementedError
-#
-#     def length(self):
-#         return self.item_number
-#
-#
-# class IntArray(Array):
-#     def __init__(self, length):
-#         Array.__init__(self, length)
-#
-#         self.array = bytearray(length * 8)
-#
-#     def type_name(self):
-#         return "int[]".format(self.length())
-#
-#     def __getitem__(self, index) -> int:
-#         if index >= self.length() or index < 0:
-#             raise IndexOutOfRangeException("Array index out of range")
-#         byte_index = index << 3
-#         seq = self.array[byte_index: byte_index + 8]
-#         return int.from_bytes(seq, "big", signed=True)
-#
-#     def __setitem__(self, index, value: int):
-#         if index >= self.length() or index < 0:
-#             raise IndexOutOfRangeException("Array index out of range")
-#         byte_index = index << 3
-#         byte_value = value.to_bytes(8, "big", signed=True)
-#         self.array[byte_index: byte_index + 8] = byte_value
-#
-#     def __str__(self):
-#         return str([self[i] for i in range(self.length())])
-#
-#
-# class BooleanArray(Array):
-#     def __init__(self, length):
-#         Array.__init__(self, length)
-#
-#         self.array = bytearray(length)
-#
-#     def type_name(self):
-#         return "boolean[{}]".format(self.length())
-#
-#     def __getitem__(self, index) -> bool:
-#         return False if self.array[index] == 0 else True
-#
-#     def __setitem__(self, index, value):
-#         v: int = 1 if value else 0
-#         self.array[index] = v
-#
-#     def __str__(self):
-#         lst = [False if x == 0 else True for x in self]
-#         return str(lst)
-#
-#
-# class FloatArray(Array):
-#     def __init__(self, length):
-#         Array.__init__(self, length)
-#
-#         self.array = bytearray(length * 8)
-#
-#     def type_name(self):
-#         return "float[{}]".format(self.length())
-#
-#     def __getitem__(self, index) -> float:
-#         if index >= self.length() or index < 0:
-#             raise IndexOutOfRangeException("Array index out of range")
-#         byte_index = index << 3
-#         seq = self.array[byte_index: byte_index + 8]
-#         return struct.unpack("d", seq)[0]
-#
-#     def __setitem__(self, index, value: float):
-#         if index >= self.length() or index < 0:
-#             raise IndexOutOfRangeException("Array index out of range")
-#         byte_index = index << 3
-#         byte_value = bytearray(struct.pack("d", value))
-#         self.array[byte_index: byte_index + 8] = byte_value
-#
-#     def __str__(self):
-#         return str([self[i] for i in range(self.length())])
-#
-#
-# class PointerArray(Array):
-#     def __init__(self, length):
-#         Array.__init__(self, length)
-#
-#         self.array = IntArray(length)
-#
-#     def __getitem__(self, index):
-#         pointer = self.array[index]
-#         return mem.MEMORY.get_instance(pointer)
-#
-#     def __setitem__(self, index, value):
-#         self.array[index] = value.id
-#
-#     def __str__(self):
-#         return str([self[i] for i in range(self.length())])
-#
-#     def type_name(self):
-#         return "Object[{}]".format(self.length())
-#
-#     def list_pointers(self):
-#         return (x for x in self.array)
-#
-#
-# class NativeObjectArray(PointerArray):
-#     def __init__(self, type_name, length):
-#         PointerArray.__init__(self, length)
-#
-#         self.object_type = type_name
-#
-#     def __setitem__(self, index, value: NativeType):
-#         if value.type_name() != self.object_type:
-#             print_waring("Warning: generic array of different types")
-#         self.array[index] = value.id
-#
-#     def type_name(self):
-#         return "{}[{}]".format(self.object_type, self.length())
-
-
 # Exceptions
 
 class InterpretException(Exception):
@@ -642,52 +489,83 @@ class AssertionException(SplException):
         SplException.__init__(self, msg)
 
 
-def print_ln(*args):
-    if len(args) > 0:
-        print_(*args)
-    sys.stdout.write('\n')
-    sys.stdout.flush()
-    return None
+def print_ln(s="", stream=sys.stdout):
+    """
+    Prints out message to an output stream, with a new line at the end and the stream flushed.
+
+    :param s: the content to be printed, empty string as default
+    :param stream: the output stream, stdout as default
+    """
+    print_(s, stream)
+    stream.write("\n")
+    stream.flush()
 
 
-def print_(*args):
-    a0 = args[0]
-    if len(args) == 1:
-        stream = sys.stdout
-    else:
-        stream = args[1]
-    s = replace_bool_none(str(a0))
-    stream.write(s)
-    return None
+def print_(s, stream=sys.stdout):
+    """
+    Prints out message to an output stream.
+
+    :param s: the content to be printed
+    :param stream: the output stream, stdout as default
+    """
+    s2 = replace_bool_none(str(s))
+    stream.write(s2)
 
 
 def exit_(code=0):
+    """
+    Exits the current process.
+
+    :param code: the exit code, 0 as default.
+    """
     exit(code)
 
 
 def input_(*prompt):
+    """
+    Asks input from user.
+
+    This function will hold the program until the user inputs a new line character.
+
+    :param prompt: the prompt text to be shown to the user
+    :return the user input, as <String>
+    """
     s = input(*prompt)
     st = String(s)
     return st
-    # return mem.Pointer(st.id)
 
 
 def make_list(*initial_elements):
+    """
+    Creates a dynamic list.
+
+    :param initial_elements: the elements that the list initially contains
+    :return: a reference of the newly created <List> object
+    """
     lst = List(*initial_elements)
     return lst
-    # return mem.Pointer(lst.id)
 
 
 def make_pair(initial_elements: dict):
+    """
+    Creates a key-value pair.
+
+    :param initial_elements: the elements that the pair initially contains
+    :return: a reference of the newly created <Pair> object
+    """
     pair = Pair(initial_elements)
     return pair
-    # return mem.Pointer(pair.id)
 
 
 def make_set(*initial_elements):
+    """
+    Creates a set.
+
+    :param initial_elements: the elements that the set initially contains
+    :return: a reference of the newly created <Set> object
+    """
     s = Set(*initial_elements)
     return s
-    # return mem.Pointer(s.id)
 
 
 def to_int(v):
@@ -702,10 +580,6 @@ def to_boolean(v):
     return True if v else False
 
 
-def memory_view():
-    return mem.MEMORY
-
-
 def f_open(file, mode=String("r"), encoding=String("utf-8")):
     if not mode.contains("b"):
         f = open(str(file), str(mode), encoding=str(encoding))
@@ -713,7 +587,6 @@ def f_open(file, mode=String("r"), encoding=String("utf-8")):
         f = open(str(file), str(mode))
     file = File(f, str(mode))
     return file
-    # return mem.Pointer(file.id)
 
 
 # etc

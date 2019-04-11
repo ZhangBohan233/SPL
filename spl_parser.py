@@ -147,6 +147,7 @@ class Parser:
                     elif sym == ".":
                         parser.add_dot(line, extra_precedence)
                     elif sym == "function" or sym == "def":
+                        func_doc = self.get_doc(i)
                         i += 1
                         f_token: stl.IdToken = self.tokens[i]
                         f_name = f_token.symbol
@@ -159,30 +160,37 @@ class Parser:
                             parser.add_assignment(line, ast.FUNC_DEFINE)
                         else:
                             raise stl.ParseException("Illegal function name '{}'".format(f_name))
-                        parser.add_function(line, is_abstract, titles.copy())
+                        parser.add_function(line, is_abstract, titles.copy(), func_doc)
                         i += push_back
                         param_nest_list.append(par_count)
                         par_count += 1
                         is_abstract = False
                         titles.clear()
                     elif sym == "operator":
+                        func_doc = self.get_doc(i)
                         i += 1
                         op_token: stl.IdToken = self.tokens[i]
                         op_name = "__" + stl.BINARY_OPERATORS[op_token.symbol] + "__"
                         parser.add_name(line, op_name)
                         parser.add_assignment(line, ast.FUNC_DEFINE)
-                        parser.add_function(line, False, titles.copy())
+                        parser.add_function(line, False, titles.copy(), func_doc)
                         param_nest_list.append(par_count)
                         par_count += 1
                         titles.clear()
                         i += 1
                     elif sym == "class":
+                        class_doc = self.get_doc(i)
                         i += 1
                         c_token: stl.IdToken = self.tokens[i]
                         class_name = c_token.symbol
                         if class_name in stl.NO_CLASS_NAME:
                             raise stl.ParseException("Name '{}' is forbidden for class name".format(class_name))
-                        parser.add_class((c_token.line_number(), c_token.file_name()), class_name, is_abstract)
+                        parser.add_class(
+                            (c_token.line_number(), c_token.file_name()),
+                            class_name,
+                            is_abstract,
+                            class_doc
+                        )
                         class_brace = brace_count
                         is_abstract = False
                     elif sym == "extends":
@@ -283,6 +291,8 @@ class Parser:
                 elif isinstance(token, stl.LiteralToken):
                     value = token.text
                     parser.add_literal(line, value)
+                elif isinstance(token, stl.DocToken):
+                    pass
                 elif token.is_eof():
                     parser.build_line()
                     break
@@ -297,9 +307,17 @@ class Parser:
 
         if par_count != 0 or len(call_nest_list) != 0 or len(cond_nest_list) != 0 or len(param_nest_list) or \
                 brace_count != 0 or extra_precedence != 0:
-            raise stl.ParseEOFException("Reach the end while parsing, {},{},{},{}".format(par_count, call_nest_list,
-                                                                                          cond_nest_list, param_nest_list))
+            raise stl.ParseEOFException(
+                "Reach the end while parsing, {},{},{},{}".format(par_count, call_nest_list,
+                                                                  cond_nest_list, param_nest_list))
         return parser.get_as_block()
+
+    def get_doc(self, index):
+        if index > 0:
+            doc_token = self.tokens[index - 1]
+            if isinstance(doc_token, stl.DocToken):
+                return doc_token.text
+        return ""
 
 
 def is_call(last_token: stl.Token) -> bool:

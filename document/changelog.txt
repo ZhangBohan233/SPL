@@ -1,3 +1,12 @@
+********** SPL 1.5 Beta 3 **********
+===== Build 0062 2019/04/11 =====
+
+* Implemented help system:
+    * The native function 'help' now works
+* Bug fixes:
+    * The catch statement could not catch specified exceptions thrown by spl interpreter
+    * The reference counter would not set back as needed when there are nested class instantiation
+
 ********** SPL 1.5 Beta 2 **********
 ===== Build 0061 2019/04/10 =====
 

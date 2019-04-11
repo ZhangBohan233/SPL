@@ -64,11 +64,11 @@ class Tokenizer:
         line = file.readline()
         line_num = 1
         in_doc = False
+        doc = ""
         while line:
             tup = (line_num, self.file_name)
             last_index = len(self.tokens)
-            in_doc = self.proceed_line(line, tup, in_doc)
-            # print(self.tokens[last_index:])
+            in_doc, doc = self.proceed_line(line, tup, in_doc, doc)
             self.find_import(last_index, len(self.tokens))
             line = file.readline()
             line_num += 1
@@ -78,10 +78,11 @@ class Tokenizer:
             self._write_to_file()
 
     def tokenize_text(self, lines):
+        doc = ""
         for i in range(len(lines)):
             line_number = i + 1
             line = lines[i]
-            self.proceed_line(line, (line_number, "console"), False)
+            self.proceed_line(line, (line_number, "console"), False, doc)
 
         self.tokens.append(stl.Token((stl.EOF, None)))
 
@@ -102,16 +103,19 @@ class Tokenizer:
                     token: stl.LiteralToken = stl.LiteralToken(lf, stl.read_string(file))
                 elif flag == 3:
                     token: stl.IdToken = stl.IdToken(lf, stl.read_string(file))
+                elif flag == 4:
+                    token: stl.DocToken = stl.DocToken(lf, stl.read_string(file))
                 else:
                     raise stl.ParseException("Unknown flag: {}".format(flag))
                 self.tokens.append(token)
 
-    def proceed_line(self, line: str, line_num: (int, str), in_doc: bool):
+    def proceed_line(self, line: str, line_num: (int, str), in_doc: bool, doc: str) -> (bool, str):
         """ Tokenize a line.
 
         :param line: line to be proceed
         :param line_num: the line number and the name of source file
         :param in_doc: whether it is currently in docstring, before proceed this line
+        :param doc: the current doc
         :return: whether it is currently in docstring, after proceed this line
         """
         in_single = False
@@ -136,6 +140,9 @@ class Tokenizer:
                         i += 1
 
             if not in_doc:
+                if len(doc) > 0:
+                    self.tokens.append(stl.DocToken(line_num, doc[2:]))
+                    doc = ""
                 if in_double:
                     if ch == '"':
                         in_double = False
@@ -167,11 +174,13 @@ class Tokenizer:
                         self.line_tokenize(non_literal[:-2], line_num)
                         non_literal = ""
                         break
+            else:
+                doc += ch
 
         if len(non_literal) > 0:
             self.line_tokenize(non_literal, line_num)
 
-        return in_doc
+        return in_doc, doc
 
     def line_tokenize(self, non_literal, line_num):
         """

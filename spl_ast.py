@@ -361,13 +361,15 @@ class DefStmt(TitleNode):
     body = None
     abstract: bool = False
     tags: list
+    doc: str
 
-    def __init__(self, line, abstract: bool, tags: list):
+    def __init__(self, line, abstract: bool, tags: list, func_doc: str):
         TitleNode.__init__(self, line)
 
         self.node_type = DEF_STMT
         self.params = None
         self.abstract = abstract
+        self.doc = func_doc
         self.tags = tags
 
     def __str__(self):
@@ -403,13 +405,15 @@ class ClassStmt(Node):
     superclass_names: list = None
     block: BlockStmt = None
     abstract: bool = False
+    doc: str
 
-    def __init__(self, line: tuple, name: str, abstract: bool):
+    def __init__(self, line: tuple, name: str, abstract: bool, class_doc: str):
         Node.__init__(self, line)
 
         self.node_type = CLASS_STMT
         self.class_name = name
         self.abstract = abstract
+        self.doc = class_doc
         self.superclass_names = ["Object"]
 
     def __str__(self):
@@ -585,7 +589,7 @@ class AbstractSyntaxTree:
             node = UnaryOperator(line, op, extra_precedence)
             self.stack.append(node)
 
-    def add_assignment(self, line, var_level):
+    def add_assignment(self, line, var_level: int):
         if self.inner:
             self.inner.add_assignment(line, var_level)
         else:
@@ -686,11 +690,11 @@ class AbstractSyntaxTree:
         else:
             pass
 
-    def add_function(self, line, abstract: bool, tags: list):
+    def add_function(self, line, abstract: bool, tags: list, func_doc: str):
         if self.inner:
-            self.inner.add_function(line, abstract, tags)
+            self.inner.add_function(line, abstract, tags, func_doc)
         else:
-            func = DefStmt(line, abstract, tags)
+            func = DefStmt(line, abstract, tags, func_doc)
             self.stack.append(func)
             self.inner = AbstractSyntaxTree()
 
@@ -813,11 +817,11 @@ class AbstractSyntaxTree:
         else:
             self.inner = AbstractSyntaxTree()
 
-    def add_class(self, line, class_name, abstract: bool):
+    def add_class(self, line, class_name, abstract: bool, class_doc: str):
         if self.inner:
-            self.inner.add_class(line, class_name, abstract)
+            self.inner.add_class(line, class_name, abstract, class_doc)
         else:
-            cs = ClassStmt(line, class_name, abstract)
+            cs = ClassStmt(line, class_name, abstract, class_doc)
             self.stack.append(cs)
 
     def get_current_class(self):
