@@ -582,13 +582,13 @@ def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
         return result
     elif isinstance(iterable, ClassInstance) and is_subclass_of(title_scope.get_heap(iterable.class_name), "Iterable",
                                                                 title_scope):
-        ite = ast.FuncCall(lf, "__iter__")
+        ite = ast.FuncCall(lf, ast.NameNode(lf, "__iter__"))
         ite.args = ast.BlockStmt(LINE_FILE)
         iterator: ClassInstance = evaluate(ite, iterable.env)
         result = None
         while not title_scope.broken:
             block_scope.invalidate()
-            nex = ast.FuncCall(lf, "__next__")
+            nex = ast.FuncCall(lf, ast.NameNode(lf, "__next__"))
             nex.args = ast.BlockStmt(LINE_FILE)
             res = evaluate(nex, iterator.env)
             if isinstance(res, ClassInstance) and is_subclass_of(title_scope.get_heap(res.class_name), "StopIteration",
@@ -748,7 +748,6 @@ def init_class(node: ast.ClassInit, env: Environment):
 
 def eval_func_call(node: ast.FuncCall, env: Environment):
     lf = node.line_num, node.file
-    # func = env.get(node.f_name, lf)
     func = evaluate(node.call_obj, env)
 
     if isinstance(func, Function):
@@ -1346,7 +1345,8 @@ def raise_exception(e: Exception):
 
 
 # Set of types that will not change after being evaluated
-SELF_RETURN_TABLE = {int, float, bool, lib.String, lib.List, lib.Set, lib.Pair, lib.System, lib.File, ClassInstance}
+SELF_RETURN_TABLE = {int, float, bool, str,
+                     lib.String, lib.List, lib.Set, lib.Pair, lib.System, lib.File, ClassInstance}
 
 # Operation table of every non-abstract node types
 NODE_TABLE = {

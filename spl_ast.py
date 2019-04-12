@@ -380,7 +380,7 @@ class DefStmt(TitleNode):
 
 
 class FuncCall(LeafNode):
-    call_obj: Node
+    call_obj = None
     args: BlockStmt = None
     is_get_set = False
 
@@ -914,16 +914,13 @@ class AbstractSyntaxTree:
                     node = self.stack.pop()
                     if isinstance(node, LeafNode):
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                        # res = node
                     # elif isinstance(node, AssignmentNode) and len(lst) > 0:
                     #     node.right = lst[0]
                     #     lst[0] = node
-                    elif isinstance(node, UnaryOperator):
-                        if node.value is None and len(lst) > 0:  # The build-expr method was interrupted by something
-                            node.value = lst[0]
-                            lst[0] = node
-                        else:
-                            lst.append(node)
+                    elif isinstance(node, UnaryOperator) and len(lst) > 0 and node.value is None:
+                        # The build-expr method was interrupted by something
+                        node.value = lst[0]
+                        lst[0] = node
                     elif isinstance(node, BinaryExpr) and len(lst) > 0 and node.right is None:
                         node.right = lst[0]
                         lst[0] = node
@@ -937,18 +934,31 @@ class AbstractSyntaxTree:
                             lst.append(node)
                             # res = node
                     elif isinstance(node, IfStmt):
-                        node.then_block = lst[0]
-                        if len(lst) > 1:
+                        if len(lst) == 1:
+                            node.then_block = lst[0]
+                        elif len(lst) == 2:
+                            node.then_block = lst[0]
                             node.else_block = lst[1]
+                        elif len(lst) != 0:
+                            raise stl.ParseException("Unexpected token")
                         lst.clear()
                         lst.append(node)
                     elif isinstance(node, WhileStmt) or isinstance(node, ForLoopStmt):
-                        node.body = lst[0] if len(lst) > 0 else None
-                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
+                        if len(lst) == 1:
+                            node.body = lst.pop()
+                            lst.append(node)
+                        elif len(lst) != 0:
+                            raise stl.ParseException("Unexpected token")
+                        # node.body = lst[0] if len(lst) > 0 else None
+                        # lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                     elif isinstance(node, DefStmt):
-                        # print(node)
-                        node.body = lst[0] if len(lst) > 0 else None
-                        lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
+                        if len(lst) == 1:
+                            node.body = lst.pop()
+                            lst.append(node)
+                        elif len(lst) != 0:
+                            raise stl.ParseException("Unexpected token")
+                        # node.body = lst[0] if len(lst) > 0 else None
+                        # lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                     elif isinstance(node, CatchStmt):
                         node.then = lst[0] if len(lst) > 0 else None
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)

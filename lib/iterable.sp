@@ -1,10 +1,9 @@
 /*
- * Superclass of
+ * Superclass of all iterable classes.
+ *
+ * Iterable are typically used when calling for (iterable; )
  */
 abstract class Iterable {
-
-    function Iterable() {
-    }
 
     /*
      * Returns an object to be iterated.
