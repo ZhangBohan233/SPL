@@ -66,6 +66,17 @@ def print_waring(msg: str):
 
 
 class SplObject:
+    """
+    An superset of spl objects.
+
+    There are two types of SplObjects: NativeType and Class
+
+    ----- Attributes -----
+        id: the identifier of this object, is guaranteed to be unique
+    """
+
+    id: int
+
     def __init__(self):
         self.id = mem.MEMORY.allocate()
 
@@ -74,24 +85,34 @@ class NativeType(SplObject):
     def __init__(self):
         SplObject.__init__(self)
 
-    def type_name(self) -> str:
+    def type_name__(self) -> str:
         raise NotImplementedError
 
-    def doc(self) -> str:
-        doc = ["NativeObject ", self.type_name(), " ", self.__doc__]
+    def doc__(self) -> str:
+        """
+        :return: the doc string of this type
+        """
+        doc = ["NativeObject ", self.type_name__(), " ", self.__doc__, "\n"]
         for x in dir(self):
-            if len(x) <= 4 or not (x[:2] == "__" and x[-2:] == "__"):
+            if len(x) < 2 or x[-2:] != "__":
                 attr = getattr(self, x)
                 if callable(attr):
-                    doc.append("method ")
-                else:
-                    doc.append("attribute ")
-                doc.append(x)
-                doc.append("\n")
-                attr_doc = attr.__doc__
-                if attr_doc:
-                    doc.append(attr_doc)
+                    doc.append("    method ")
+                    doc.append(x)
+                    doc.append("(")
+                    params = attr.__code__.co_varnames
+                    for p in params:
+                        if p != "self":
+                            doc.append(p)
+                            doc.append(", ")
+                    if doc[-1] == ", ":
+                        doc.pop()
+                    doc.append("):")
                     doc.append("\n")
+                    attr_doc = attr.__doc__
+                    if attr_doc:
+                        doc.append(attr_doc)
+                        doc.append("\n")
         return "".join(doc)
 
 
@@ -104,6 +125,9 @@ class Iterable:
 
 
 class String(NativeType, Iterable):
+    """
+    An object of a string literal.
+    """
     def __init__(self, lit):
         NativeType.__init__(self)
 
@@ -111,6 +135,9 @@ class String(NativeType, Iterable):
             self.literal = lit.literal
         else:
             self.literal: str = str(lit)
+
+    def __contains__(self, item):
+        return item in self.literal
 
     def __iter__(self):
         return (c for c in self.literal)
@@ -140,15 +167,32 @@ class String(NativeType, Iterable):
         return self.literal[index]
 
     def length(self):
+        """
+        Returns the length of this string.
+
+        :return: the length of this string
+        """
         return len(self.literal)
 
-    def text(self):
+    def text__(self):
         return self.literal
 
     def contains(self, char):
-        return char in self.literal
+        """
+        Returns whether the <char> is a substring of this <String>.
+
+        :param char: the character or string to look for
+        :return: <true> iff the <char> is a substring of this <String>
+        """
+        return char.literal in self.literal
 
     def format(self, *args):
+        """
+        Formats this string with the specified format.
+
+        :param args: the formats
+        :return: the formatted string
+        """
         lst = []
         i = 0
         count = 0
@@ -195,7 +239,7 @@ class String(NativeType, Iterable):
             print_waring("Warning: too much arguments for string format")
         return String("".join(lst))
 
-    def type_name(self):
+    def type_name__(self):
         return "string"
 
     def substring(self, from_, to=None):
@@ -233,7 +277,7 @@ class List(NativeType, Iterable):
     def get(self, key):
         self.__getitem__(key)
 
-    def type_name(self):
+    def type_name__(self):
         return "list"
 
     def append(self, value):
@@ -298,7 +342,7 @@ class Pair(NativeType, Iterable):
     def size(self):
         return len(self.pair)
 
-    def type_name(self):
+    def type_name__(self):
         return "pair"
 
 
@@ -338,15 +382,27 @@ class Set(NativeType, Iterable):
     def contains(self, item):
         return item in self.set
 
-    def type_name(self):
+    def type_name__(self):
         return "set"
 
 
 class System(NativeType):
+    """
+    A class consists of system calls
+
+    ----- Attributes -----
+        argv: command line arguments
+        encoding: the encoding mode
+        stdout: system standard output stream
+        stderr: system standard error output stream
+        stdin: system standard input stream
+    """
+
     argv: List
     encoding: str
     stdout = sys.stdout
     stderr = sys.stderr
+    stdin = sys.stdin
 
     def __init__(self, argv_: List, enc: str):
         NativeType.__init__(self)
@@ -354,42 +410,73 @@ class System(NativeType):
         type(self).argv = argv_
         type(self).encoding = enc
 
-    def time(self):
+    @staticmethod
+    def time():
+        """
+        Returns the current system time, in millisecond.
+
+        :return: the current system time, in millisecond
+        """
         return int(time_lib.time() * 1000)
 
-    def sleep(self, milli):
+    @staticmethod
+    def sleep(milli):
+        """
+        Pause the current thread for a period of time, in millisecond.
+
+        :param milli: the time to pause, in millisecond
+        """
         time_lib.sleep(milli / 1000)
 
-    def type_name(self):
+    def type_name__(self):
         return "system"
 
 
 class Os(NativeType):
+    """
+    A class consists of functions related to operating system
+
+    ----- Attributes -----
+        name: the name of the os
+        separator: the default path separator of the os
+    """
     name = String(os.name)
     separator = String(os.sep)
 
     def __init__(self):
         NativeType.__init__(self)
 
-    def type_name(self):
+    def type_name__(self):
         return "os"
 
-    def list_files(self, path):
+    @staticmethod
+    def list_files(path) -> List:
+        """
+        Returns a <List> consists of all files under the directory <path>.
+
+        :param path: the directory path
+        :return: a <List> consists of all files under the directory <path>
+        """
         return List(os.listdir(path))
 
 
 class File(NativeType):
     """
-    :type fp:
+    An opened file object.
     """
 
     def __init__(self, fp, mode):
         NativeType.__init__(self)
 
-        self.mode = mode
+        self.mode: str = mode
         self.fp = fp
 
     def read_one(self):
+        """
+        Reads one unit from the file.
+
+        :return: the next unit in tis file
+        """
         r = self.fp.read(1)
         if r:
             if self.mode == "r":
@@ -402,6 +489,11 @@ class File(NativeType):
             return None
 
     def read(self):
+        """
+        Reads all contents of this file.
+
+        :return: all contents of this file
+        """
         if self.mode == "r":
             return String(self.fp.read())
         elif self.mode == "rb":
@@ -410,6 +502,13 @@ class File(NativeType):
             raise IOException("Wrong mode")
 
     def readline(self):
+        """
+        Reads the next line from this file.
+
+        This method only works for text file.
+
+        :return: the next line from this file
+        """
         if self.mode == "r":
             s = self.fp.readline()
             if s:
@@ -420,27 +519,35 @@ class File(NativeType):
             raise IOException("Wrong mode")
 
     def write(self, s):
+        """
+        Writes the content to this file
+
+        :param s: the content to be written
+        """
         if "w" in self.mode:
             if "b" in self.mode:
                 self.fp.write(bytes(s))
             else:
                 self.fp.write(str(s))
-            return None
         else:
             raise IOException("Wrong mode")
 
     def flush(self):
+        """
+        Flushes all buffered contents to the file.
+        """
         if "w" in self.mode:
             self.fp.flush()
-            return None
         else:
             raise IOException("Wrong mode")
 
     def close(self):
+        """
+        Closes this file.
+        """
         self.fp.close()
-        return None
 
-    def type_name(self):
+    def type_name__(self):
         return "file"
 
 
@@ -597,12 +704,12 @@ def to_boolean(v):
     return True if v else False
 
 
-def f_open(file, mode=String("r"), encoding=String("utf-8")):
-    if not mode.contains("b"):
-        f = open(str(file), str(mode), encoding=str(encoding))
+def f_open(file: String, mode=String("r"), encoding=String("utf-8")):
+    if "b" not in mode:
+        f = open(file.text__(), mode.text__(), encoding=encoding.text__())
     else:
-        f = open(str(file), str(mode))
-    file = File(f, str(mode))
+        f = open(file.text__(), mode.text__())
+    file = File(f, mode.text__())
     return file
 
 

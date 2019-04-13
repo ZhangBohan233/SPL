@@ -897,10 +897,7 @@ class AbstractSyntaxTree:
                         isinstance(node, int) or \
                         isinstance(node, float) or \
                         isinstance(node, LeafNode) or \
-                        isinstance(node, BinaryExpr) or \
-                        isinstance(node, UnaryOperator) or \
-                        isinstance(node, TernaryOperator) or \
-                        isinstance(node, InDecrementOperator) or \
+                        isinstance(node, Expr) or \
                         (isinstance(node, FuncCall) and node.fulfilled()) or \
                         isinstance(node, DefStmt) or \
                         isinstance(node, ClassInit):
@@ -963,12 +960,12 @@ class AbstractSyntaxTree:
                             raise stl.ParseException("Unexpected token")
                         # node.body = lst[0] if len(lst) > 0 else None
                         # lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    elif isinstance(node, DefStmt):
-                        if len(lst) == 1:
-                            node.body = lst.pop()
-                            lst.append(node)
-                        elif len(lst) != 0:
-                            raise stl.ParseException("Unexpected token")
+                    # elif isinstance(node, DefStmt):
+                    #     if len(lst) == 1:
+                    #         node.body = lst.pop()
+                    #         lst.append(node)
+                    #     elif len(lst) != 0:
+                    #         raise stl.ParseException("Unexpected token")
                         # node.body = lst[0] if len(lst) > 0 else None
                         # lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                     elif isinstance(node, CatchStmt):

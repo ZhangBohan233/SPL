@@ -118,4 +118,6 @@ if (main) {
     println(log(8, 2));
     println(E);
     help(natives);
+    var v = 1 + 2 * 3 - 2;
+    println(v);
 }

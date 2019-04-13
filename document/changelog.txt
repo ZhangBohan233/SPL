@@ -1,3 +1,12 @@
+********** SPL 1.5 Release Candidate 2 **********
+===== Build 0065 2019/04/13 =====
+
+* Bug fixes:
+    * Fixed the unknown docstring from native types
+    * Fixed that the file reader takes wrong type of string
+* Interpreter code optimization:
+    * Optimized the invoke of static method in native types
+
 ********** SPL 1.5 Beta 4 **********
 ===== Build 0064 2019/04/13 =====
 

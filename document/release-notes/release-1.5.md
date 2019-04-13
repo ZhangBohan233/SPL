@@ -8,6 +8,7 @@ Release date: 2019/04/XX
 * Increment and decrement operators `++` and `--`, supports for both
 pre-execution and post-execution
 * Ternary conditional operator `cond ? if_true : if_false`
+* Assignment now be treated the same as any other binary expressions
 * True anonymous call, operator `=>` is deprecated
 * Packed arguments `*args` and keyword arguments `**kwargs`
 * Run-time check using keyword `assert`
@@ -17,10 +18,10 @@ pre-execution and post-execution
 #### Multi-threading:
 * SPL now supports simple multi-threading
     
-#### Rework on the function calling:
+#### Redesign the function calling:
 * Function calls now do not rely on the function names.
 
-#### Rework on parser:
+#### Redesign parser:
 * Better nested support
 * More parse-time syntax check
     

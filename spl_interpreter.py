@@ -214,19 +214,33 @@ class Undefined:
 
 
 class Thread(lib.NativeType):
+    """
+    An SPL thread object.
+    """
+
     def __init__(self, process):
         lib.NativeType.__init__(self)
 
         self.process: multiprocessing.Process = process
         self.daemon = False
 
-    def type_name(self):
+    def type_name__(self):
         return "thread"
 
     def set_daemon(self, d):
+        """
+        Sets the daemon of this thread.
+
+        If this thread is daemonic, it will end when the main program ends.
+
+        :param d: the daemon value
+        """
         self.daemon = d
 
     def start(self):
+        """
+        Starts this thread.
+        """
         self.process.daemon = self.daemon
         self.process.start()
 
@@ -242,16 +256,33 @@ class NativeInvokes(lib.NativeType):
     def __init__(self):
         lib.NativeType.__init__(self)
 
-    def type_name(self):
+    def type_name__(self):
         return "natives"
 
-    def str_join(self, s: lib.String, itr):
+    @staticmethod
+    def str_join(s: lib.String, itr):
+        """
+        The native implementation of string join.
+
+        :param s: the string
+        :param itr: the iterable
+        :return: the joined string
+        """
         if isinstance(itr, lib.Iterable):
             return lib.String(s.literal.join([x.text() for x in itr]))
         else:
             raise lib.TypeException("Object is not a native-iterable object.")
 
-    def thread(self, env: Environment, target: Function, args: lib.List):
+    @staticmethod
+    def thread(env: Environment, target: Function, args: lib.List):
+        """
+        Creates a new spl Thread.
+
+        :param env: system default
+        :param target: the target process
+        :param args: arguments list
+        :return: the new spl Thread
+        """
         call = ast.FuncCall(LINE_FILE, target)
         call.args = ast.BlockStmt(LINE_FILE)
         for x in args.list:
@@ -260,7 +291,8 @@ class NativeInvokes(lib.NativeType):
         process = multiprocessing.Process(target=call_function, args=(call, target, env))
         return Thread(process)
 
-    def log(self, x):
+    @staticmethod
+    def log(x):
         """
         Returns the natural logarithm of x.
 
@@ -269,7 +301,15 @@ class NativeInvokes(lib.NativeType):
         """
         return math.log(x)
 
-    def pow(self, base, exp):
+    @staticmethod
+    def pow(base, exp):
+        """
+        Returns the power of exp over base.
+
+        :param base: the base number
+        :param exp: the exponent
+        :return: base ^ exp
+        """
         return base ** exp
 
 
@@ -387,7 +427,7 @@ def typeof(obj) -> lib.String:
     elif isinstance(obj, bool):
         return lib.String("boolean")
     elif isinstance(obj, lib.NativeType):
-        return lib.String(obj.type_name())
+        return lib.String(obj.type_name__())
     else:
         t = type(obj)
         return lib.String(t.__name__)
@@ -403,7 +443,7 @@ def eval_(expr: lib.String):
     lexer = lex.Tokenizer()
     lexer.file_name = "expression"
     lexer.script_dir = "expression"
-    lexer.tokenize([expr.text()])
+    lexer.tokenize([expr.text__()])
     parser = psr.Parser(lexer.get_tokens())
     block = parser.parse()
     return block
@@ -430,11 +470,11 @@ def dir_(env, obj):
         mem.MEMORY.restore_status()
     elif isinstance(obj, NativeFunction):
         for nt in lib.NativeType.__subclasses__():
-            if nt.type_name(nt) == obj.name:
+            if nt.type_name__(nt) == obj.name:
                 lst.extend(dir(nt))
     elif isinstance(obj, lib.NativeType):
         for nt in lib.NativeType.__subclasses__():
-            if nt.type_name(nt) == obj.type_name():
+            if nt.type_name__(nt) == obj.type_name__():
                 lst.extend(dir(nt))
     lst.sort()
     return lst
@@ -470,7 +510,7 @@ def help_(env, obj):
         print("========== End of help ==========")
     elif isinstance(obj, lib.NativeType):
         print("========== Help on native object ==========")
-        print(obj.doc())
+        print(obj.doc__())
         print("========== End of help ==========")
     elif isinstance(obj, Function):
         print("========== Help on function ==========")
@@ -1009,7 +1049,7 @@ def native_arithmetic(left: lib.NativeType, right, symbol: str):
         return not isinstance(right, lib.NativeType) or left.id != right.id
     elif symbol == "instanceof":
         if isinstance(right, NativeFunction):
-            return left.type_name() == right.name
+            return left.type_name__() == right.name
         else:
             return False
     elif symbol == "==":
@@ -1155,28 +1195,33 @@ def class_inheritance(cla: Class, env: Environment, scope: Environment):
     evaluate(cla.body, scope)  # this step just fills the scope
 
 
-def native_types_call(instance: lib.NativeType, method: ast.FuncCall, env: Environment):
+def native_types_call(instance: lib.NativeType, called: ast.FuncCall, env: Environment):
     """
     Calls a method of a native object.
 
     :param instance: the NativeType object instance
-    :param method: the method being called
+    :param called: the method being called
     :param env: the current working environment
     :return: the returning value of the method called
     """
     args = []
-    for x in method.args.lines:
+    for x in called.args.lines:
         args.append(evaluate(x, env))
     # name = method.f_name
-    name = method.call_obj.name
+    name = called.call_obj.name
     type_ = type(instance)
     method = getattr(type_, name)
     params: tuple = method.__code__.co_varnames
-    if "env" in params and params.index("env") == 1:
-        res = method(instance, env, *args)
+    if "self" in params and params.index("self") == 0:
+        if "env" in params and params.index("env") == 1:
+            res = method(instance, env, *args)
+        else:
+            res = method(instance, *args)
     else:
-        res = method(instance, *args)
-    # check_gc(env, mem.Pointer(instance.id))
+        if "env" in params and params.index("env") == 0:
+            res = method(env, *args)
+        else:
+            res = method(*args)
     return res
 
 

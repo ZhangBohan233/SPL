@@ -3,7 +3,7 @@ class Memory:
         self.object_counter = 0
         self.store = 0
 
-    def allocate(self):
+    def allocate(self) -> int:
         """
         returns the current pointer.
 
