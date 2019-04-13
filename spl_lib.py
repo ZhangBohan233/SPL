@@ -77,6 +77,23 @@ class NativeType(SplObject):
     def type_name(self) -> str:
         raise NotImplementedError
 
+    def doc(self) -> str:
+        doc = ["NativeObject ", self.type_name(), " ", self.__doc__]
+        for x in dir(self):
+            if len(x) <= 4 or not (x[:2] == "__" and x[-2:] == "__"):
+                attr = getattr(self, x)
+                if callable(attr):
+                    doc.append("method ")
+                else:
+                    doc.append("attribute ")
+                doc.append(x)
+                doc.append("\n")
+                attr_doc = attr.__doc__
+                if attr_doc:
+                    doc.append(attr_doc)
+                    doc.append("\n")
+        return "".join(doc)
+
 
 class Iterable:
     def __init__(self):

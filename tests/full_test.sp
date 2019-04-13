@@ -106,9 +106,16 @@ class Clazz2 extends Clazz {
     }
 }
 
+abstract function g();
+
 if (main) {
     println(foo(3), system.stderr);
     help(foo);
     help(Clazz2);
     help(list);
+    println(gcd(398, -298));
+    println(log(5));
+    println(log(8, 2));
+    println(E);
+    help(natives);
 }

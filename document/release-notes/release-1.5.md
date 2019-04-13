@@ -1,6 +1,7 @@
 # SPL 1.5 Release
 
 Release date: 2019/04/XX
+
 ## New Features
 
 #### New syntax:

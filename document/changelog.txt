@@ -1,3 +1,14 @@
+********** SPL 1.5 Beta 4 **********
+===== Build 0064 2019/04/13 =====
+
+* New syntax:
+    * Assignment now be treated the same as any other binary expressions
+* Redesign the parser on the function build system
+* New functions in "math":
+    * gcd(x, y)
+    * log(x, base) which returns the logarithm
+* Implemented the help function on native objects
+
 ********** SPL 1.5 Release Candidate **********
 ===== Build 0063 2019/04/12 =====
 

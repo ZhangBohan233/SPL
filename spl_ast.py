@@ -5,7 +5,7 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "!=": 20, "&&": 5, "and": 5, "||": 5, "or": 5, "&": 12, "^": 11, "|": 10,
               "<<": 40, ">>": 40, "unpack": 200, "kw_unpack": 200,
               ".": 500, "!": 200, "neg": 200, "return": 1, "throw": 1,
-              "+=": 2, "-=": 2, "*=": 2, "/=": 2, "%=": 2,
+              "=": 2, "+=": 2, "-=": 2, "*=": 2, "/=": 2, "%=": 2,
               "&=": 2, "^=": 2, "|=": 2, "<<=": 2, ">>=": 2, "=>": 500,
               "===": 20, "is": 20, "!==": 20, "instanceof": 25, "assert": 1,
               "?": 3, "++": 300, "--": 300}
@@ -93,9 +93,16 @@ class BinaryExpr(Expr):
     left = None
     right = None
     operation = None
+    extra_precedence: int
 
-    def __init__(self, line):
+    def __init__(self, line, operator, extra):
         Expr.__init__(self, line)
+
+        self.operation = operator
+        self.extra_precedence = extra * MULTIPLIER
+
+    def precedence(self):
+        return PRECEDENCE[self.operation] + self.extra_precedence
 
     def __str__(self):
         return "BE({} {} {})".format(self.left, self.operation, self.right)
@@ -159,14 +166,10 @@ class OperatorNode(BinaryExpr):
     assignment = False
     extra_precedence = 0
 
-    def __init__(self, line, extra):
-        BinaryExpr.__init__(self, line)
+    def __init__(self, line, op, extra):
+        BinaryExpr.__init__(self, line, op, extra)
 
         self.node_type = OPERATOR_NODE
-        self.extra_precedence = extra * MULTIPLIER
-
-    def precedence(self):
-        return PRECEDENCE[self.operation] + self.extra_precedence
 
 
 class UnaryOperator(Expr):
@@ -210,11 +213,10 @@ class NameNode(LeafNode):
 class AssignmentNode(BinaryExpr):
     level = ASSIGN
 
-    def __init__(self, line, level):
-        BinaryExpr.__init__(self, line)
+    def __init__(self, line, level, extra):
+        BinaryExpr.__init__(self, line, "=", extra)
 
         self.node_type = ASSIGNMENT_NODE
-        self.operation = "="
         self.level = level
 
 
@@ -246,10 +248,9 @@ class InDecrementOperator(Expr):
 
 class TypeNode(BinaryExpr):
     def __init__(self, line):
-        BinaryExpr.__init__(self, line)
+        BinaryExpr.__init__(self, line, ".", 0)
 
         self.node_type = TYPE_NODE
-        self.operation = ":"
 
 
 class BreakStmt(LeafNode):
@@ -445,10 +446,9 @@ class ClassInit(LeafNode):
 
 class Dot(OperatorNode):
     def __init__(self, line, extra):
-        OperatorNode.__init__(self, line, extra)
+        OperatorNode.__init__(self, line, ".", extra)
 
         self.node_type = DOT
-        self.operation = "."
 
     def __str__(self):
         return "({} dot {})".format(self.left, self.right)
@@ -576,9 +576,8 @@ class AbstractSyntaxTree:
             self.inner.add_operator(line, op, extra_precedence, assignment)
         else:
             self.in_expr = True
-            op_node = OperatorNode(line, extra_precedence)
+            op_node = OperatorNode(line, op, extra_precedence)
             op_node.assignment = assignment
-            op_node.operation = op
             self.stack.append(op_node)
 
     def add_unary(self, line, op, extra_precedence):
@@ -589,13 +588,12 @@ class AbstractSyntaxTree:
             node = UnaryOperator(line, op, extra_precedence)
             self.stack.append(node)
 
-    def add_assignment(self, line, var_level: int):
+    def add_assignment(self, line, var_level: int, extra_precedence: int):
         if self.inner:
-            self.inner.add_assignment(line, var_level)
+            self.inner.add_assignment(line, var_level, extra_precedence)
         else:
-            name = self.stack.pop()
-            ass_node = AssignmentNode(line, var_level)
-            ass_node.left = name
+            self.in_expr = True
+            ass_node = AssignmentNode(line, var_level, extra_precedence)
             self.stack.append(ass_node)
 
     def add_ternary(self, line, op1, extra_precedence):
@@ -861,6 +859,20 @@ class AbstractSyntaxTree:
             node = Dot(line, extra_precedence)
             self.stack.append(node)
 
+    def try_build_func(self):
+        if self.inner:
+            self.inner.try_build_func()
+        else:
+            if len(self.stack) >= 2:
+                prob_func_node = self.stack[-2]
+                block_node = self.stack[-1]
+                if isinstance(prob_func_node, DefStmt):
+                    if isinstance(block_node, BlockStmt):
+                        if prob_func_node.abstract:
+                            raise stl.ParseException("Abstract function cannot have body")
+                        prob_func_node.body = block_node
+                        self.stack.pop()
+
     def build_block(self):
         if self.inner.inner:
             self.inner.build_block()
@@ -884,13 +896,13 @@ class AbstractSyntaxTree:
                         isinstance(node, bool) or \
                         isinstance(node, int) or \
                         isinstance(node, float) or \
-                        isinstance(node, NameNode) or \
-                        isinstance(node, OperatorNode) or \
+                        isinstance(node, LeafNode) or \
+                        isinstance(node, BinaryExpr) or \
                         isinstance(node, UnaryOperator) or \
                         isinstance(node, TernaryOperator) or \
                         isinstance(node, InDecrementOperator) or \
-                        isinstance(node, LiteralNode) or \
                         (isinstance(node, FuncCall) and node.fulfilled()) or \
+                        isinstance(node, DefStmt) or \
                         isinstance(node, ClassInit):
                     lst.append(node)
                     self.stack.pop()
@@ -1004,7 +1016,7 @@ def parse_expr(lst):
                 if pre > max_pre and node.value is None:
                     max_pre = pre
                     index = i
-            elif isinstance(node, OperatorNode):
+            elif isinstance(node, BinaryExpr):
                 pre = node.precedence()
                 if pre > max_pre and node.left is None and node.right is None:
                     max_pre = pre
@@ -1023,7 +1035,7 @@ def parse_expr(lst):
         if isinstance(operator, UnaryOperator):
             operator.value = lst[index + 1]
             lst.pop(index + 1)
-        elif isinstance(operator, OperatorNode):
+        elif isinstance(operator, BinaryExpr):
             operator.left = lst[index - 1]
             operator.right = lst[index + 1]
             lst.pop(index + 1)

@@ -1,4 +1,9 @@
 import "functions"
+import "exception"
+
+
+const E = 2.718281828459045;
+const PI = 3.141592653589793;
 
 
 /*
@@ -39,6 +44,49 @@ function ceil(n) {
 
 function floor(n) {
     return int(n);
+}
+
+
+/*
+ * Returns the greatest common divisor of x and y.
+ */
+function gcd(x, y) {
+    if (x != int(x) || y != int(y)) {
+        throw new MathException("gcd(x, y) only works for integers.");
+    }
+    var abs_a = abs(x);
+    var abs_b = abs(y);
+    var q, b;
+    if (abs_a < abs_b) {
+        q = abs_b;
+        b = abs_a;
+    } else {
+        q = abs_a;
+        b = abs_b;
+    }
+    if (b == 0) return q;
+    while ((r = q % b) != 0) {
+        q = b;
+        b = r;
+    }
+    return b;
+}
+
+
+function log(x, base=null) {
+    if (base === null) {
+        return natives.log(x);
+    } else {
+        return natives.log(x) / natives.log(base);
+    }
+}
+
+
+/*
+ * Returns <exp> power of <base>.
+ */
+function pow(base, exp) {
+    return natives.pow(base, exp);
 }
 
 
@@ -141,4 +189,11 @@ function factorization(n) {
 function fib(n) {
     if (n < 2) return n;
     else return fib(n - 1) + fib(n - 2);
+}
+
+
+class MathException extends Exception {
+    function MathException(msg="") {
+        Exception(msg);
+    }
 }

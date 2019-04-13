@@ -79,14 +79,14 @@ class Parser:
                         parser.new_block()
                     elif sym == "}":
                         brace_count -= 1
-                        parser.build_line()
+                        # parser.build_line()
                         parser.build_block()
+                        parser.try_build_func()
                         if brace_count == class_brace:
                             parser.build_class()
                             class_brace = -1
                         next_token = self.tokens[i + 1]
                         if not (isinstance(next_token, stl.IdToken) and next_token.symbol in stl.NO_BUILD_LINE):
-                            parser.build_expr()
                             parser.build_line()
                     elif sym == "(":
                         if i > 0 and is_call(self.tokens[i - 1]):
@@ -138,7 +138,7 @@ class Parser:
                             par_count -= 1
                     elif sym == "=":
                         parser.build_expr()
-                        parser.add_assignment(line, var_level)
+                        parser.add_assignment(line, var_level, extra_precedence)
                         var_level = ast.ASSIGN
                     elif sym == ",":
                         # parser.build_expr()
@@ -157,7 +157,7 @@ class Parser:
                             push_back = 0
                         elif f_name.isidentifier():
                             parser.add_name(line, f_name)
-                            parser.add_assignment(line, ast.FUNC_DEFINE)
+                            parser.add_assignment(line, ast.FUNC_DEFINE, 0)
                         else:
                             raise stl.ParseException("Illegal function name '{}'".format(f_name))
                         parser.add_function(line, is_abstract, titles.copy(), func_doc)
@@ -172,7 +172,7 @@ class Parser:
                         op_token: stl.IdToken = self.tokens[i]
                         op_name = "__" + stl.BINARY_OPERATORS[op_token.symbol] + "__"
                         parser.add_name(line, op_name)
-                        parser.add_assignment(line, ast.FUNC_DEFINE)
+                        parser.add_assignment(line, ast.FUNC_DEFINE, 0)
                         parser.add_function(line, False, titles.copy(), func_doc)
                         param_nest_list.append(par_count)
                         par_count += 1
@@ -276,7 +276,7 @@ class Parser:
                             active.stack.clear()
                             for node in und_vars:
                                 active.stack.append(node)
-                                parser.add_assignment(line, var_level)
+                                parser.add_assignment(line, var_level, extra_precedence)
                                 parser.add_undefined(line)
                                 parser.build_line()
                             var_level = ast.ASSIGN

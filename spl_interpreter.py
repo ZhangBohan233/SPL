@@ -5,6 +5,7 @@ import spl_parser as psr
 import spl_token_lib as stl
 import spl_lib as lib
 import multiprocessing
+import math
 from environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
     FunctionEnvironment, ClassEnvironment
 
@@ -234,6 +235,10 @@ class Thread(lib.NativeType):
 
 
 class NativeInvokes(lib.NativeType):
+    """
+    A class consists of static native invokes.
+    """
+
     def __init__(self):
         lib.NativeType.__init__(self)
 
@@ -254,6 +259,18 @@ class NativeInvokes(lib.NativeType):
 
         process = multiprocessing.Process(target=call_function, args=(call, target, env))
         return Thread(process)
+
+    def log(self, x):
+        """
+        Returns the natural logarithm of x.
+
+        :param x: the number to be calculated
+        :return: the natural logarithm of x
+        """
+        return math.log(x)
+
+    def pow(self, base, exp):
+        return base ** exp
 
 
 UNDEFINED = Undefined()
@@ -451,6 +468,10 @@ def help_(env, obj):
         print("function ", obj.name, "(*args, **kwargs):", sep="")
         print(obj.function.__doc__)
         print("========== End of help ==========")
+    elif isinstance(obj, lib.NativeType):
+        print("========== Help on native object ==========")
+        print(obj.doc())
+        print("========== End of help ==========")
     elif isinstance(obj, Function):
         print("========== Help on function ==========")
         print(_get_func_title(obj))
@@ -476,6 +497,8 @@ def help_(env, obj):
                 # print(_get_doc(instance.env.get(attr, (0, "help"))))
         mem.MEMORY.restore_status()
         print("========== End of help ==========")
+    else:
+        print("help() can only be used for classes, functions, native types, or native functions.")
 
 
 # helper functions
@@ -854,8 +877,12 @@ def call_function(call: ast.FuncCall, func: Function, call_env: Environment) -> 
         elif param.preset is not INVALID:
             arg = param.preset
         else:
+            if isinstance(call.call_obj, ast.NameNode):
+                f_name = call.call_obj.name
+            else:
+                f_name = call.call_obj
             raise lib.ArgumentException("Function '{}' missing a positional argument '{}', in file '{}', at line {}"
-                                        .format(call.call_obj, param.name, call.file, call.line_num))
+                                        .format(f_name, param.name, call.file, call.line_num))
 
         e = evaluate(arg, call_env)
         scope.define_var(param.name, e, lf)
