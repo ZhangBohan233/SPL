@@ -121,3 +121,22 @@ if (main) {
     var v = 1 + 2 * 3 - 2;
     println(v);
 }
+
+var file0 = f_open("t.txt", "r");
+var text = file0.read();
+file0.close();
+println(text);
+println(type(file0));
+println(type(text));
+println(file0 instanceof File);
+println(1 instanceof int);
+println("ss" instanceof String);
+
+try {
+    var file2 = f_open("E:\GgGg.txt");
+    var text2 = file2.read();
+    file2.close();
+    println(text2);
+} catch (err: IOException) {
+    println(err);
+}

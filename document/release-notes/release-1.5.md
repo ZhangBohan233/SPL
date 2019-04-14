@@ -1,6 +1,6 @@
 # SPL 1.5 Release
 
-Release date: 2019/04/XX
+Release date: 2019/04/13
 
 ## New Features
 
@@ -51,6 +51,7 @@ actual value
 * Exception caught is not accessible
 * Long-existing bugs in id-allocated system
 * Directly return an inner function inside function did not work
+* Function `f_open` does not open the file with relative path
 
 #### Others:
 * Changed the format of command-line arguments

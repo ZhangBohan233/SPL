@@ -62,6 +62,13 @@ def print_waring(msg: str):
     sys.stderr.write(msg + "\n")
 
 
+def concatenate_path(path: str, directory: str) -> str:
+    if os.path.isabs(path):
+        return path
+    else:
+        return directory + os.sep + path
+
+
 # Native functions with no dependency
 
 
@@ -85,7 +92,8 @@ class NativeType(SplObject):
     def __init__(self):
         SplObject.__init__(self)
 
-    def type_name__(self) -> str:
+    @classmethod
+    def type_name__(cls) -> str:
         raise NotImplementedError
 
     def doc__(self) -> str:
@@ -161,7 +169,7 @@ class String(NativeType, Iterable):
         if isinstance(other, String):
             return String(self.literal + other.literal)
         else:
-            raise TypeException("Cannot add <string> with <{}>".format(type(other).__name__))
+            raise TypeException("Cannot add <String> with <{}>".format(type(other).__name__))
 
     def __getitem__(self, index):
         return self.literal[index]
@@ -239,8 +247,9 @@ class String(NativeType, Iterable):
             print_waring("Warning: too much arguments for string format")
         return String("".join(lst))
 
-    def type_name__(self):
-        return "string"
+    @classmethod
+    def type_name__(cls):
+        return "String"
 
     def substring(self, from_, to=None):
         length = self.length()
@@ -277,8 +286,9 @@ class List(NativeType, Iterable):
     def get(self, key):
         self.__getitem__(key)
 
-    def type_name__(self):
-        return "list"
+    @classmethod
+    def type_name__(cls):
+        return "List"
 
     def append(self, value):
         self.list.append(value)
@@ -308,7 +318,7 @@ class List(NativeType, Iterable):
         length = self.length()
         end = length if to is None else to
         if from_ < 0 or end > length:
-            raise IndexOutOfRangeException("Substring index out of range")
+            raise IndexOutOfRangeException("Sublist index out of range")
         return List(self.list[from_: end])
 
     def reverse(self):
@@ -342,8 +352,9 @@ class Pair(NativeType, Iterable):
     def size(self):
         return len(self.pair)
 
-    def type_name__(self):
-        return "pair"
+    @classmethod
+    def type_name__(cls):
+        return "Pair"
 
 
 class Set(NativeType, Iterable):
@@ -382,8 +393,9 @@ class Set(NativeType, Iterable):
     def contains(self, item):
         return item in self.set
 
-    def type_name__(self):
-        return "set"
+    @classmethod
+    def type_name__(cls):
+        return "Set"
 
 
 class System(NativeType):
@@ -392,6 +404,7 @@ class System(NativeType):
 
     ----- Attributes -----
         argv: command line arguments
+        cwd: the working directory
         encoding: the encoding mode
         stdout: system standard output stream
         stderr: system standard error output stream
@@ -399,14 +412,16 @@ class System(NativeType):
     """
 
     argv: List
+    cwd: String
     encoding: str
     stdout = sys.stdout
     stderr = sys.stderr
     stdin = sys.stdin
 
-    def __init__(self, argv_: List, enc: str):
+    def __init__(self, argv_: List, directory: String, enc: str):
         NativeType.__init__(self)
 
+        type(self).cwd = directory
         type(self).argv = argv_
         type(self).encoding = enc
 
@@ -428,7 +443,8 @@ class System(NativeType):
         """
         time_lib.sleep(milli / 1000)
 
-    def type_name__(self):
+    @classmethod
+    def type_name__(cls):
         return "system"
 
 
@@ -446,7 +462,8 @@ class Os(NativeType):
     def __init__(self):
         NativeType.__init__(self)
 
-    def type_name__(self):
+    @classmethod
+    def type_name__(cls):
         return "os"
 
     @staticmethod
@@ -547,8 +564,9 @@ class File(NativeType):
         """
         self.fp.close()
 
-    def type_name__(self):
-        return "file"
+    @classmethod
+    def type_name__(cls):
+        return "File"
 
 
 # Exceptions
@@ -702,15 +720,6 @@ def to_float(v):
 
 def to_boolean(v):
     return True if v else False
-
-
-def f_open(file: String, mode=String("r"), encoding=String("utf-8")):
-    if "b" not in mode:
-        f = open(file.text__(), mode.text__(), encoding=encoding.text__())
-    else:
-        f = open(file.text__(), mode.text__())
-    file = File(f, mode.text__())
-    return file
 
 
 # etc

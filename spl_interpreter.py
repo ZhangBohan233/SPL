@@ -6,6 +6,7 @@ import spl_token_lib as stl
 import spl_lib as lib
 import multiprocessing
 import math
+import inspect
 from environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
     FunctionEnvironment, ClassEnvironment
 
@@ -31,10 +32,11 @@ class Interpreter:
     a program.
     """
 
-    def __init__(self, argv: list, encoding: str):
+    def __init__(self, argv: list, directory: str, encoding: str):
         # mem.start()
         self.ast = None
         self.argv = argv
+        self.dir = directory
         self.encoding = encoding
         self.env = GlobalEnvironment()
         self.env.scope_name = "Global"
@@ -48,7 +50,7 @@ class Interpreter:
         """
         add_natives(self.env)
         # obj = lib.SplObject()
-        system = lib.System(lib.List(*parse_args(self.argv)), self.encoding)
+        system = lib.System(lib.List(*parse_args(self.argv)), lib.String(self.dir), self.encoding)
         natives = NativeInvokes()
         os_ = lib.Os()
         self.env.add_heap("Object", OBJECT)
@@ -103,7 +105,7 @@ def add_natives(self):
     self.add_heap("string", NativeFunction(to_str, "string"))
     self.add_heap("repr", NativeFunction(to_repr, "repr"))
     self.add_heap("input", NativeFunction(lib.input_, "input"))
-    self.add_heap("f_open", NativeFunction(lib.f_open, "f_open"))
+    self.add_heap("f_open", NativeFunction(f_open, "f_open", self))
     self.add_heap("eval", NativeFunction(eval_, "eval"))
     self.add_heap("dir", NativeFunction(dir_, "dir", self))
     self.add_heap("getcwf", NativeFunction(getcwf, "getcwf"))
@@ -114,6 +116,13 @@ def add_natives(self):
     # type of built-in
     self.add_heap("boolean", NativeFunction(lib.to_boolean, "boolean"))
     self.add_heap("void", NativeFunction(None, "void"))
+
+    self.add_heap("String", lib.String)
+    self.add_heap("List", lib.List)
+    self.add_heap("Pair", lib.Pair)
+    self.add_heap("Set", lib.Set)
+    self.add_heap("File", lib.File)
+    self.add_heap("Thread", Thread)
 
     # global variables
 
@@ -224,8 +233,9 @@ class Thread(lib.NativeType):
         self.process: multiprocessing.Process = process
         self.daemon = False
 
-    def type_name__(self):
-        return "thread"
+    @classmethod
+    def type_name__(cls):
+        return "Thread"
 
     def set_daemon(self, d):
         """
@@ -256,7 +266,8 @@ class NativeInvokes(lib.NativeType):
     def __init__(self):
         lib.NativeType.__init__(self)
 
-    def type_name__(self):
+    @classmethod
+    def type_name__(cls):
         return "natives"
 
     @staticmethod
@@ -497,6 +508,28 @@ def is_main(env: Environment, obj: str):
     :return: <true> iff the interpreter is working on the main script
     """
     return env.get_heap("system").argv[0] == getcwf(obj)
+
+
+def f_open(env: Environment, file: lib.String, mode=lib.String("r"), encoding=lib.String("utf-8")):
+    """
+    Opens a file and returns the File object.
+
+    :param env:
+    :param file: the file's path, in <String>
+    :param mode: the opening mode, 'r' as default
+    :param encoding: the file's encoding, 'utf-8' as default
+    :return: a reference to the File object
+    """
+    full_path = lib.concatenate_path(file.text__(), env.get_heap("system").cwd.text__())
+    try:
+        if "b" not in mode:
+            f = open(full_path, mode.text__(), encoding=encoding.text__())
+        else:
+            f = open(full_path, mode.text__())
+        file = lib.File(f, mode.text__())
+        return file
+    except IOError as e:
+        raise lib.IOException(str(e))
 
 
 def help_(env, obj):
@@ -1050,6 +1083,8 @@ def native_arithmetic(left: lib.NativeType, right, symbol: str):
     elif symbol == "instanceof":
         if isinstance(right, NativeFunction):
             return left.type_name__() == right.name
+        elif inspect.isclass(right):
+            return left.type_name__() == right.type_name__()
         else:
             return False
     elif symbol == "==":
@@ -1069,7 +1104,7 @@ STRING_ARITHMETIC_TABLE = {
     "===": lambda left, right: left is right,
     "is": lambda left, right: left is right,
     "!==": lambda left, right: left is not right,
-    "instanceof": lambda left, right: isinstance(right, NativeFunction) and right.name == "string"
+    "instanceof": lambda left, right: inspect.isclass(right) and right.type_name__() == "String"
 }
 
 
@@ -1418,7 +1453,8 @@ def raise_exception(e: Exception):
 
 # Set of types that will not change after being evaluated
 SELF_RETURN_TABLE = {int, float, bool, str,
-                     lib.String, lib.List, lib.Set, lib.Pair, lib.System, lib.File, ClassInstance}
+                     lib.String, lib.List, lib.Set, lib.Pair, lib.System, lib.Os, lib.File, NativeInvokes,
+                     Thread, ClassInstance}
 
 # Operation table of every non-abstract node types
 NODE_TABLE = {

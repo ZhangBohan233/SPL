@@ -3,6 +3,7 @@
 * 64 bit integer
 * String
 * ast.build_expr()
+* function and class get tags
 * unit test module
 
 ===== 1.4 =====

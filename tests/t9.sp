@@ -8,3 +8,6 @@ function f() {
 }
 
 println(f());
+
+var c = "aa";
+println(c instanceof String);

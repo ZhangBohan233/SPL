@@ -1,3 +1,13 @@
+********** SPL 1.5 Release Candidate 3 **********
+===== Build 0066 2019/04/13 =====
+
+* Bug fixes:
+    * Fixed the file directory problem
+    * Fixed the bug that operator 'instanceof' returns false for all native types
+* Interpreter code optimization:
+    * Set the '__' suffix as the signal of spl internal method
+    * Change the native types' type_name() to @classmethod type_name__()
+
 ********** SPL 1.5 Release Candidate 2 **********
 ===== Build 0065 2019/04/13 =====
 

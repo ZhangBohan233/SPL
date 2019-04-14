@@ -129,7 +129,7 @@ def interpret(mode: str):
 
     interpret_start = time.time()
 
-    itr = spl_interpreter.Interpreter(argv["argv"], argv["encoding"])
+    itr = spl_interpreter.Interpreter(argv["argv"], argv["dir"], argv["encoding"])
     itr.set_ast(block)
     result = itr.interpret()
 
