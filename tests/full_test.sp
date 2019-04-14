@@ -140,3 +140,5 @@ try {
 } catch (err: IOException) {
     println(err);
 }
+
+println(type(system));

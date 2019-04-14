@@ -268,7 +268,7 @@ class NativeInvokes(lib.NativeType):
 
     @classmethod
     def type_name__(cls):
-        return "natives"
+        return "Natives"
 
     @staticmethod
     def str_join(s: lib.String, itr):

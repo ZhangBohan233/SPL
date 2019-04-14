@@ -445,7 +445,7 @@ class System(NativeType):
 
     @classmethod
     def type_name__(cls):
-        return "system"
+        return "System"
 
 
 class Os(NativeType):
@@ -464,7 +464,7 @@ class Os(NativeType):
 
     @classmethod
     def type_name__(cls):
-        return "os"
+        return "Os"
 
     @staticmethod
     def list_files(path) -> List:

@@ -55,3 +55,4 @@ actual value
 
 #### Others:
 * Changed the format of command-line arguments
+* Changed all reference type names to `UpperCamel`
