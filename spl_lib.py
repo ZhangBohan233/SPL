@@ -160,6 +160,7 @@ class String(NativeType, Iterable):
     """
     An object of a string literal.
     """
+
     def __init__(self, lit):
         NativeType.__init__(self)
 
@@ -238,7 +239,8 @@ class String(NativeType, Iterable):
                     try:
                         lst.append(lit.literal)
                     except AttributeError:
-                        raise StringFormatException("Unsupported format")
+                        raise StringFormatException("Cannot resolve type '{}' with symbol '%s'"
+                                                    .format(type(lit).__name__))
                 elif flag == "d":
                     lst.append(str(int(args[count])))
                 elif flag == "f":
@@ -326,7 +328,7 @@ class List(NativeType, Iterable):
     def extend(self, lst):
         self.list.extend(lst)
 
-    def length(self):
+    def size(self):
         return len(self.list)
 
     def sort(self):
@@ -712,13 +714,15 @@ def make_list(*initial_elements):
     return lst
 
 
-def make_pair(initial_elements: dict):
+def make_pair(initial_elements: dict = None):
     """
     Creates a key-value pair.
 
     :param initial_elements: the elements that the pair initially contains
     :return: a reference of the newly created <Pair> object
     """
+    if initial_elements is None:
+        initial_elements = {}
     pair = Pair(initial_elements)
     return pair
 

@@ -23,3 +23,7 @@ if (true)
         println(100);
     else
         println(200);
+
+for (var i = 0; i < 10; i++) print(i);
+println();
+for (var i = 0; i < 10; ++i) print(i);

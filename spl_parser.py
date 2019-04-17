@@ -144,6 +144,8 @@ class Parser:
                         # parser.build_expr()
                         if len(call_nest_list) > 0 or len(param_nest_list) > 0:
                             parser.build_line()
+                        else:
+                            parser.build_line()
                     elif sym == ".":
                         parser.add_dot(line, extra_precedence)
                     elif sym == "function" or sym == "def":

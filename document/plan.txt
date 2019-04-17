@@ -1,10 +1,10 @@
 ===== 1.6 =====
 
 * 64 bit integer   ...discard
-* String
+* String   ...done
 * ast.build_expr()
-* function and class get annotations
-* unit test module
+* function and class get annotations   ...done
+* unit test module   ...done
 
 ===== 1.4 =====
 

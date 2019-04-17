@@ -903,7 +903,8 @@ class AbstractSyntaxTree:
                         isinstance(node, Expr) or \
                         (isinstance(node, FuncCall) and node.fulfilled()) or \
                         isinstance(node, DefStmt) or \
-                        isinstance(node, ClassInit):
+                        isinstance(node, ClassInit) or \
+                        isinstance(node, BlockStmt):
                     lst.append(node)
                     self.stack.pop()
                 else:

@@ -1,3 +1,11 @@
+********** SPL 1.5.2 **********
+===== Build 0069 2019/04/17 =====
+
+* Unittest updates:
+    * Unittest module now prints out the failed test to stderr
+* Bug fixes:
+    * The key type of returning pair of native.variables() is python native str
+
 ********** SPL 1.5.1 **********
 ===== Build 0068 2019/04/17 =====
 

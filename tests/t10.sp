@@ -1,4 +1,4 @@
-import "unit_test"
+import "unittest"
 
 class Clazz {
     function Clazz() {

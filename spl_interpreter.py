@@ -334,9 +334,33 @@ class NativeInvokes(lib.NativeType):
 
     @staticmethod
     def variables(env: Environment):
+        """
+        Returns all variables of the nearest first-class scope, i.e. global scope or class scope.
+
+        :param env: the calling scope
+        :return: all variables of the nearest first-class scope
+        """
         while not env.is_global() and not env.is_class():
             env = env.outer
-        return lib.Pair(env.variables)
+        pair = lib.Pair({})
+        for name in env.variables:
+            pair.put(lib.String(name), env.variables[name])
+        return pair
+
+    @staticmethod
+    def constants(env: Environment):
+        """
+        Returns all constants of the nearest first-class scope, i.e. global scope or class scope.
+
+        :param env: the calling scope
+        :return: all constants of the nearest first-class scope
+        """
+        while not env.is_global() and not env.is_class():
+            env = env.outer
+        pair = lib.Pair({})
+        for name in env.constants:
+            pair.put(lib.String(name), env.constants[name])
+        return pair
 
 
 UNDEFINED = Undefined()
