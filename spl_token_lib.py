@@ -27,7 +27,7 @@ LAZY = {"&&", "||", "and", "or"}
 OMITS = {"\n", "\r", "\t", " "}
 OP_EQ = {"+", "-", "*", "/", "%", "&", "^", "|", "<<", ">>"}
 ESCAPES = {"n": "\n", "t": "\t", "0": "\0", "a": "\a", "r": "\r", "f": "\f", "v": "\v", "b": "\b", "\\": "\\"}
-NO_BUILD_LINE = {"else", "catch", "finally"}
+NO_BUILD_LINE = {"catch", "finally"}
 
 NO_CLASS_NAME = {"Object"}
 

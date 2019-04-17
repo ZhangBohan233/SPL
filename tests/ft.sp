@@ -67,6 +67,10 @@ class Clazz extends Super, Interface {
     function Clazz() {
         Super(3);
     }
+
+    function over() {
+        println("Clazz over")
+    }
 }
 
 var clazz = new Clazz();
@@ -99,6 +103,11 @@ class Clazz2 extends Clazz {
      */
     function Clazz2() {
         Clazz();
+    }
+
+    @Override
+    function over() {
+        println("Clazz2 Over!");
     }
 
     function other() {
@@ -142,3 +151,5 @@ try {
 }
 
 println(type(system));
+var c2 = new Clazz2;
+c2.over();

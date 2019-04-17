@@ -41,6 +41,8 @@ class Parser:
                         par_count += 1
                         parser.add_if(line)
                         i += 1
+                    elif sym == "else":
+                        parser.add_else()
                     elif sym == "while":
                         cond_nest_list.append(par_count)
                         par_count += 1
@@ -51,8 +53,6 @@ class Parser:
                         par_count += 1
                         parser.add_for_loop(line)
                         i += 1
-                    elif sym == "else":
-                        pass  # this case is automatically handled by the if-block
                     elif sym == "return":
                         parser.add_unary(line, "return", 0)
                         # parser.add_return(line)

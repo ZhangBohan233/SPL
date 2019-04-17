@@ -69,6 +69,30 @@ def concatenate_path(path: str, directory: str) -> str:
         return directory + os.sep + path
 
 
+def get_string_literal(lit) -> str:
+    if lit is None:
+        return "null"
+    elif isinstance(lit, bool):
+        return "true" if lit else "false"
+    elif isinstance(lit, String):
+        return lit.literal
+    else:
+        return str(lit)
+
+
+def get_string_repr(o) -> str:
+    if o is None:
+        return "null"
+    elif isinstance(o, bool):
+        return "true" if o else "false"
+    elif isinstance(o, int) or isinstance(o, float):
+        return str(o)
+    elif isinstance(o, String):
+        return "'" + o.__repr__() + "'"
+    else:
+        return repr(o)
+
+
 # Native functions with no dependency
 
 
@@ -139,10 +163,7 @@ class String(NativeType, Iterable):
     def __init__(self, lit):
         NativeType.__init__(self)
 
-        if isinstance(lit, String):
-            self.literal = lit.literal
-        else:
-            self.literal: str = str(lit)
+        self.literal = get_string_literal(lit)
 
     def __contains__(self, item):
         return item in self.literal
@@ -151,7 +172,7 @@ class String(NativeType, Iterable):
         return (c for c in self.literal)
 
     def __str__(self):
-        return "'" + self.literal + "'"
+        return self.literal
 
     def __repr__(self):
         return self.__str__()
@@ -181,9 +202,6 @@ class String(NativeType, Iterable):
         :return: the length of this string
         """
         return len(self.literal)
-
-    def text__(self):
-        return self.literal
 
     def contains(self, char):
         """
@@ -269,7 +287,7 @@ class List(NativeType, Iterable):
         return (x for x in self.list)
 
     def __str__(self):
-        return str(self.list)
+        return str([String(get_string_repr(v)) for v in self.list])
 
     def __repr__(self):
         return self.__str__()
@@ -335,7 +353,7 @@ class Pair(NativeType, Iterable):
         return (k for k in self.pair)
 
     def __str__(self):
-        return str(self.pair)
+        return str({String(get_string_repr(k)): String(get_string_repr(self.pair[k])) for k in self.pair})
 
     def __repr__(self):
         return self.__str__()
@@ -348,6 +366,12 @@ class Pair(NativeType, Iterable):
 
     def contains(self, item):
         return item in self.pair
+
+    def get(self, key):
+        return self.__getitem__(key)
+
+    def put(self, key, value):
+        self.__setitem__(key, value)
 
     def size(self):
         return len(self.pair)
@@ -367,7 +391,7 @@ class Set(NativeType, Iterable):
         return (v for v in self.set)
 
     def __str__(self):
-        return str(self.set)
+        return str([String(get_string_repr(v)) for v in self.set])
 
     def __repr__(self):
         return self.__str__()
@@ -650,8 +674,8 @@ def print_(s, stream=sys.stdout):
     :param s: the content to be printed
     :param stream: the output stream, stdout as default
     """
-    s2 = replace_bool_none(str(s))
-    stream.write(s2)
+    # s2 = replace_bool_none(String(s).text__())
+    stream.write(str(String(s)))
 
 
 def exit_(code=0):

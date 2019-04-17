@@ -1,9 +1,9 @@
 ===== 1.6 =====
 
-* 64 bit integer
+* 64 bit integer   ...discard
 * String
 * ast.build_expr()
-* function and class get tags
+* function and class get annotations
 * unit test module
 
 ===== 1.4 =====

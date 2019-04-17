@@ -1,3 +1,13 @@
+********** SPL 1.5.1 **********
+===== Build 0068 2019/04/17 =====
+
+* Make the Function a SPL object
+* Added the access from SPL code to python instance
+* Changed the annotations from dictionary to spl Set
+* Changed the mechanism of string and print
+* Bug fixes:
+    * if-else without braces
+
 ********** SPL 1.5 Release **********
 ===== Build 0067 2019/04/14 =====
 

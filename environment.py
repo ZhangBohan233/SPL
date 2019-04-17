@@ -66,6 +66,9 @@ class Environment:
     def is_global(self):
         raise NotImplementedError
 
+    def is_class(self):
+        raise NotImplementedError
+
     def is_sub(self):
         """
         Returns True iff this scope is a NOT a main scope.
@@ -143,8 +146,10 @@ class Environment:
         """
         raise lib.SplException("Not inside loop.")
 
-    def define_function(self, key, value, lf, options: dict):
-        if not options["override"] and not options["suppress"] and key[0].islower() and self.contains_key(key):
+    def define_function(self, key, value, lf, annotations: lib.Set):
+        if not annotations.contains(lib.String("Override")) and \
+                not annotations.contains(lib.String("Suppress")) and \
+                key[0].islower() and self.contains_key(key):
             lib.print_waring("Warning: re-declaring method '{}' in '{}', at line {}".format(key, lf[1], lf[0]))
         self.variables[key] = value
 
@@ -261,6 +266,9 @@ class GlobalEnvironment(Environment):
 
         self.heap = {}
 
+    def is_class(self):
+        return False
+
     def is_global(self):
         return True
 
@@ -277,6 +285,9 @@ class GlobalEnvironment(Environment):
 class ClassEnvironment(Environment):
     def __init__(self, outer):
         Environment.__init__(self, CLASS_SCOPE, outer)
+
+    def is_class(self):
+        return True
 
     def is_global(self):
         return False
@@ -297,6 +308,9 @@ class FunctionEnvironment(Environment):
 
         self.terminated = False
         self.exit_value = None
+
+    def is_class(self):
+        return False
 
     def is_global(self):
         return False
@@ -327,6 +341,9 @@ class LoopEnvironment(Environment):
 
         self.broken = False
         self.paused = False
+
+    def is_class(self):
+        return False
 
     def resume_loop(self):
         self.paused = False
@@ -366,6 +383,9 @@ class SubEnvironment(Environment):
 
     def resume_loop(self):
         self.outer.resume_loop()
+
+    def is_class(self):
+        return False
 
     def is_global(self):
         return False

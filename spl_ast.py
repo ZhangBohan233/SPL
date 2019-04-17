@@ -314,6 +314,7 @@ class CondStmt(Node):
 class IfStmt(CondStmt):
     then_block = None
     else_block = None
+    has_else = False
 
     def __init__(self, line):
         CondStmt.__init__(self, line)
@@ -321,7 +322,7 @@ class IfStmt(CondStmt):
         self.node_type = IF_STMT
 
     def __str__(self):
-        return "if({} then {} else {})".format(self.condition, self.then_block, self.else_block)
+        return "if({} then {} else[{}] {})".format(self.condition, self.then_block, self.has_else, self.else_block)
 
     def __repr__(self):
         return self.__str__()
@@ -534,6 +535,7 @@ class AbstractSyntaxTree:
         self.in_expr = False
         self.in_ternary = False
         self.in_get = False
+        # self.in_cond = False
 
     def __str__(self):
         return str(self.elements)
@@ -649,7 +651,8 @@ class AbstractSyntaxTree:
         if self.inner:
             self.inner.add_else()
         else:
-            pass
+            if_stmt = self.elements.lines[-1]
+            find_else(if_stmt)
 
     def add_while(self, line):
         if self.inner:
@@ -945,11 +948,12 @@ class AbstractSyntaxTree:
                     elif isinstance(node, IfStmt):
                         if len(lst) == 1:
                             node.then_block = lst[0]
-                        elif len(lst) == 2:
-                            node.then_block = lst[0]
-                            node.else_block = lst[1]
+                        # elif len(lst) == 2:
+                        #     node.then_block = lst[0]
+                        #     node.else_block = lst[1]
                         elif len(lst) != 0:
-                            raise stl.ParseException("Unexpected token")
+                            raise stl.ParseException("Unexpected token, in file '{}', at line {}"
+                                                     .format(node.file, node.line_num))
                         lst.clear()
                         lst.append(node)
                     elif isinstance(node, WhileStmt) or isinstance(node, ForLoopStmt):
@@ -958,14 +962,6 @@ class AbstractSyntaxTree:
                             lst.append(node)
                         elif len(lst) != 0:
                             raise stl.ParseException("Unexpected token")
-                        # node.body = lst[0] if len(lst) > 0 else None
-                        # lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
-                    # elif isinstance(node, DefStmt):
-                    #     if len(lst) == 1:
-                    #         node.body = lst.pop()
-                    #         lst.append(node)
-                    #     elif len(lst) != 0:
-                    #         raise stl.ParseException("Unexpected token")
                         # node.body = lst[0] if len(lst) > 0 else None
                         # lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                     elif isinstance(node, CatchStmt):
@@ -983,6 +979,13 @@ class AbstractSyntaxTree:
                     else:
                         lst.__setitem__(0, node) if len(lst) > 0 else lst.append(node)
                         # res = node
+                if len(self.elements.lines) > 0:
+                    last = self.elements.lines[-1]
+                    if place_else(last, lst[0]):
+                        return
+                    # if isinstance(last, IfStmt) and last.else_block is None and last.has_else:
+                    #     last.else_block = lst[0]
+                    #     return
                 self.elements.add_line(lst[0])
 
     def get_as_block(self):
@@ -1060,3 +1063,29 @@ def parse_expr(lst):
         else:
             raise stl.ParseException("Unknown error while parsing operators")
     return lst[0]
+
+
+def find_else(stmt: Node) -> bool:
+    if isinstance(stmt, IfStmt):
+        if find_else(stmt.then_block):
+            return True
+
+        if stmt.else_block is None:
+            stmt.has_else = True
+            return True
+        else:
+            find_else(stmt.else_block)
+    return False
+
+
+def place_else(stmt: Node, element) -> bool:
+    if isinstance(stmt, IfStmt):
+        if place_else(stmt.then_block, element):
+            return True
+        if stmt.has_else:
+            if stmt.else_block is None:
+                stmt.else_block = element
+                return True
+            else:
+                return place_else(stmt.else_block, element)
+    return False

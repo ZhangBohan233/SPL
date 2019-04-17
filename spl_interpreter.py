@@ -123,6 +123,10 @@ def add_natives(self):
     self.add_heap("Set", lib.Set)
     self.add_heap("File", lib.File)
     self.add_heap("Thread", Thread)
+    self.add_heap("System", lib.System)
+    self.add_heap("Os", lib.Os)
+    self.add_heap("Natives", NativeInvokes)
+    self.add_heap("Function", Function)
 
     # global variables
 
@@ -167,21 +171,26 @@ class ParameterPair:
         return self.__str__()
 
 
-class Function:
+class Function(lib.NativeType):
     """
     :type body: BlockStmt
     :type outer_scope: Environment
     """
 
-    def __init__(self, params, body, outer, abstract: bool, options: dict, doc):
+    def __init__(self, params, body, outer, abstract: bool, annotations: lib.Set, doc):
+        lib.NativeType.__init__(self)
         self.params: [ParameterPair] = params
-        self.options = options
+        self.annotations = annotations
         self.body = body
         self.outer_scope = outer
         self.abstract = abstract
         self.doc = lib.String(doc)
         self.file = None
         self.line_num = None
+
+    @classmethod
+    def type_name__(cls) -> str:
+        return "Function"
 
     def __str__(self):
         return "Function<{}>".format(id(self))
@@ -323,6 +332,12 @@ class NativeInvokes(lib.NativeType):
         """
         return base ** exp
 
+    @staticmethod
+    def variables(env: Environment):
+        while not env.is_global() and not env.is_class():
+            env = env.outer
+        return lib.Pair(env.variables)
+
 
 UNDEFINED = Undefined()
 
@@ -454,7 +469,7 @@ def eval_(expr: lib.String):
     lexer = lex.Tokenizer()
     lexer.file_name = "expression"
     lexer.script_dir = "expression"
-    lexer.tokenize([expr.text__()])
+    lexer.tokenize([str(expr)])
     parser = psr.Parser(lexer.get_tokens())
     block = parser.parse()
     return block
@@ -520,13 +535,13 @@ def f_open(env: Environment, file: lib.String, mode=lib.String("r"), encoding=li
     :param encoding: the file's encoding, 'utf-8' as default
     :return: a reference to the File object
     """
-    full_path = lib.concatenate_path(file.text__(), env.get_heap("system").cwd.text__())
+    full_path = lib.concatenate_path(str(file), str(env.get_heap("system").cwd))
     try:
         if "b" not in mode:
-            f = open(full_path, mode.text__(), encoding=encoding.text__())
+            f = open(full_path, str(mode), encoding=str(encoding))
         else:
-            f = open(full_path, mode.text__())
-        file = lib.File(f, mode.text__())
+            f = open(full_path, str(mode))
+        file = lib.File(f, str(mode))
         return file
     except IOError as e:
         raise lib.IOException(str(e))
@@ -795,7 +810,7 @@ def assignment(key: ast.Node, value, env: Environment, level):
             env.define_var(key.name, value, lf)
         elif level == ast.FUNC_DEFINE:
             value: Function
-            env.define_function(key.name, value, lf, value.options)
+            env.define_function(key.name, value, lf, value.annotations)
         else:
             raise lib.SplException("Unknown variable level")
         return value
@@ -1269,8 +1284,8 @@ def native_types_invoke(instance: lib.NativeType, node: ast.NameNode):
     :return:
     """
     name = node.name
-    type_ = type(instance)
-    res = getattr(type_, name)
+    # type_ = type(instance)
+    res = getattr(instance, name)
     return res
 
 
@@ -1359,8 +1374,10 @@ def eval_def(node: ast.DefStmt, env: Environment):
         pair = ParameterPair(name, value)
         params_lst.append(pair)
 
-    options = {"override": "Override" in node.tags, "suppress": "Suppress" in node.tags}
-    f = Function(params_lst, node.body, env, node.abstract, options, node.doc)
+    annotations = lib.Set()
+    for ann in node.tags:
+        annotations.add(lib.String(ann))
+    f = Function(params_lst, node.body, env, node.abstract, annotations, node.doc)
     f.file = node.file
     f.line_num = node.line_num
     return f
@@ -1386,7 +1403,8 @@ def eval_jump(node, env: Environment):
 def eval_assert(node: ast.Node, env: Environment):
     result = evaluate(node, env)
     if result is not True:
-        raise lib.AssertionException("Assertion failed, in file '{}', at line {}".format(node.file, node.line_num))
+        raise lib.AssertionException("Assertion failed on expression '{}', in file '{}', at line {}"
+                                     .format(node, node.file, node.line_num))
 
 
 UNARY_TABLE = {
