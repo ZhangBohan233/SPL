@@ -1,3 +1,15 @@
+********** SPL 1.6 Alpha 1 **********
+===== Build 0070 2019/04/18 =====
+
+* Added portable list, pair, set creation:
+    * List creation with [a, b, c]
+    * Pair creation with {a = x, b = y, c = z}
+    * Set creation with {a, b, c}
+* Bug fixes:
+    * Fixed that getitem and setitem not working properly
+* Optimizations:
+    * Optimized codes in parser
+
 ********** SPL 1.5.2 **********
 ===== Build 0069 2019/04/17 =====
 

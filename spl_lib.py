@@ -393,7 +393,7 @@ class Set(NativeType, Iterable):
         return (v for v in self.set)
 
     def __str__(self):
-        return str([String(get_string_repr(v)) for v in self.set])
+        return str(set([String(get_string_repr(v)) for v in self.set]))
 
     def __repr__(self):
         return self.__str__()

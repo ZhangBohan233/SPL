@@ -19,11 +19,14 @@ class Parser:
         i = 0
         func_count = 0
         par_count = 0  # count of parenthesis
+        square_count = 0  # count of square bracket
+        # get_count = 0  # count of getitem
         cond_nest_list = []
         call_nest_list = []
         param_nest_list = []
+        square_nest_list = []
+        # get_nest_list = []
         is_abstract = False
-        array_init_pos = -1
         var_level = ast.ASSIGN
         brace_count = 0
         class_brace = -1
@@ -76,7 +79,13 @@ class Parser:
                         titles.append(next_token.symbol)
                     elif sym == "{":
                         brace_count += 1
-                        parser.new_block()
+                        last_token = self.tokens[i - 1]
+                        if isinstance(last_token, stl.IdToken) and \
+                                (last_token.symbol == ")" or  # is a function
+                                 last_token.symbol.isidentifier()):  # is a class
+                            parser.new_block()
+                        else:
+                            parser.add_dict()
                     elif sym == "}":
                         brace_count -= 1
                         # parser.build_line()
@@ -115,27 +124,19 @@ class Parser:
                             extra_precedence -= 1
                     elif sym == "[":
                         if i > 0 and is_call(self.tokens[i - 1]):
-                            parser.add_dot(line, extra_precedence)
-                            parser.add_get_set(line)
-                            call_nest_list.append(par_count)
-                            par_count += 1
-                    elif sym == "]":
-                        next_token = self.tokens[i + 1]
-                        if isinstance(next_token, stl.IdToken) and next_token.symbol == "=":
-                            parser.build_get_set(True)
-                            parser.build_line()
-                            i += 1
+                            parser.add_getitem(line)
                         else:
-                            if is_this_list(call_nest_list, array_init_pos):
-                                parser.build_line()
-                                parser.build_call()
-                                array_init_pos = -1
-                            else:
-                                parser.build_get_set(False)
-                                parser.build_line()
-                                parser.build_call()
-                            call_nest_list.pop()
-                            par_count -= 1
+                            square_nest_list.append(square_count)
+                            parser.add_name(line, "list")
+                            parser.add_call(line)
+                        square_count += 1
+                    elif sym == "]":
+                        square_count -= 1
+                        if is_this_list(square_nest_list, square_count):  # end of list creation
+                            square_nest_list.pop()
+                            parser.build_call()
+                        else:
+                            parser.build_getitem()
                     elif sym == "=":
                         parser.build_expr()
                         parser.add_assignment(line, var_level, extra_precedence)
@@ -266,11 +267,6 @@ class Parser:
                         parser.build_expr()
                         parser.add_type(line)
                     elif token.is_eol():
-                        if parser.is_in_get():
-                            parser.build_call()
-                            call_nest_list.pop()
-                            par_count -= 1
-                        parser.build_expr()
                         if var_level != ast.ASSIGN:
                             active = parser.get_active()
                             und_vars = active.stack.copy()
@@ -308,7 +304,7 @@ class Parser:
                                                                                   self.tokens[i].line_number()))
 
         if par_count != 0 or len(call_nest_list) != 0 or len(cond_nest_list) != 0 or len(param_nest_list) or \
-                brace_count != 0 or extra_precedence != 0:
+                len(square_nest_list) != 0 or brace_count != 0 or extra_precedence != 0:
             raise stl.ParseEOFException(
                 "Reach the end while parsing, {},{},{},{}".format(par_count, call_nest_list,
                                                                   cond_nest_list, param_nest_list))
@@ -325,7 +321,10 @@ class Parser:
 def is_call(last_token: stl.Token) -> bool:
     if last_token.is_identifier():
         last_token: stl.IdToken
-        if last_token.symbol.isidentifier() or last_token.symbol == "." or last_token.symbol == ")":
+        if last_token.symbol.isidentifier() or \
+                last_token.symbol == "." or \
+                last_token.symbol == ")" or \
+                last_token.symbol == "]":
             return True
     return False
 

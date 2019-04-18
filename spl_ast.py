@@ -37,6 +37,7 @@ TYPE_NODE = 29
 JUMP_NODE = 30
 UNDEFINED_NODE = 31
 IN_DECREMENT_OPERATOR = 32
+INDEXING_NODE = 33
 
 # Variable levels
 ASSIGN = 0
@@ -281,6 +282,7 @@ class ContinueStmt(LeafNode):
 
 class BlockStmt(Node):
     lines: list = None
+    standalone = False
 
     def __init__(self, line):
         Node.__init__(self, line)
@@ -384,7 +386,6 @@ class DefStmt(TitleNode):
 class FuncCall(LeafNode):
     call_obj = None
     args: BlockStmt = None
-    is_get_set = False
 
     def __init__(self, line, call_obj):
         LeafNode.__init__(self, line)
@@ -400,6 +401,26 @@ class FuncCall(LeafNode):
 
     def fulfilled(self):
         return self.args is not None
+
+
+class IndexingNode(Node):
+    call_obj = None
+    arg = None
+
+    def __init__(self, line, call_obj):
+        Node.__init__(self, line)
+
+        self.node_type = INDEXING_NODE
+        self.call_obj = call_obj
+
+    def __str__(self):
+        return "{}[{}]".format(self.call_obj, self.arg)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def fulfilled(self):
+        return self.arg is not None
 
 
 class ClassStmt(Node):
@@ -534,7 +555,7 @@ class AbstractSyntaxTree:
         self.inner = None
         self.in_expr = False
         self.in_ternary = False
-        self.in_get = False
+        # self.in_get = False
         # self.in_cond = False
 
     def __str__(self):
@@ -719,40 +740,24 @@ class AbstractSyntaxTree:
             self.stack.append(fc)
             self.inner = AbstractSyntaxTree()
 
-    def is_in_get(self):
+    def add_getitem(self, line):
         if self.inner:
-            return self.inner.is_in_get()
+            self.inner.add_getitem(line)
         else:
-            return self.in_get
+            node = IndexingNode(line, self.stack.pop())
+            self.stack.append(node)
+            self.inner = AbstractSyntaxTree()
 
-    def add_get_set(self, line):
-        if self.inner:
-            self.inner.add_get_set(line)
-        else:
-            self.add_name(line, "get/set")
-            self.add_call(line)
-            # self.add_call(line, "get/set")
-            self.inner.in_get = True
-
-    def build_get_set(self, is_set):
+    def build_getitem(self):
         if self.inner.inner:
-            self.inner.build_get_set(is_set)
+            self.inner.build_getitem()
         else:
-            i = len(self.stack) - 1
-            if is_set:
-                while i >= 0:
-                    node = self.stack[i]
-                    if isinstance(node, FuncCall) and node.call_obj.name == "get/set":
-                        node.call_obj = NameNode((node.line_num, node.file), "__setitem__")
-                        break
-                    i -= 1
-            else:
-                while i >= 0:
-                    node = self.stack[i]
-                    if isinstance(node, FuncCall) and node.call_obj.name == "get/set":
-                        node.call_obj = NameNode((node.line_num, node.file), "__getitem__")
-                        break
-                    i -= 1
+            self.inner.build_line()
+            block: BlockStmt = self.inner.get_as_block()
+            self.inner = None
+            node: IndexingNode = self.stack.pop()
+            node.arg = block
+            self.stack.append(node)
 
     def add_break(self, line):
         if self.inner:
@@ -817,6 +822,14 @@ class AbstractSyntaxTree:
             self.inner.new_block()
         else:
             self.inner = AbstractSyntaxTree()
+
+    def add_dict(self):
+        if self.inner:
+            self.inner.add_dict()
+        else:
+            inner = AbstractSyntaxTree()
+            inner.elements.standalone = True
+            self.inner = inner
 
     def add_class(self, line, class_name, abstract: bool, class_doc: str):
         if self.inner:
@@ -902,9 +915,10 @@ class AbstractSyntaxTree:
                         isinstance(node, LeafNode) or \
                         isinstance(node, Expr) or \
                         (isinstance(node, FuncCall) and node.fulfilled()) or \
+                        (isinstance(node, IndexingNode) and node.fulfilled()) or \
                         isinstance(node, DefStmt) or \
                         isinstance(node, ClassInit) or \
-                        isinstance(node, BlockStmt):
+                        (isinstance(node, BlockStmt) and node.standalone):
                     lst.append(node)
                     self.stack.pop()
                 else:
@@ -989,7 +1003,7 @@ class AbstractSyntaxTree:
                     #     return
                 self.elements.add_line(lst[0])
 
-    def get_as_block(self):
+    def get_as_block(self) -> BlockStmt:
         if len(self.stack) > 0 or self.in_expr:
             raise stl.ParseException("Line is not terminated")
         return self.elements

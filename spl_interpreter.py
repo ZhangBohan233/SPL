@@ -812,6 +812,25 @@ def eval_operator(node: ast.OperatorNode, env: Environment):
         return arithmetic(left, right_node, symbol, env)
 
 
+def eval_braces(node: ast.BlockStmt, env: Environment) -> object:
+    if len(node.lines) > 0:
+        first = node.lines[0]
+        if isinstance(first, ast.AssignmentNode):  # this is a pair
+            result = lib.Pair({})
+            for ass in node.lines:
+                key = evaluate(ass.left, env)
+                value = evaluate(ass.right, env)
+                result.put(key, value)
+        else:
+            result = lib.Set()
+            for n in node.lines:
+                value = evaluate(n, env)
+                result.add(value)
+        return result
+    else:
+        return lib.Pair({})
+
+
 def eval_assignment_node(node: ast.AssignmentNode, env: Environment):
     key = node.left
     value = evaluate(node.right, env)
@@ -854,8 +873,25 @@ def assignment(key: ast.Node, value, env: Environment, level):
             scope = scope.get(t, (node.line_num, node.file)).env
         scope.assign(name_lst[-1], value, lf)
         return value
+    elif t == ast.INDEXING_NODE:  # setitem
+        key: ast.IndexingNode
+        return set_item(key.call_obj, key.arg, value, env)
     else:
         raise lib.InterpretException("Unknown assignment, in {}, at line {}".format(key.file, key.line_num))
+
+
+def set_item(call_obj, index_node, value, env):
+    obj = evaluate(call_obj, env)
+    # index = evaluate(index_node, env)
+    fc = ast.FuncCall(LINE_FILE, ast.NameNode(LINE_FILE, "__setitem__"))
+    fc.args = index_node
+    fc.args.lines.append(value)
+    if isinstance(obj, ClassInstance):
+        return call_function(fc, obj.env.get("__setitem__", LINE_FILE), env)
+    elif isinstance(obj, lib.NativeType):
+        return native_types_call(obj, fc, env)
+    else:
+        raise lib.TypeException("Unknown type for index assignment")
 
 
 def init_class(node: ast.ClassInit, env: Environment):
@@ -1190,8 +1226,8 @@ PRIMITIVE_ARITHMETIC_TABLE = {
     "===": lambda left, right: left is right,
     "is": lambda left, right: left is right,
     "!==": lambda left, right: left is not right,
-    "instanceof": lambda left, right: isinstance(right, NativeFunction) and PRIMITIVE_TYPE_TABLE[right.name] == type(
-        left).__name__
+    "instanceof": lambda left, right: isinstance(right, NativeFunction) and
+                                      PRIMITIVE_TYPE_TABLE[right.name] == type(left).__name__
 }
 
 
@@ -1325,10 +1361,13 @@ def eval_return(node: ast.Node, env: Environment):
 
 
 def eval_block(node: ast.BlockStmt, env: Environment):
-    result = None
-    for line in node.lines:
-        result = evaluate(line, env)
-    return result
+    if node.standalone:
+        return eval_braces(node, env)
+    else:
+        result = None
+        for line in node.lines:
+            result = evaluate(line, env)
+        return result
 
 
 def eval_if_stmt(node: ast.IfStmt, env: Environment):
@@ -1489,6 +1528,19 @@ def eval_increment_decrement(node: ast.InDecrementOperator, env: Environment):
         return post_val
 
 
+def eval_getitem_node(node: ast.IndexingNode, env: Environment):
+    obj = evaluate(node.call_obj, env)
+    fc = ast.FuncCall(LINE_FILE, ast.NameNode(LINE_FILE, "__getitem__"))
+    fc.args = node.arg
+
+    if isinstance(obj, ClassInstance):
+        return call_function(fc, obj.env.get("__getitem__", LINE_FILE), env)
+    elif isinstance(obj, lib.NativeType):
+        return native_types_call(obj, fc, env)
+    else:
+        raise lib.TypeException("Unknown type for indexing")
+
+
 def raise_exception(e: Exception):
     raise e
 
@@ -1520,7 +1572,8 @@ NODE_TABLE = {
     ast.TRY_STMT: eval_try_catch,
     ast.JUMP_NODE: eval_jump,
     ast.UNDEFINED_NODE: lambda n, env: UNDEFINED,
-    ast.IN_DECREMENT_OPERATOR: eval_increment_decrement
+    ast.IN_DECREMENT_OPERATOR: eval_increment_decrement,
+    ast.INDEXING_NODE: eval_getitem_node
 }
 
 

@@ -153,3 +153,9 @@ try {
 println(type(system));
 var c2 = new Clazz2;
 c2.over();
+
+function whole(dic) {
+    println(dic);
+}
+
+whole({'1'='g', true={"f"=1, r="r", 99={3, 5, false}}});
