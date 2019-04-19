@@ -159,3 +159,9 @@ function whole(dic) {
 }
 
 whole({'1'='g', true={"f"=1, r="r", 99={3, 5, false}}});
+
+var kk = "k";
+var lst = [{1, 2, 3, 1}, "dd", [3, 2, 1], {"a"=5, "b"={kk=6}}];
+println(lst[2][1]);
+println(lst[3]["b"][kk]++);
+println(lst);

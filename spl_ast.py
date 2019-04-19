@@ -405,7 +405,7 @@ class FuncCall(LeafNode):
 
 class IndexingNode(Node):
     call_obj = None
-    arg = None
+    arg: BlockStmt = None
 
     def __init__(self, line, call_obj):
         Node.__init__(self, line)

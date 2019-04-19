@@ -441,11 +441,8 @@ class RuntimeException(Exception):
 
 def to_str(v) -> lib.String:
     if isinstance(v, ClassInstance):
-        fc: ast.FuncCall = ast.FuncCall(LINE_FILE, "__str__")
-        block: ast.BlockStmt = ast.BlockStmt(LINE_FILE)
-        fc.args = block
         func: Function = v.env.get("__str__", LINE_FILE)
-        result: lib.String = call_function(fc, func, None)
+        result = call_function(ast.NameNode(LINE_FILE, "__str__"), [], LINE_FILE, func, None)
         return result
     else:
         return lib.String(v)
@@ -453,11 +450,8 @@ def to_str(v) -> lib.String:
 
 def to_repr(v) -> lib.String:
     if isinstance(v, ClassInstance):
-        fc: ast.FuncCall = ast.FuncCall(LINE_FILE, "__repr__")
-        block: ast.BlockStmt = ast.BlockStmt(LINE_FILE)
-        fc.args = block
         func: Function = v.env.get("__repr__", LINE_FILE)
-        result: lib.String = call_function(fc, func, None)
+        result = call_function(ast.NameNode(LINE_FILE, "__repr__"), [], LINE_FILE, func, None)
         return result
     else:
         return lib.String(v)
@@ -569,6 +563,11 @@ def f_open(env: Environment, file: lib.String, mode=lib.String("r"), encoding=li
         return file
     except IOError as e:
         raise lib.IOException(str(e))
+
+
+def exec_(*args):
+    if len(args) == 1:
+        pass
 
 
 def help_(env, obj):
@@ -882,14 +881,13 @@ def assignment(key: ast.Node, value, env: Environment, level):
 
 def set_item(call_obj, index_node, value, env):
     obj = evaluate(call_obj, env)
-    # index = evaluate(index_node, env)
-    fc = ast.FuncCall(LINE_FILE, ast.NameNode(LINE_FILE, "__setitem__"))
-    fc.args = index_node
-    fc.args.lines.append(value)
+    setitem_object = ast.NameNode(LINE_FILE, "__setitem__")
+    arg_list = index_node.lines.copy()
+    arg_list.append(value)
     if isinstance(obj, ClassInstance):
-        return call_function(fc, obj.env.get("__setitem__", LINE_FILE), env)
+        return call_function(setitem_object, arg_list, LINE_FILE, obj.env.get("__setitem__", LINE_FILE), env)
     elif isinstance(obj, lib.NativeType):
-        return native_types_call(obj, fc, env)
+        return native_types_call(obj, setitem_object, arg_list, env)
     else:
         raise lib.TypeException("Unknown type for index assignment")
 
@@ -917,16 +915,24 @@ def init_class(node: ast.ClassInit, env: Environment):
     return instance
 
 
+def make_arg_list(call: ast.FuncCall) -> (ast.Node, list):
+    if call.args is None:
+        raise lib.SplException("Argument of function '{}' not set, in file '{}', at line {}."
+                               .format(call.call_obj, call.file, call.line_num))
+    return call.call_obj, call.args.lines
+
+
 def eval_func_call(node: ast.FuncCall, env: Environment):
     lf = node.line_num, node.file
     func = evaluate(node.call_obj, env)
+    call_obj, arg_list = make_arg_list(node)
 
     if isinstance(func, Function):
-        result = call_function(node, func, env)
+        result = call_function(call_obj, arg_list, lf, func, env)
         return result
     elif isinstance(func, ClassInstance):
         constructor: Function = func.env.get(func.class_name, lf)
-        call_function(node, constructor, env)  # call constructor
+        call_function(call_obj, arg_list, lf, constructor, env)  # call constructor
         return func
     elif isinstance(func, NativeFunction):
         args = []
@@ -950,29 +956,24 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
         raise lib.InterpretException("Not a function call, in {}, at line {}.".format(node.file, node.line_num))
 
 
-def call_function(call: ast.FuncCall, func: Function, call_env: Environment) -> object:
+def call_function(call_obj: ast.Node, args: list, lf: tuple, func: Function, call_env: Environment) -> object:
     """
     Calls a function
 
-    :param call: the call
+    :param call_obj: the calling object
+    :param args: the arguments list
+    :param lf: line and file of the caller
     :param func: the function object itself
     :param call_env: the environment where the function call was made
     :return: the function result
     """
-    lf = call.line_num, call.file
 
     if func.abstract:
         raise lib.AbstractMethodException("Abstract method is not callable, in '{}', at line {}."
-                                          .format(call.file, call.line_num))
+                                          .format(lf[1], lf[0]))
 
     scope = FunctionEnvironment(func.outer_scope)
-
     params = func.params
-
-    if call.args is None:
-        raise lib.SplException("Argument of function '{}' not set, in file '{}', at line {}."
-                               .format(call.call_obj, call.file, call.line_num))
-    args = call.args.lines
 
     pos_args = []  # Positional arguments
     kwargs = {}  # Keyword arguments
@@ -1002,41 +1003,43 @@ def call_function(call: ast.FuncCall, func: Function, call_env: Environment) -> 
                 pos_args.append(arg)
         else:
             pos_args.append(arg)
-    # print(pos_args)
-    # print(kwargs)
-    # if len(pos_args) + len(kwargs) > len(params):
-    #     raise lib.ArgumentException("Too many arguments for function '{}', in file '{}', at line {}"
-    #                                 .format(call.f_name, call.file, call.line_num))
+
+    if len(pos_args) + len(kwargs) > len(params):
+        if isinstance(call_obj, ast.NameNode):
+            f_name = call_obj.name
+        else:
+            f_name = call_obj
+        raise lib.ArgumentException("Too many arguments for function '{}', in file '{}', at line {}"
+                                    .format(f_name, lf[1], lf[0]))
+
     arg_index = 0
-    for i in range(len(params)):
-        # Assign function arguments
+    for i in range(len(params)):  # Assigning function arguments
         param: ParameterPair = params[i]
-        if param.preset is UNPACK_ARGUMENT:
+        if i < len(pos_args):  # positional argument
+            arg = pos_args[arg_index]
+            arg_index += 1
+        elif param.preset is UNPACK_ARGUMENT:
             arg_index = call_unpack(param.name, pos_args, arg_index, scope, call_env, lf)
             continue
         elif param.preset is KW_UNPACK_ARGUMENT:
             call_kw_unpack(param.name, kwargs, scope, call_env, lf)
             continue
-        elif i < len(pos_args):
-            arg = pos_args[arg_index]
-            arg_index += 1
         elif param.name in kwargs:
             arg = kwargs[param.name]
         elif param.preset is not INVALID:
             arg = param.preset
         else:
-            if isinstance(call.call_obj, ast.NameNode):
-                f_name = call.call_obj.name
+            if isinstance(call_obj, ast.NameNode):
+                f_name = call_obj.name
             else:
-                f_name = call.call_obj
+                f_name = call_obj
             raise lib.ArgumentException("Function '{}' missing a positional argument '{}', in file '{}', at line {}"
-                                        .format(f_name, param.name, call.file, call.line_num))
+                                        .format(f_name, param.name, lf[1], lf[0]))
 
         e = evaluate(arg, call_env)
         scope.define_var(param.name, e, lf)
 
-    result = evaluate(func.body, scope)
-    return result
+    return evaluate(func.body, scope)
 
 
 def call_unpack(name: str, pos_args: list, index, scope: Environment, call_env: Environment, lf) -> int:
@@ -1079,17 +1082,17 @@ def eval_dot(node: ast.Dot, env: Environment):
             raise lib.InterpretException("Not a class instance, in {}, at line {}".format(node.file, node.line_num))
     elif t == ast.FUNCTION_CALL:
         obj: ast.FuncCall
+        call_obj, args = make_arg_list(obj)
         if isinstance(instance, lib.NativeType):
             try:
-                return native_types_call(instance, obj, env)
+                return native_types_call(instance, call_obj, args, env)
             except IndexError as ie:
                 raise lib.IndexOutOfRangeException(str(ie) + " in file: '{}', at line {}"
                                                    .format(node.file, node.line_num))
         elif isinstance(instance, ClassInstance):
-            # lf = node.line_num, node.file
-            # func = instance.env.get(obj.f_name, lf)
+            lf = node.line_num, node.file
             func = evaluate(obj.call_obj, instance.env)
-            result = call_function(obj, func, env)
+            result = call_function(call_obj, args, lf, func, env)
             return result
         else:
             raise lib.InterpretException("Not a class instance; {} instead, in {}, at line {}"
@@ -1137,16 +1140,14 @@ def instance_arithmetic(left: ClassInstance, right, symbol, env: Environment, ri
             return False
     else:
         op_name = "__" + stl.BINARY_OPERATORS[symbol] + "__"
-        fc = ast.FuncCall(LINE_FILE, op_name)
-        fc.call_obj = ast.NameNode(LINE_FILE, op_name)
+        call_obj = ast.NameNode(LINE_FILE, op_name)
         if not left.env.contains_key(op_name):
             raise lib.AttributeException("Class '{}' does not support operation '{}'".format(left.class_name, symbol))
         block = ast.BlockStmt(LINE_FILE)
         block.add_line(right)
-        fc.args = block
         # func: Function = left.env.get(fc.f_name, LINE_FILE)
-        func: Function = evaluate(fc.call_obj, left.env)
-        result = call_function(fc, func, env)
+        func: Function = evaluate(call_obj, left.env)
+        result = call_function(call_obj, [right], LINE_FILE, func, env)
         return result
 
 
@@ -1305,20 +1306,20 @@ def class_inheritance(cla: Class, env: Environment, scope: Environment):
     evaluate(cla.body, scope)  # this step just fills the scope
 
 
-def native_types_call(instance: lib.NativeType, called: ast.FuncCall, env: Environment):
+def native_types_call(instance: lib.NativeType, call_obj: ast.NameNode, arg_list: list, env: Environment):
     """
     Calls a method of a native object.
 
     :param instance: the NativeType object instance
-    :param called: the method being called
+    :param call_obj: the caller
+    :param arg_list: the arguments list
     :param env: the current working environment
     :return: the returning value of the method called
     """
     args = []
-    for x in called.args.lines:
+    for x in arg_list:
         args.append(evaluate(x, env))
-    # name = method.f_name
-    name = called.call_obj.name
+    name = call_obj.name
     type_ = type(instance)
     method = getattr(type_, name)
     params: tuple = method.__code__.co_varnames
@@ -1528,15 +1529,14 @@ def eval_increment_decrement(node: ast.InDecrementOperator, env: Environment):
         return post_val
 
 
-def eval_getitem_node(node: ast.IndexingNode, env: Environment):
+def eval_indexing_node(node: ast.IndexingNode, env: Environment):
     obj = evaluate(node.call_obj, env)
-    fc = ast.FuncCall(LINE_FILE, ast.NameNode(LINE_FILE, "__getitem__"))
-    fc.args = node.arg
+    call_obj = ast.NameNode(LINE_FILE, "__getitem__")
 
     if isinstance(obj, ClassInstance):
-        return call_function(fc, obj.env.get("__getitem__", LINE_FILE), env)
+        return call_function(call_obj, node.arg.lines, LINE_FILE, obj.env.get("__getitem__", LINE_FILE), env)
     elif isinstance(obj, lib.NativeType):
-        return native_types_call(obj, fc, env)
+        return native_types_call(obj, call_obj, node.arg.lines, env)
     else:
         raise lib.TypeException("Unknown type for indexing")
 
@@ -1573,7 +1573,7 @@ NODE_TABLE = {
     ast.JUMP_NODE: eval_jump,
     ast.UNDEFINED_NODE: lambda n, env: UNDEFINED,
     ast.IN_DECREMENT_OPERATOR: eval_increment_decrement,
-    ast.INDEXING_NODE: eval_getitem_node
+    ast.INDEXING_NODE: eval_indexing_node
 }
 
 

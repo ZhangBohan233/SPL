@@ -11,6 +11,6 @@ function f(d1, d2={}) {
 
 f({'1'='g'}, d);
 
-var lst = [1, "a", 3, [9, 9], {1 = 2, 2 = 3}];
+var lst = [1, "a", 3, [9, 9], {1 = f({}), 2 = 3}];
 println(lst);
-println(lst[4][1]);
+println(lst[4][2]);

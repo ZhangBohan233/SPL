@@ -1,3 +1,11 @@
+********** SPL 1.6 Alpha 2 **********
+===== Build 0071 2019/04/19 =====
+
+* Bug fixes:
+    * Fixed that setitem causing error in loop
+* Optimizations:
+    * Optimized the function call evaluator
+
 ********** SPL 1.6 Alpha 1 **********
 ===== Build 0070 2019/04/18 =====
 

@@ -5,7 +5,7 @@ import "math";
  * Sorts the <lst> with merge sort algorithm.
  */
 function merge_sort(lst) {
-    const length = lst.length();
+    const length = lst.size();
     var step = 1;
     while (step < length) {
         for (var i = 0; i < length; i += step * 2) {
@@ -37,14 +37,14 @@ function merge_sort(lst) {
             }
             var remain = mid - i1;
             if (remain > 0) {
-                for (var x = 0; x < remain; x += 1) {
+                for (var x = 0; x < remain; x++) {
                     cache.append(lst[i1 + x]);
                 }
-                for (var x = 0; x < c_len; x += 1) {
+                for (var x = 0; x < c_len; x++) {
                     lst[i + x] = cache[x];
                 }
             } else {
-                for (var x = 0; x < ci; x += 1) {
+                for (var x = 0; x < ci; x++) {
                     lst[i + x] = cache[x];
                 }
             }
