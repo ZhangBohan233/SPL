@@ -7,6 +7,8 @@ import spl_lib as lib
 import multiprocessing
 import math
 import inspect
+import os
+import subprocess
 from environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
     FunctionEnvironment, ClassEnvironment
 
@@ -112,6 +114,7 @@ def add_natives(self):
     self.add_heap("main", NativeFunction(is_main, "main", self))
     self.add_heap("exit", NativeFunction(lib.exit_, "exit"))
     self.add_heap("help", NativeFunction(help_, "help", self))
+    self.add_heap("exec", NativeFunction(exec_, "exec", self))
 
     # type of built-in
     self.add_heap("boolean", NativeFunction(lib.to_boolean, "boolean"))
@@ -565,9 +568,28 @@ def f_open(env: Environment, file: lib.String, mode=lib.String("r"), encoding=li
         raise lib.IOException(str(e))
 
 
-def exec_(*args):
-    if len(args) == 1:
-        pass
+def exec_(env: Environment, *args):
+    path = str(env.get_heap("system").cwd)
+    if len(args) == 0:
+        raise lib.ArgumentException("exec() takes at least one argument")
+    elif len(args) == 1:
+        if isinstance(args[0], lib.String):
+            line = str(args[0])
+            return _exec_line(line, path)
+        elif isinstance(args[0], lib.List):
+            line = " ".join(str(x) for x in args[0])
+            return _exec_line(line, path)
+        else:
+            raise lib.TypeException("Unknown argument type of exec()")
+    elif len(args) == 2:
+        if isinstance(args[0], lib.String) and isinstance(args[1], lib.List):
+            line = str(args[0]) + " " + " ".join(str(x) for x in args[1])
+            return _exec_line(line, path)
+        else:
+            raise lib.TypeException("Unknown argument type of exec()")
+    else:
+        line = " ".join(str(x) for x in args)
+        return _exec_line(line, path)
 
 
 def help_(env, obj):
@@ -644,6 +666,14 @@ def _get_func_title(func: Function, name="") -> str:
 
 def _get_func_doc(func: Function) -> str:
     return func.doc.literal
+
+
+def _exec_line(line: str, path: str):
+    cwd = os.getcwd()
+    os.chdir(path)
+    result = subprocess.call(line)
+    os.chdir(cwd)
+    return result
 
 
 # Interpreter

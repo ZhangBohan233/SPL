@@ -1,3 +1,11 @@
+********** SPL 1.6 Alpha 3 **********
+===== Build 0072 2019/04/20 =====
+
+* Added built-in function:
+    * exec()
+* Bug fixes:
+    * Fixed that the spl might not find the interpreter path
+
 ********** SPL 1.6 Alpha 2 **********
 ===== Build 0071 2019/04/19 =====
 

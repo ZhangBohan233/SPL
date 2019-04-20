@@ -104,7 +104,7 @@ def interpret(mode: str):
 
     if mode == "sp":
         lexer = spl_lexer.Tokenizer()
-        lexer.setup(file_name, argv["dir"], set(), link=argv["link"])
+        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dir"], set(), link=argv["link"])
         lexer.tokenize(f)
     elif mode == "lsp":
         lexer = spl_lexer.Tokenizer()

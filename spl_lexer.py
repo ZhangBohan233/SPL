@@ -2,7 +2,7 @@ import _io
 import spl_token_lib as stl
 import os
 
-SPL_PATH = os.getcwd()
+# SPL_PATH = os.getcwd()
 
 PLUS_MINUS = {"+", "-"}
 OTHER_ARITHMETIC = {"*", "/", "%"}
@@ -19,11 +19,12 @@ class Tokenizer:
     def __init__(self):
         self.tokens = []
         self.imported = None
+        self.spl_path = ""
         self.script_dir = ""
         self.file_name = ""
         self.link = False
 
-    def setup(self, file_name: str, script_dir: str, imported: set, link: bool):
+    def setup(self, spl_path: str, file_name: str, script_dir: str, imported: set, link: bool):
         """
         Sets up the parameters of this lexer.
 
@@ -32,12 +33,14 @@ class Tokenizer:
 
         The <script_dir> is used to find the importing files, which is important to run the script correctly.
 
+        :param spl_path: the directory path of spl interpreter
         :param file_name: the name of the main script
         :param script_dir: the directory of the main script
         :param imported: the set of imported file names
         :param link: whether to write the result to file
         :return:
         """
+        self.spl_path = spl_path
         self.file_name = file_name
         self.script_dir = script_dir
         self.imported = imported
@@ -226,12 +229,10 @@ class Tokenizer:
                 name = next_token.text
                 self.tokens.pop(i)
                 self.tokens.pop(i)
-                if name[-3:] == ".sp":
-                    # user lib
+                if name[-3:] == ".sp":  # user lib
                     file_name = "{}{}{}".format(self.script_dir, os.sep, name)
-                else:
-                    # system lib
-                    file_name = "{}{}lib{}{}.sp".format(SPL_PATH, os.sep, os.sep, name)
+                else:  # system lib
+                    file_name = "{}{}lib{}{}.sp".format(self.spl_path, os.sep, os.sep, name)
 
                 if file_name not in self.imported:
                     self.imported.add(file_name)
@@ -250,7 +251,7 @@ class Tokenizer:
         """
         with open(full_path, "r") as file:
             lexer = Tokenizer()
-            lexer.setup(full_path, get_dir(full_path), self.imported, False)
+            lexer.setup(self.spl_path, full_path, get_dir(full_path), self.imported, False)
             # lexer.script_dir = get_dir(full_path)
             lexer.tokenize(file)
             # print(lexer.tokens)
