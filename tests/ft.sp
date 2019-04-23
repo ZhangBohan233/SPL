@@ -24,7 +24,7 @@ function decorator(func, dec) {
     }
 }
 
-var decorated_foo = decorator(foo, function(){println(555)});
+var decorated_foo = decorator(foo, function(){println("Decorated")});
 println(decorated_foo(2, 3));
 
 const k = 0;

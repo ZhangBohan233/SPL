@@ -1034,26 +1034,22 @@ def call_function(call_obj: ast.Node, args: list, lf: tuple, func: Function, cal
         else:
             pos_args.append(arg)
 
-    if len(pos_args) + len(kwargs) > len(params):
-        if isinstance(call_obj, ast.NameNode):
-            f_name = call_obj.name
-        else:
-            f_name = call_obj
-        raise lib.ArgumentException("Too many arguments for function '{}', in file '{}', at line {}"
-                                    .format(f_name, lf[1], lf[0]))
+    variable_length = False  # Whether there exists unpack arguments
 
     arg_index = 0
     for i in range(len(params)):  # Assigning function arguments
         param: ParameterPair = params[i]
-        if i < len(pos_args):  # positional argument
-            arg = pos_args[arg_index]
-            arg_index += 1
-        elif param.preset is UNPACK_ARGUMENT:
+        if param.preset is UNPACK_ARGUMENT:
+            variable_length = True
             arg_index = call_unpack(param.name, pos_args, arg_index, scope, call_env, lf)
             continue
         elif param.preset is KW_UNPACK_ARGUMENT:
+            variable_length = True
             call_kw_unpack(param.name, kwargs, scope, call_env, lf)
             continue
+        elif i < len(pos_args):  # positional argument
+            arg = pos_args[arg_index]
+            arg_index += 1
         elif param.name in kwargs:
             arg = kwargs[param.name]
         elif param.preset is not INVALID:
@@ -1069,18 +1065,27 @@ def call_function(call_obj: ast.Node, args: list, lf: tuple, func: Function, cal
         e = evaluate(arg, call_env)
         scope.define_var(param.name, e, lf)
 
+    if not variable_length and len(pos_args) + len(kwargs) > len(params):
+        if isinstance(call_obj, ast.NameNode):
+            f_name = call_obj.name
+        else:
+            f_name = call_obj
+        raise lib.ArgumentException("Too many arguments for function '{}', in file '{}', at line {}"
+                                    .format(f_name, lf[1], lf[0]))
+
     return evaluate(func.body, scope)
 
 
 def call_unpack(name: str, pos_args: list, index, scope: Environment, call_env: Environment, lf) -> int:
-    lst = lib.List()
+    lst = []
     while index < len(pos_args):
         arg = pos_args[index]
         e = evaluate(arg, call_env)
         lst.append(e)
         index += 1
 
-    scope.define_var(name, lst, lf)
+    spl_lst = lib.List(*lst, mutable=False)
+    scope.define_var(name, spl_lst, lf)
     return index
 
 
@@ -1440,7 +1445,6 @@ def eval_for_loop_stmt(node: ast.ForLoopStmt, env: Environment):
 def eval_def(node: ast.DefStmt, env: Environment):
     block: ast.BlockStmt = node.params
     params_lst = []
-    # print(block)
     for p in block.lines:
         # p: ast.Node
         if p.node_type == ast.NAME_NODE:

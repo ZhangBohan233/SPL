@@ -276,7 +276,10 @@ class GlobalEnvironment(Environment):
         return False
 
     def add_heap(self, k, v):
-        self.heap[k] = v
+        if k in self.heap:
+            raise lib.SplException("Global name '{}' has already defined".format(k))
+        else:
+            self.heap[k] = v
 
     def inner_get_heap(self, key):
         return self.heap[key] if key in self.heap else NULLPTR
