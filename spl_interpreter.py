@@ -101,6 +101,7 @@ def add_natives(self):
     self.add_heap("type", NativeFunction(typeof, "type"))
     self.add_heap("pair", NativeFunction(lib.make_pair, "pair"))
     self.add_heap("list", NativeFunction(lib.make_list, "list"))
+    self.add_heap("i_list", NativeFunction(lib.make_immutable_list, "list"))
     self.add_heap("set", NativeFunction(lib.make_set, "set"))
     self.add_heap("int", NativeFunction(lib.to_int, "int"))
     self.add_heap("float", NativeFunction(lib.to_float, "float"))
@@ -195,6 +196,12 @@ class Function(lib.NativeType):
     def type_name__(cls) -> str:
         return "Function"
 
+    def copy(self):
+        f = Function(self.params, self.body, None, self.abstract, self.annotations, self.doc)
+        f.file = self.file
+        f.line_num = self.line_num
+        return f
+
     def __str__(self):
         return "Function<{}>".format(id(self))
 
@@ -203,15 +210,17 @@ class Function(lib.NativeType):
 
 
 class Class:
-    def __init__(self, class_name: str, body: ast.BlockStmt, abstract: bool, doc: str):
+    def __init__(self, class_name: str, body: ast.BlockStmt, abstract: bool, superclass_names: list,
+                 outer_env: Environment, doc: str, line, file):
         self.class_name = class_name
         self.body = body
-        self.superclass_names = []
+        self.superclass_names = superclass_names
+        self.outer_env = outer_env
         self.doc = lib.String(doc)
-        self.outer_env = None
         self.abstract = abstract
-        self.line_num = None
-        self.file = None
+        self.persists = ClassEnvironment(outer_env)
+        self.line_num = line
+        self.file = file
 
     def __str__(self):
         if len(self.superclass_names):
@@ -887,20 +896,29 @@ def assignment(key: ast.Node, value, env: Environment, level):
             raise lib.SplException("Unknown variable level")
         return value
     elif t == ast.DOT:
+        key: ast.Dot
         if level == ast.CONST:
             raise lib.SplException("Unsolved syntax: assigning a constant to an instance")
-        node = key
-        name_lst = []
-        while isinstance(node, ast.Dot):
-            name_lst.append(node.right.name)
-            node = node.left
-        name_lst.append(node.name)
-        name_lst.reverse()
-        # print(name_lst)
-        scope = env
-        for t in name_lst[:-1]:
-            scope = scope.get(t, (node.line_num, node.file)).env
-        scope.assign(name_lst[-1], value, lf)
+        attr = key.right
+        if isinstance(attr, ast.NameNode):
+            name = attr.name
+        else:
+            raise lib.AttributeException("Attribute type '{}' cannot be set, in file '{}', at line {}"
+                                         .format(typeof(attr), key.file, key.line_num))
+        parent = evaluate(key.left, env)
+        if isinstance(parent, ClassInstance):
+            if level == ast.ASSIGN:
+                parent.env.assign(name, value, lf)
+            elif level == ast.VAR:
+                parent.env.define_var(name, value, lf)
+            elif level == ast.CONST:
+                parent.env.define_const(name, value, lf)
+            else:
+                raise lib.SplException("Unknown variable level")
+
+        else:
+            raise lib.TypeException("Type '{}' does not support attribute assignment, in file '{}', at line {}"
+                                    .format(typeof(parent), key.file, key.line_num))
         return value
     elif t == ast.INDEXING_NODE:  # setitem
         key: ast.IndexingNode
@@ -928,9 +946,8 @@ def init_class(node: ast.ClassInit, env: Environment):
     if cla.abstract:
         raise lib.SplException("Abstract class is not instantiable")
 
-    # scope = Environment(CLASS_SCOPE, cla.outer_env)
     scope = ClassEnvironment(cla.outer_env)
-    # scope.outer = env
+    scope.extend_functions(cla.persists)
     scope.scope_name = "Class scope<{}>".format(cla.class_name)
     class_inheritance(cla, env, scope)
 
@@ -1114,7 +1131,9 @@ def eval_dot(node: ast.Dot, env: Environment):
             attr = instance.env.get(obj.name, (node.line_num, node.file))
             return attr
         else:
-            raise lib.InterpretException("Not a class instance, in {}, at line {}".format(node.file, node.line_num))
+            # print(instance)
+            raise lib.TypeException("Type '{}' does not have attribute '{}', in '{}', at line {}"
+                                    .format(typeof(instance), obj.name, node.file, node.line_num))
     elif t == ast.FUNCTION_CALL:
         obj: ast.FuncCall
         call_obj, args = make_arg_list(obj)
@@ -1130,10 +1149,10 @@ def eval_dot(node: ast.Dot, env: Environment):
             result = call_function(call_obj, args, lf, func, env)
             return result
         else:
-            raise lib.InterpretException("Not a class instance; {} instead, in {}, at line {}"
+            raise lib.TypeException("Not a class instance; {} instead, in file '{}', at line {}"
                                          .format(typeof(instance), node.file, node.line_num))
     else:
-        raise lib.InterpretException("Unknown Syntax, in {}, at line {}".format(node.file, node.line_num))
+        raise lib.InterpretException("Unknown Syntax, in file '{}', at line {}".format(node.file, node.line_num))
 
 
 def arithmetic(left, right_node: ast.Node, symbol, env: Environment):
@@ -1326,8 +1345,22 @@ def num_arithmetic(left, right, symbol):
     return NUMBER_ARITHMETIC_TABLE[symbol](left, right)
 
 
+def is_def(node):
+    return isinstance(node, ast.AssignmentNode) and isinstance(node.right, ast.DefStmt)
+
+
+def class_definition(cla: Class, env: Environment, scope: Environment):
+    for sc in cla.superclass_names:
+        class_definition(env.get_heap(sc), env, scope)
+
+    for line in cla.body.lines:  # this step pre-evaluates all methods in cla
+        if is_def(line):
+            evaluate(line, scope)
+
+
 def class_inheritance(cla: Class, env: Environment, scope: Environment):
     """
+    Instantiates all instance attributes in the class and its superclasses.
 
     :param cla:
     :param env: the global environment
@@ -1335,10 +1368,12 @@ def class_inheritance(cla: Class, env: Environment, scope: Environment):
     :return: None
     """
     for sc in cla.superclass_names:
-        # if sc != "Object":
         class_inheritance(env.get_heap(sc), env, scope)
 
-    evaluate(cla.body, scope)  # this step just fills the scope
+    # evaluate(cla.body, scope)
+    for line in cla.body.lines:  # this step just fills the scope
+        if not is_def(line):
+            evaluate(line, scope)
 
 
 def native_types_call(instance: lib.NativeType, call_obj: ast.NameNode, arg_list: list, env: Environment):
@@ -1482,11 +1517,10 @@ def eval_def(node: ast.DefStmt, env: Environment):
 
 
 def eval_class_stmt(node: ast.ClassStmt, env: Environment):
-    cla = Class(node.class_name, node.block, node.abstract, node.doc)
-    cla.superclass_names = node.superclass_names
-    cla.outer_env = env
-    cla.line_num, cla.file = node.line_num, node.file
+    cla = Class(node.class_name, node.block, node.abstract, node.superclass_names, env,
+                node.doc, node.line_num, node.file)
     env.add_heap(node.class_name, cla)
+    class_definition(cla, env, cla.persists)
     return cla
 
 
@@ -1637,4 +1671,4 @@ def evaluate(node: ast.Node, env: Environment):
 OBJECT_DOC = """
 The superclass of all spl object.
 """
-OBJECT = Class("Object", None, True, OBJECT_DOC)
+OBJECT = Class("Object", ast.BlockStmt(LINE_FILE), True, [], None, OBJECT_DOC, *LINE_FILE)

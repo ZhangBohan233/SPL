@@ -3,7 +3,7 @@ import io
 
 EOF = -1
 EOL = ";"
-SYMBOLS = {"{", "}", ".", ","}
+SYMBOLS = {"{", "}", ".", ",", "~"}
 MIDDLE = {"(", ")", "[", "]"}
 TERNARY_OPERATORS = {"?": True, ":": False}  # the bool value indicate whether this operator can begin a ternary
 # operator

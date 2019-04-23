@@ -735,12 +735,23 @@ def input_(*prompt):
 
 def make_list(*initial_elements):
     """
-    Creates a dynamic list.
+    Creates a dynamic mutable list.
 
     :param initial_elements: the elements that the list initially contains
     :return: a reference of the newly created <List> object
     """
     lst = List(*initial_elements)
+    return lst
+
+
+def make_immutable_list(*initial_elements):
+    """
+        Creates an immutable list.
+
+        :param initial_elements: the elements that the list initially contains
+        :return: a reference of the newly created <List> object
+        """
+    lst = List(*initial_elements, mutable=False)
     return lst
 
 

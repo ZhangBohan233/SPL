@@ -37,13 +37,14 @@ class Environment:
         self.outer: Environment = outer
 
     def __str__(self):
-        temp = ["Const: "]
+        temp = ["Consts: "]
         for c in self.constants:
             if c != "this":
                 temp.append(str(c))
                 temp.append(": ")
                 temp.append(str(self.constants[c]))
                 temp.append(", ")
+        temp.append("Vars: ")
         for v in self.variables:
             temp.append(str(v))
             temp.append(": ")
@@ -303,6 +304,12 @@ class ClassEnvironment(Environment):
 
     def inner_get_heap(self, key):
         return self.outer.inner_get_heap(key)
+
+    def extend_functions(self, other: Environment):
+        for f in other.variables:
+            x = other.variables[f].copy()
+            x.outer_scope = self
+            self.variables[f] = x
 
 
 class FunctionEnvironment(Environment):

@@ -124,12 +124,12 @@ class LinkedList extends Deque, Iterable {
     }
 
     @Override
-    function get_last() {
+    function last() {
         return tail.value;
     }
 
     @Override
-    function get_first() {
+    function first() {
         return head.value;
     }
 
@@ -157,7 +157,7 @@ class LinkedList extends Deque, Iterable {
 
     @Override
     function top() {
-        return get_last();
+        return last();
     }
 
     @Override

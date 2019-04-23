@@ -13,7 +13,7 @@ function random() {
     const m = (1 << 15) - 1;
     const a = 3;
     var seed = system.time();
-    for (var i = 0; i < 100; i += 1) {
+    for (var i = 0; i < 100; i++) {
         seed = seed * a % m;
     }
     return float(seed) / 32768;
@@ -144,7 +144,7 @@ function is_prime(p) {
  */
 function primes(limit) {
     var lst = list();
-    for (var i = 2; i <= limit; i += 1) {
+    for (var i = 2; i <= limit; i++) {
         lst.append(i);
     }
     var index = 0;

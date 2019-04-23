@@ -1,3 +1,15 @@
+********** SPL 1.6 Alpha 5 **********
+===== Build 0074 2019/04/23 =====
+
+* New syntax:
+    * ~[elements...] to create immutable list
+* Optimization:
+    * Changed the class method creation time from instantiating time to class creation time
+* Added new runtime check:
+    * Attribute assignment for non-spl Objects
+* Bug fixes:
+    * The assignment dot chain would not work if there are mixes of attributes and function calls
+
 ********** SPL 1.6 Alpha 4 **********
 ===== Build 0073 2019/04/23 =====
 

@@ -127,7 +127,12 @@ class Parser:
                             parser.add_getitem(line)
                         else:
                             square_nest_list.append(square_count)
-                            parser.add_name(line, "list")
+                            func_name = "list"
+                            if i > 0:
+                                last_token = self.tokens[i - 1]
+                                if isinstance(last_token, stl.IdToken) and last_token.symbol == "~":
+                                    func_name = "i_list"
+                            parser.add_name(line, func_name)
                             parser.add_call(line)
                         square_count += 1
                     elif sym == "]":
@@ -149,6 +154,8 @@ class Parser:
                             parser.build_line()
                     elif sym == ".":
                         parser.add_dot(line, extra_precedence)
+                    elif sym == "~":  # a special mark
+                        pass
                     elif sym == "function" or sym == "def":
                         func_doc = self.get_doc(i)
                         i += 1

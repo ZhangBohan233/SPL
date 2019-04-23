@@ -12,6 +12,10 @@ function g(*args, **kwargs) {
     println(args);
     println(f(*args));
     println(kwargs);
+    //println(kwargs["b"]);
 }
 
 g(1, 2, 3, 4, b=2);
+
+var ls = ~[];
+println(ls.mutable);
