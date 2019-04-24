@@ -106,7 +106,7 @@ class BinaryExpr(Expr):
         return PRECEDENCE[self.operation] + self.extra_precedence
 
     def __str__(self):
-        return "BE({} {} {})".format(self.left, self.operation, self.right)
+        return "BE{}({} {} {})".format(self.precedence(), self.left, self.operation, self.right)
 
     def __repr__(self):
         return self.__str__()
@@ -189,7 +189,7 @@ class UnaryOperator(Expr):
         return PRECEDENCE[self.operation] + self.extra_precedence
 
     def __str__(self):
-        return "UE({} {})".format(self.operation, self.value)
+        return "UE{}({} {})".format(self.precedence(), self.operation, self.value)
 
     def __repr__(self):
         return self.__str__()
@@ -875,6 +875,24 @@ class AbstractSyntaxTree:
             node = Dot(line, extra_precedence)
             self.stack.append(node)
 
+    def add_parenthesis(self):
+        if self.inner:
+            self.inner.add_parenthesis()
+        else:
+            block = AbstractSyntaxTree()
+            self.inner = block
+
+    def build_parenthesis(self):
+        if self.inner.inner:
+            self.inner.build_parenthesis()
+        else:
+            self.inner.build_line()
+            block = self.inner.get_as_block()
+            self.inner = None
+            if len(block.lines) != 1:
+                raise stl.ParseException("Empty parenthesis")
+            self.stack.append(block.lines[0])
+
     def try_build_func(self):
         if self.inner:
             self.inner.try_build_func()
@@ -906,6 +924,7 @@ class AbstractSyntaxTree:
                 return
             self.in_expr = False
             lst = []
+            # print(self.stack)
             while len(self.stack) > 0:
                 node = self.stack[-1]
                 if node is None or \
@@ -918,6 +937,7 @@ class AbstractSyntaxTree:
                         (isinstance(node, IndexingNode) and node.fulfilled()) or \
                         isinstance(node, DefStmt) or \
                         isinstance(node, ClassInit) or \
+                        isinstance(node, UndefinedNode) or \
                         (isinstance(node, BlockStmt) and node.standalone):
                     lst.append(node)
                     self.stack.pop()

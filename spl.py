@@ -30,7 +30,7 @@ OPTIONS:
     -e,   --exit,    exit value              shows the program's exit value
     -l,   --link,    link                    write the linked script to file
     -t,   --timer,   timer                   enables the timer
-    -tk,  -tokens,   tokens                  shows language tokens
+    -tk,  --tokens,   tokens                 shows language tokens
     -v,   --vars,    variables               prints out all global variables after execution
     
 FLAGS:

@@ -60,6 +60,7 @@ def replace_bool_none(string: str):
 
 def print_waring(msg: str):
     sys.stderr.write(msg + "\n")
+    sys.stderr.flush()
 
 
 def concatenate_path(path: str, directory: str) -> str:

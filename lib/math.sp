@@ -1,5 +1,6 @@
 import "functions"
 import "exception"
+import "iterator"
 
 
 const E = 2.718281828459045;
@@ -65,6 +66,7 @@ function gcd(x, y) {
         b = abs_b;
     }
     if (b == 0) return q;
+    var r;
     while ((r = q % b) != 0) {
         q = b;
         b = r;
@@ -143,7 +145,7 @@ function is_prime(p) {
  * Returns a list of primes that less than or equal to <limit>.
  */
 function primes(limit) {
-    var lst = list();
+    var lst = [];
     for (var i = 2; i <= limit; i++) {
         lst.append(i);
     }
@@ -155,6 +157,20 @@ function primes(limit) {
         index += 1;
     }
     return lst;
+}
+
+
+function euler_phi(n) {
+    var count = 0;
+    for (var i = 0; i < n; i++) {
+        if (gcd(n, i) == 1) count++;
+    }
+    return count;
+}
+
+
+function euler_phi_fp(n) {
+    return count(function(x) {gcd(n, x) == 1}, new RangeIterator(1, n, 1));
 }
 
 

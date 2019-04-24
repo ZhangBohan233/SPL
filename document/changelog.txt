@@ -1,3 +1,21 @@
+********** SPL 1.6 Beta 1 **********
+===== Build 0075 2019/04/23 =====
+
+* Console updates:
+    * A blank line will break the console now
+* New syntax:
+    * Constant in class now can be initialize in constructor function
+* Major redesign of parser:
+    * Changed the working method of parenthesises
+* Changed the mechanism of for-each loop:
+    * New superclass 'Iterator'
+    * Changed 'Iterable':
+        * __iter__ function now returns an 'Iterator'
+        * __next__ function now removed
+* Bug fixes:
+    * Multiple variable declaration in one line
+    * Could not start console
+
 ********** SPL 1.6 Alpha 5 **********
 ===== Build 0074 2019/04/23 =====
 

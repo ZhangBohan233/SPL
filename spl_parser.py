@@ -71,8 +71,6 @@ class Parser:
                         var_level = ast.CONST
                     elif sym == "var":
                         var_level = ast.VAR
-                    # elif sym == "let":
-                    #     var_level = ast.LOCAL
                     elif sym == "@":
                         i += 1
                         next_token: stl.IdToken = self.tokens[i]
@@ -101,27 +99,26 @@ class Parser:
                         if i > 0 and is_call(self.tokens[i - 1]):
                             parser.add_call(line)
                             call_nest_list.append(par_count)
-                            par_count += 1
                         else:
-                            extra_precedence += 1
+                            parser.add_parenthesis()
+                            # extra_precedence += 1
+                        par_count += 1
                     elif sym == ")":
-                        if extra_precedence == 0:
-                            par_count -= 1
-                            if is_this_list(call_nest_list, par_count):
-                                # parser.build_expr()
-                                parser.build_line()
-                                parser.build_call()
-                                call_nest_list.pop()
-                            elif is_this_list(param_nest_list, par_count) > 0:
-                                parser.build_func_params()
-                                param_nest_list.pop()
-                            elif is_this_list(cond_nest_list, par_count) > 0:
-                                parser.build_expr()
-                                parser.build_condition()
-                                cond_nest_list.pop()
+                        par_count -= 1
+                        if is_this_list(call_nest_list, par_count):
+                            parser.build_line()
+                            parser.build_call()
+                            call_nest_list.pop()
+                        elif is_this_list(param_nest_list, par_count):
+                            parser.build_func_params()
+                            param_nest_list.pop()
+                        elif is_this_list(cond_nest_list, par_count):
+                            parser.build_expr()
+                            parser.build_condition()
+                            cond_nest_list.pop()
                         else:
-                            # if parser.in_expr:
-                            extra_precedence -= 1
+                            parser.build_parenthesis()
+                            # extra_precedence -= 1
                     elif sym == "[":
                         if i > 0 and is_call(self.tokens[i - 1]):
                             parser.add_getitem(line)
@@ -148,9 +145,10 @@ class Parser:
                         var_level = ast.ASSIGN
                     elif sym == ",":
                         # parser.build_expr()
-                        if len(call_nest_list) > 0 or len(param_nest_list) > 0:
-                            parser.build_line()
-                        else:
+                        # if len(call_nest_list) > 0 or len(param_nest_list) > 0:
+                        # parser.build_line()
+                        # else:
+                        if var_level == ast.ASSIGN:  # the normal level
                             parser.build_line()
                     elif sym == ".":
                         parser.add_dot(line, extra_precedence)

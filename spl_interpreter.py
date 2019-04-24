@@ -10,7 +10,7 @@ import inspect
 import os
 import subprocess
 from environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
-    FunctionEnvironment, ClassEnvironment
+    FunctionEnvironment, ClassEnvironment, UNDEFINED
 
 LST = [72, 97, 112, 112, 121, 32, 66, 105, 114, 116, 104, 100, 97, 121, 32,
        73, 115, 97, 98, 101, 108, 108, 97, 33, 33, 33]
@@ -232,17 +232,6 @@ class Class:
         return self.__str__()
 
 
-class Undefined:
-    def __init__(self):
-        pass
-
-    def __str__(self):
-        return "undefined"
-
-    def __repr__(self):
-        return self.__str__()
-
-
 class Thread(lib.NativeType):
     """
     An SPL thread object.
@@ -373,9 +362,6 @@ class NativeInvokes(lib.NativeType):
         for name in env.constants:
             pair.put(lib.String(name), env.constants[name])
         return pair
-
-
-UNDEFINED = Undefined()
 
 
 class ClassInstance(lib.SplObject):
@@ -718,6 +704,26 @@ def eval_for_loop(node: ast.ForLoopStmt, env: Environment):
     return result
 
 
+def loop_spl_iterator(iterator: ClassInstance, invariant: str, body: ast.Node,
+                      title_scope: LoopEnvironment, block_scope: LoopEnvironment, lf: tuple):
+    next_func = iterator.env.get("__next__", lf)
+    has_next_func = iterator.env.get("__more__", lf)
+    result = None
+    while not title_scope.broken:
+        block_scope.invalidate()
+        has_next = call_function(ast.NameNode(lf, "__more__"), [], lf, has_next_func, title_scope)
+        if has_next:
+            next_call_res = call_function(ast.NameNode(lf, "__next__"), [], lf, next_func, title_scope)
+            block_scope.assign(invariant, next_call_res, lf)
+            result = evaluate(body, block_scope)
+            title_scope.resume_loop()
+        else:
+            break
+    del title_scope
+    del block_scope
+    return result
+
+
 def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
     con: ast.BlockStmt = node.condition
     inv: ast.Node = con.lines[0]
@@ -748,35 +754,19 @@ def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
             title_scope.resume_loop()
             if title_scope.broken:
                 break
-
         del title_scope
         del block_scope
         # env.broken = False
         return result
-    elif isinstance(iterable, ClassInstance) and is_subclass_of(title_scope.get_heap(iterable.class_name), "Iterable",
-                                                                title_scope):
-        ite = ast.FuncCall(lf, ast.NameNode(lf, "__iter__"))
-        ite.args = ast.BlockStmt(LINE_FILE)
-        iterator: ClassInstance = evaluate(ite, iterable.env)
-        result = None
-        while not title_scope.broken:
-            block_scope.invalidate()
-            nex = ast.FuncCall(lf, ast.NameNode(lf, "__next__"))
-            nex.args = ast.BlockStmt(LINE_FILE)
-            res = evaluate(nex, iterator.env)
-            if isinstance(res, ClassInstance) and is_subclass_of(title_scope.get_heap(res.class_name), "StopIteration",
-                                                                 title_scope):
-                break
-            block_scope.assign(invariant, res, lf)
-            result = evaluate(node.body, block_scope)
-            title_scope.resume_loop()
-        # env.broken = False
-        del title_scope
-        del block_scope
-        return result
-    else:
-        raise lib.SplException(
-            "For-each loop on non-iterable objects, in {}, at line {}".format(node.file, node.line_num))
+    elif isinstance(iterable, ClassInstance):
+        if is_subclass_of(title_scope.get_heap(iterable.class_name), "Iterator", title_scope):
+            return loop_spl_iterator(iterable, invariant, node.body, title_scope, block_scope, lf)
+        elif is_subclass_of(title_scope.get_heap(iterable.class_name), "Iterable", title_scope):
+            iter_func = iterable.env.get("__iter__", lf)
+            iterator: ClassInstance = call_function(ast.NameNode(lf, "__iter__"), [], lf, iter_func, title_scope)
+            return loop_spl_iterator(iterator, invariant, node.body, title_scope, block_scope, lf)
+    raise lib.SplException(
+        "For-each loop on non-iterable objects, in {}, at line {}".format(node.file, node.line_num))
 
 
 def eval_try_catch(node: ast.TryStmt, env: Environment):
@@ -1003,7 +993,7 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
         raise lib.InterpretException("Not a function call, in {}, at line {}.".format(node.file, node.line_num))
 
 
-def call_function(call_obj: ast.Node, args: list, lf: tuple, func: Function, call_env: Environment) -> object:
+def call_function(call_obj: ast.Node, args: list, lf: tuple, func: Function, call_env: Environment):
     """
     Calls a function
 

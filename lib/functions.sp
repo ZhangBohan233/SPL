@@ -87,3 +87,11 @@ function reduce(ftn, lst) {
 function sum(lst) {
     return reduce(function (x, y) {x + y}, lst);
 }
+
+
+/*
+ * Returns the number of items in an iterable that make the `ftn` returns `true`.
+ */
+function count(ftn, iter) {
+    return filter(ftn, iter).size();
+}
