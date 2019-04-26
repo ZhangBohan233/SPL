@@ -60,6 +60,7 @@ def replace_bool_none(string: str):
 
 def print_waring(msg: str):
     sys.stderr.write(msg + "\n")
+    sys.stderr.flush()
 
 
 def concatenate_path(path: str, directory: str) -> str:
@@ -280,9 +281,10 @@ class String(NativeType, Iterable):
 
 
 class List(NativeType, Iterable):
-    def __init__(self, *initial):
+    def __init__(self, *initial, mutable=True):
         NativeType.__init__(self)
 
+        self.mutable = mutable
         self.list = [*initial]
 
     def __iter__(self):
@@ -301,7 +303,10 @@ class List(NativeType, Iterable):
         self.list[key] = value
 
     def set(self, key, value):
-        self.__setitem__(key, value)
+        if self.mutable:
+            self.__setitem__(key, value)
+        else:
+            raise IllegalOperationException("Mutating an immutable list")
 
     def get(self, key):
         self.__getitem__(key)
@@ -311,38 +316,59 @@ class List(NativeType, Iterable):
         return "List"
 
     def append(self, value):
-        self.list.append(value)
+        if self.mutable:
+            self.list.append(value)
+        else:
+            raise IllegalOperationException("Mutating an immutable list")
 
     def contains(self, item):
         return item in self.list
 
     def insert(self, index, item):
-        self.list.insert(index, item)
+        if self.mutable:
+            self.list.insert(index, item)
+        else:
+            raise IllegalOperationException("Mutating an immutable list")
 
     def pop(self, index=-1):
-        return self.list.pop(index)
+        if self.mutable:
+            return self.list.pop(index)
+        else:
+            raise IllegalOperationException("Mutating an immutable list")
 
     def clear(self):
-        return self.list.clear()
+        if self.mutable:
+            return self.list.clear()
+        else:
+            raise IllegalOperationException("Mutating an immutable list")
 
     def extend(self, lst):
-        self.list.extend(lst)
+        if self.mutable:
+            return self.list.extend(lst)
+        else:
+            raise IllegalOperationException("Mutating an immutable list")
 
     def size(self):
         return len(self.list)
 
     def sort(self):
-        self.list.sort()
+        if self.mutable:
+            return self.list.sort()
+        else:
+            raise IllegalOperationException("Mutating an immutable list")
 
     def sublist(self, from_, to=None):
-        length = self.length()
+        length = self.size()
         end = length if to is None else to
         if from_ < 0 or end > length:
             raise IndexOutOfRangeException("Sublist index out of range")
         return List(self.list[from_: end])
 
     def reverse(self):
-        self.list.reverse()
+        if self.mutable:
+            return self.list.reverse()
+        else:
+            raise IllegalOperationException("Mutating an immutable list")
 
 
 class Pair(NativeType, Iterable):
@@ -393,7 +419,7 @@ class Set(NativeType, Iterable):
         return (v for v in self.set)
 
     def __str__(self):
-        return str([String(get_string_repr(v)) for v in self.set])
+        return str(set([String(get_string_repr(v)) for v in self.set]))
 
     def __repr__(self):
         return self.__str__()
@@ -632,6 +658,11 @@ class UnauthorizedException(SplException):
         SplException.__init__(self, msg)
 
 
+class IllegalOperationException(SplException):
+    def __init__(self, msg=""):
+        SplException.__init__(self, msg)
+
+
 class ArgumentException(SplException):
     def __init__(self, msg=""):
         SplException.__init__(self, msg)
@@ -705,12 +736,23 @@ def input_(*prompt):
 
 def make_list(*initial_elements):
     """
-    Creates a dynamic list.
+    Creates a dynamic mutable list.
 
     :param initial_elements: the elements that the list initially contains
     :return: a reference of the newly created <List> object
     """
     lst = List(*initial_elements)
+    return lst
+
+
+def make_immutable_list(*initial_elements):
+    """
+        Creates an immutable list.
+
+        :param initial_elements: the elements that the list initially contains
+        :return: a reference of the newly created <List> object
+        """
+    lst = List(*initial_elements, mutable=False)
     return lst
 
 

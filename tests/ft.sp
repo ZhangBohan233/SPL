@@ -24,7 +24,7 @@ function decorator(func, dec) {
     }
 }
 
-var decorated_foo = decorator(foo, function(){println(555)});
+var decorated_foo = decorator(foo, function(){println("Decorated")});
 println(decorated_foo(2, 3));
 
 const k = 0;
@@ -153,3 +153,15 @@ try {
 println(type(system));
 var c2 = new Clazz2;
 c2.over();
+
+function whole(dic) {
+    println(dic);
+}
+
+whole({'1'='g', true={"f"=1, r="r", 99={3, 5, false}}});
+
+var kk = "k";
+var lst = [{1, 2, 3, 1}, "dd", [3, 2, 1], {"a"=5, "b"={kk=6}}];
+println(lst[2][1]);
+println(lst[3]["b"][kk]++);
+println(lst);

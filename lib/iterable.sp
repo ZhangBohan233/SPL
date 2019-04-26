@@ -6,14 +6,9 @@
 abstract class Iterable {
 
     /*
-     * Returns an object to be iterated.
+     * Returns an object to be iterated, probably an <Iterator>.
      */
     abstract function __iter__();
-
-    /*
-     * Returns the next iteration.
-     */
-    abstract function __next__();
 }
 
 

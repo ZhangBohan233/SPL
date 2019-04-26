@@ -5,6 +5,8 @@
 * ast.build_expr()
 * function and class get annotations   ...done
 * unit test module   ...done
+* list creation with []   ...done
+* pair creation with {}   ...done
 
 ===== 1.4 =====
 

@@ -15,7 +15,19 @@ class NullPointer:
         return "NullPointer"
 
 
+class Undefined:
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        return "undefined"
+
+    def __repr__(self):
+        return self.__str__()
+
+
 NULLPTR = NullPointer()
+UNDEFINED = Undefined()
 
 
 class Environment:
@@ -37,13 +49,14 @@ class Environment:
         self.outer: Environment = outer
 
     def __str__(self):
-        temp = ["Const: "]
+        temp = ["Consts: "]
         for c in self.constants:
             if c != "this":
                 temp.append(str(c))
                 temp.append(": ")
                 temp.append(str(self.constants[c]))
                 temp.append(", ")
+        temp.append("Vars: ")
         for v in self.variables:
             temp.append(str(v))
             temp.append(": ")
@@ -177,8 +190,30 @@ class Environment:
                     out.variables[key] = value
                     return
                 out = out.outer
-            raise lib.SplException("Name '{}' is not defined, in '{}', at line {}"
-                                   .format(key, lf[1], lf[0]))
+            if not self.assign_const(key, value, lf):
+                raise lib.SplException("Name '{}' is not defined, in '{}', at line {}"
+                                       .format(key, lf[1], lf[0]))
+
+    def assign_const(self, key, value, lf) -> bool:
+        if key in self.constants:
+            if self.constants[key] is UNDEFINED:
+                self.constants[key] = value
+                return True
+            else:
+                raise lib.SplException("Assignment to constant '{}' is not allowed, in '{}', at line {}"
+                                       .format(key, lf[1], lf[0]))
+        else:
+            out = self.outer
+            while out:
+                if key in out.constants:
+                    if out.constants[key] is UNDEFINED:
+                        out.constants[key] = value
+                        return True
+                    else:
+                        raise lib.SplException("Assignment to constant '{}' is not allowed, in '{}', at line {}"
+                                               .format(key, lf[1], lf[0]))
+                out = out.outer
+        return False
 
     def local_inner_get(self, key: str):
         if key in self.constants:
@@ -276,7 +311,10 @@ class GlobalEnvironment(Environment):
         return False
 
     def add_heap(self, k, v):
-        self.heap[k] = v
+        if k in self.heap:
+            raise lib.SplException("Global name '{}' has already defined".format(k))
+        else:
+            self.heap[k] = v
 
     def inner_get_heap(self, key):
         return self.heap[key] if key in self.heap else NULLPTR
@@ -300,6 +338,12 @@ class ClassEnvironment(Environment):
 
     def inner_get_heap(self, key):
         return self.outer.inner_get_heap(key)
+
+    def extend_functions(self, other: Environment):
+        for f in other.variables:
+            x = other.variables[f].copy()
+            x.outer_scope = self
+            self.variables[f] = x
 
 
 class FunctionEnvironment(Environment):

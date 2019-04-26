@@ -1,5 +1,6 @@
 import "stack"
 import "iterable"
+import "iterator"
 
 
 /*
@@ -53,32 +54,39 @@ class LLNode {
 }
 
 
+class LinkedListIterator extends Iterator {
+    var iter;
+
+    function LinkedListIterator(head) {
+        iter = head;
+    }
+
+    @Override
+    function __more__() {
+        return iter !== null;
+    }
+
+    @Override
+    function __next__() {
+        var temp = iter;
+        iter = iter.after;
+        return temp.value;
+    }
+}
+
+
 class LinkedList extends Deque, Iterable {
 
     var size_ = 0;
     var head = null;
     var tail = null;
 
-    var iter_node = null;
-
     function LinkedList() {
     }
 
     @Override
     function __iter__() {
-        iter_node = head;
-        return this;
-    }
-
-    @Override
-    function __next__() {
-        if (iter_node) {
-            var value = iter_node.value;
-            iter_node = iter_node.after;
-            return value;
-        } else {
-            return new StopIteration;
-        }
+        return new LinkedListIterator(head);
     }
 
     function __str__() {
@@ -124,12 +132,12 @@ class LinkedList extends Deque, Iterable {
     }
 
     @Override
-    function get_last() {
+    function last() {
         return tail.value;
     }
 
     @Override
-    function get_first() {
+    function first() {
         return head.value;
     }
 
@@ -157,7 +165,7 @@ class LinkedList extends Deque, Iterable {
 
     @Override
     function top() {
-        return get_last();
+        return last();
     }
 
     @Override

@@ -3,7 +3,7 @@
  * results, in the original order.
  */
 function map(ftn, lst) {
-    var res = list();
+    var res = [];
     for (var element; lst) {
         var cal = ftn(element);
         res.append(cal);
@@ -17,10 +17,9 @@ function map(ftn, lst) {
  * Only elements make <ftn> returns <true> will be in the retuning list.
  */
 function filter(ftn, lst) {
-    var res = list();
+    var res = [];
     for (var element; lst) {
-        var bool = ftn(element);
-        if (bool) {
+        if (ftn(element)) {
             res.append(element);
         }
     }
@@ -87,4 +86,12 @@ function reduce(ftn, lst) {
  */
 function sum(lst) {
     return reduce(function (x, y) {x + y}, lst);
+}
+
+
+/*
+ * Returns the number of items in an iterable that make the `ftn` returns `true`.
+ */
+function count(ftn, iter) {
+    return filter(ftn, iter).size();
 }

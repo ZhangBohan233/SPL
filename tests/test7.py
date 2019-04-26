@@ -35,7 +35,7 @@ if __name__ == "__main__":
     #     A()
     lst = []
     for i in range(1_000_000):
-        lst.append(Int(i.to_bytes(8, "big")))
+        lst.append(i)
     st = time.time()
     for x in lst:
         y = x + x

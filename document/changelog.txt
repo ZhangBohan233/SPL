@@ -1,3 +1,83 @@
+********** SPL 1.6 Beta 2 **********
+===== Build 0076 2019/04/25 =====
+
+* Math library updates:
+    * Added more functions
+* Unittest library updates:
+    * Added new annotations "@RunBefore" and "@RunAfter"
+* Bug fixes:
+    * Fixed that further operation over native exception in try-catch statement causes error
+* Optimization:
+    * Discarded self-returning table
+    * Removed all "extra_precedence" in parser
+
+********** SPL 1.6 Beta 1 **********
+===== Build 0075 2019/04/23 =====
+
+* Console updates:
+    * A blank line will break the console now
+* New syntax:
+    * Constant in class now can be initialize in constructor function
+* Major redesign of parser:
+    * Changed the working method of parenthesises
+* Changed the mechanism of for-each loop:
+    * New superclass 'Iterator'
+    * Changed 'Iterable':
+        * __iter__ function now returns an 'Iterator'
+        * __next__ function now removed
+* Bug fixes:
+    * Multiple variable declaration in one line
+    * Could not start console
+
+********** SPL 1.6 Alpha 5 **********
+===== Build 0074 2019/04/23 =====
+
+* New syntax:
+    * ~[elements...] to create immutable list
+* Optimization:
+    * Changed the class method creation time from instantiating time to class creation time
+* Added new runtime check:
+    * Attribute assignment for non-spl Objects
+* Bug fixes:
+    * The assignment dot chain would not work if there are mixes of attributes and function calls
+
+********** SPL 1.6 Alpha 4 **********
+===== Build 0073 2019/04/23 =====
+
+* Added new runtime check:
+    * Heap object assignment duplicate check
+    * Immutable list for *args
+* Bug fixes:
+    * Fixed that *args and **kwargs not working properly
+
+********** SPL 1.6 Alpha 3 **********
+===== Build 0072 2019/04/20 =====
+
+* Added built-in function:
+    * exec()
+* Bug fixes:
+    * Fixed that the spl might not find the interpreter path
+
+********** SPL 1.6 Alpha 2 **********
+===== Build 0071 2019/04/19 =====
+
+* Bug fixes:
+    * Fixed that setitem causing error in loop
+* Optimizations:
+    * Optimized the function call evaluator
+
+********** SPL 1.6 Alpha 1 **********
+===== Build 0070 2019/04/18 =====
+
+* Added portable list, pair, set creation:
+    * List creation with [a, b, c]
+    * Pair creation with {a = x, b = y, c = z}
+    * Set creation with {a, b, c}
+* Bug fixes:
+    * Fixed that getitem and setitem not working properly
+* Optimizations:
+    * Optimized codes in parser
+
 ********** SPL 1.5.2 **********
 ===== Build 0069 2019/04/17 =====
 

@@ -2,6 +2,13 @@ import spl_interpreter
 import spl_lexer as lex
 import spl_token_lib as stl
 import spl_parser as psr
+import os
+import sys
+
+
+def print_waring(msg):
+    sys.stderr.write(str(msg) + "\n")
+    sys.stderr.flush()
 
 
 if __name__ == "__main__":
@@ -9,11 +16,10 @@ if __name__ == "__main__":
     line_terminated = True
 
     lex2 = lex.Tokenizer()
-    itr = spl_interpreter.Interpreter([], "utf8")
+    itr = spl_interpreter.Interpreter([], os.getcwd(), "utf8")
     lines = []
 
     while True:
-
         if line_terminated:
             line = input(">>> ")
         else:
@@ -28,13 +34,19 @@ if __name__ == "__main__":
 
             itr.set_ast(block)
             res = itr.interpret()
-            # print(res)
+            if res is not None:
+                print(res)
 
             lines.clear()
             line_terminated = True
-        except stl.ParseException:
-            line_terminated = False
+        except stl.ParseException as e:
+            if len(line) > 0:
+                line_terminated = False
+            else:
+                print_waring(e)
+                lines.clear()
+                line_terminated = True
         except Exception as e:
-            print(e)
+            print_waring(e)
             lines.clear()
             line_terminated = True

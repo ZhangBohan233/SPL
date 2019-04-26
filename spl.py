@@ -30,7 +30,7 @@ OPTIONS:
     -e,   --exit,    exit value              shows the program's exit value
     -l,   --link,    link                    write the linked script to file
     -t,   --timer,   timer                   enables the timer
-    -tk,  -tokens,   tokens                  shows language tokens
+    -tk,  --tokens,   tokens                 shows language tokens
     -v,   --vars,    variables               prints out all global variables after execution
     
 FLAGS:
@@ -104,7 +104,7 @@ def interpret(mode: str):
 
     if mode == "sp":
         lexer = spl_lexer.Tokenizer()
-        lexer.setup(file_name, argv["dir"], set(), link=argv["link"])
+        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dir"], set(), link=argv["link"])
         lexer.tokenize(f)
     elif mode == "lsp":
         lexer = spl_lexer.Tokenizer()
