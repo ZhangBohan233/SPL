@@ -1,3 +1,16 @@
+********** SPL 1.6 Beta 2 **********
+===== Build 0076 2019/04/25 =====
+
+* Math library updates:
+    * Added more functions
+* Unittest library updates:
+    * Added new annotations "@RunBefore" and "@RunAfter"
+* Bug fixes:
+    * Fixed that further operation over native exception in try-catch statement causes error
+* Optimization:
+    * Discarded self-returning table
+    * Removed all "extra_precedence" in parser
+
 ********** SPL 1.6 Beta 1 **********
 ===== Build 0075 2019/04/23 =====
 

@@ -94,19 +94,17 @@ class BinaryExpr(Expr):
     left = None
     right = None
     operation = None
-    extra_precedence: int
 
-    def __init__(self, line, operator, extra):
+    def __init__(self, line, operator):
         Expr.__init__(self, line)
 
         self.operation = operator
-        self.extra_precedence = extra * MULTIPLIER
 
     def precedence(self):
-        return PRECEDENCE[self.operation] + self.extra_precedence
+        return PRECEDENCE[self.operation]
 
     def __str__(self):
-        return "BE{}({} {} {})".format(self.precedence(), self.left, self.operation, self.right)
+        return "BE({} {} {})".format(self.left, self.operation, self.right)
 
     def __repr__(self):
         return self.__str__()
@@ -139,22 +137,20 @@ class TitleNode(Node):
 
 
 class TernaryOperator(Expr):
-    extra_precedence = 0
     first_op: str
     second_op: str = None
     left: Node = None
     mid: Node = None
     right: Node = None
 
-    def __init__(self, line, first_op, extra):
+    def __init__(self, line, first_op):
         Expr.__init__(self, line)
 
         self.node_type = TERNARY_OPERATOR
-        self.extra_precedence = extra
         self.first_op = first_op
 
     def precedence(self):
-        return PRECEDENCE[self.first_op] + self.extra_precedence
+        return PRECEDENCE[self.first_op]
 
     def __str__(self):
         return "TE({} {} {} {} {})".format(self.left, self.first_op, self.mid, self.second_op, self.right)
@@ -165,10 +161,9 @@ class TernaryOperator(Expr):
 
 class OperatorNode(BinaryExpr):
     assignment = False
-    extra_precedence = 0
 
-    def __init__(self, line, op, extra):
-        BinaryExpr.__init__(self, line, op, extra)
+    def __init__(self, line, op):
+        BinaryExpr.__init__(self, line, op)
 
         self.node_type = OPERATOR_NODE
 
@@ -176,20 +171,18 @@ class OperatorNode(BinaryExpr):
 class UnaryOperator(Expr):
     value = None
     operation = None
-    extra_precedence = 0
 
-    def __init__(self, line, op, extra):
+    def __init__(self, line, op):
         Expr.__init__(self, line)
 
         self.node_type = UNARY_OPERATOR
         self.operation = op
-        self.extra_precedence = extra * MULTIPLIER
 
     def precedence(self):
-        return PRECEDENCE[self.operation] + self.extra_precedence
+        return PRECEDENCE[self.operation]
 
     def __str__(self):
-        return "UE{}({} {})".format(self.precedence(), self.operation, self.value)
+        return "UE({} {})".format(self.operation, self.value)
 
     def __repr__(self):
         return self.__str__()
@@ -214,8 +207,8 @@ class NameNode(LeafNode):
 class AssignmentNode(BinaryExpr):
     level = ASSIGN
 
-    def __init__(self, line, level, extra):
-        BinaryExpr.__init__(self, line, "=", extra)
+    def __init__(self, line, level):
+        BinaryExpr.__init__(self, line, "=")
 
         self.node_type = ASSIGNMENT_NODE
         self.level = level
@@ -223,19 +216,17 @@ class AssignmentNode(BinaryExpr):
 
 class InDecrementOperator(Expr):
     operation: str
-    extra_precedence: int
     is_post: bool  # if is_post: i++
     value = None
 
-    def __init__(self, lf, operation, extra):
+    def __init__(self, lf, operation):
         Expr.__init__(self, lf)
 
         self.operation = operation
-        self.extra_precedence = extra
         self.node_type = IN_DECREMENT_OPERATOR
 
     def precedence(self):
-        return PRECEDENCE[self.operation] + self.extra_precedence
+        return PRECEDENCE[self.operation]
 
     def __str__(self):
         if self.is_post:
@@ -249,7 +240,7 @@ class InDecrementOperator(Expr):
 
 class TypeNode(BinaryExpr):
     def __init__(self, line):
-        BinaryExpr.__init__(self, line, ".", 0)
+        BinaryExpr.__init__(self, line, ".")
 
         self.node_type = TYPE_NODE
 
@@ -467,8 +458,8 @@ class ClassInit(LeafNode):
 
 
 class Dot(OperatorNode):
-    def __init__(self, line, extra):
-        OperatorNode.__init__(self, line, ".", extra)
+    def __init__(self, line):
+        OperatorNode.__init__(self, line, ".")
 
         self.node_type = DOT
 
@@ -594,38 +585,38 @@ class AbstractSyntaxTree:
             node = LiteralNode(line, lit)
             self.stack.append(node)
 
-    def add_operator(self, line, op, extra_precedence, assignment=False):
+    def add_operator(self, line, op, assignment=False):
         if self.inner:
-            self.inner.add_operator(line, op, extra_precedence, assignment)
+            self.inner.add_operator(line, op, assignment)
         else:
             self.in_expr = True
-            op_node = OperatorNode(line, op, extra_precedence)
+            op_node = OperatorNode(line, op)
             op_node.assignment = assignment
             self.stack.append(op_node)
 
-    def add_unary(self, line, op, extra_precedence):
+    def add_unary(self, line, op):
         if self.inner:
-            self.inner.add_unary(line, op, extra_precedence)
+            self.inner.add_unary(line, op)
         else:
             self.in_expr = True
-            node = UnaryOperator(line, op, extra_precedence)
+            node = UnaryOperator(line, op)
             self.stack.append(node)
 
-    def add_assignment(self, line, var_level: int, extra_precedence: int):
+    def add_assignment(self, line, var_level: int):
         if self.inner:
-            self.inner.add_assignment(line, var_level, extra_precedence)
+            self.inner.add_assignment(line, var_level)
         else:
             self.in_expr = True
-            ass_node = AssignmentNode(line, var_level, extra_precedence)
+            ass_node = AssignmentNode(line, var_level)
             self.stack.append(ass_node)
 
-    def add_ternary(self, line, op1, extra_precedence):
+    def add_ternary(self, line, op1):
         if self.inner:
-            self.inner.add_ternary(line, op1, extra_precedence)
+            self.inner.add_ternary(line, op1)
         else:
             self.in_expr = True
             self.in_ternary = True
-            node = TernaryOperator(line, op1, extra_precedence)
+            node = TernaryOperator(line, op1)
             self.stack.append(node)
 
     def finish_ternary(self, line, op2):
@@ -636,12 +627,12 @@ class AbstractSyntaxTree:
             node: TernaryOperator = self.stack[-2]
             node.second_op = op2
 
-    def add_increment_decrement(self, line, op, extra_precedence):
+    def add_increment_decrement(self, line, op):
         if self.inner:
-            self.inner.add_increment_decrement(line, op, extra_precedence)
+            self.inner.add_increment_decrement(line, op)
         else:
             self.in_expr = True
-            node = InDecrementOperator(line, op, extra_precedence)
+            node = InDecrementOperator(line, op)
             self.stack.append(node)
 
     def add_undefined(self, line):
@@ -867,12 +858,12 @@ class AbstractSyntaxTree:
             node = ClassInit(line, class_name)
             self.stack.append(node)
 
-    def add_dot(self, line, extra_precedence):
+    def add_dot(self, line):
         if self.inner:
-            self.inner.add_dot(line, extra_precedence)
+            self.inner.add_dot(line)
         else:
             self.in_expr = True
-            node = Dot(line, extra_precedence)
+            node = Dot(line)
             self.stack.append(node)
 
     def add_parenthesis(self):

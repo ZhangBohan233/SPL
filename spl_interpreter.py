@@ -334,6 +334,36 @@ class NativeInvokes(lib.NativeType):
         return base ** exp
 
     @staticmethod
+    def cos(rad):
+        """
+        Returns the cosine value of the angle, in radians
+
+        :param rad: the angle, in radians
+        :return: cos(rad)
+        """
+        return math.cos(rad)
+
+    @staticmethod
+    def asin(value):
+        """
+        Returns the arc sine angle of the value, in radians
+
+        :param value: the sine value
+        :return: asin(value), in radians
+        """
+        return math.asin(value)
+
+    @staticmethod
+    def atan(value):
+        """
+        Returns the arc tangent angle of the value, in radians
+
+        :param value: the tangent value
+        :return: atan(value), in radians
+        """
+        return math.atan(value)
+
+    @staticmethod
     def variables(env: Environment):
         """
         Returns all variables of the nearest first-class scope, i.e. global scope or class scope.
@@ -1603,11 +1633,6 @@ def raise_exception(e: Exception):
     raise e
 
 
-# Set of types that will not change after being evaluated
-SELF_RETURN_TABLE = {int, float, bool, str,
-                     lib.String, lib.List, lib.Set, lib.Pair, lib.System, lib.Os, lib.File, NativeInvokes,
-                     Thread, ClassInstance}
-
 # Operation table of every non-abstract node types
 NODE_TABLE = {
     ast.LITERAL_NODE: lambda n, env: lib.String(n.literal),
@@ -1645,14 +1670,13 @@ def evaluate(node: ast.Node, env: Environment):
     """
     if env.is_terminated():
         return env.terminate_value()
-    if node is None:
-        return None
-    if type(node) in SELF_RETURN_TABLE:
+    if isinstance(node, ast.Node):
+        t = node.node_type
+        node.execution += 1
+        tn = NODE_TABLE[t]
+        return tn(node, env)
+    else:
         return node
-    t = node.node_type
-    node.execution += 1
-    tn = NODE_TABLE[t]
-    return tn(node, env)
 
 
 # Processes before run

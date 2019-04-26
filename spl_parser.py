@@ -30,7 +30,6 @@ class Parser:
         var_level = ast.ASSIGN
         brace_count = 0
         class_brace = -1
-        extra_precedence = 0
         titles = []
 
         while True:
@@ -57,7 +56,7 @@ class Parser:
                         parser.add_for_loop(line)
                         i += 1
                     elif sym == "return":
-                        parser.add_unary(line, "return", 0)
+                        parser.add_unary(line, "return")
                         # parser.add_return(line)
                     elif sym == "break":
                         parser.add_break(line)
@@ -141,7 +140,7 @@ class Parser:
                             parser.build_getitem()
                     elif sym == "=":
                         parser.build_expr()
-                        parser.add_assignment(line, var_level, extra_precedence)
+                        parser.add_assignment(line, var_level)
                         var_level = ast.ASSIGN
                     elif sym == ",":
                         # parser.build_expr()
@@ -151,7 +150,7 @@ class Parser:
                         if var_level == ast.ASSIGN:  # the normal level
                             parser.build_line()
                     elif sym == ".":
-                        parser.add_dot(line, extra_precedence)
+                        parser.add_dot(line)
                     elif sym == "~":  # a special mark
                         pass
                     elif sym == "function" or sym == "def":
@@ -165,7 +164,7 @@ class Parser:
                             push_back = 0
                         elif f_name.isidentifier():
                             parser.add_name(line, f_name)
-                            parser.add_assignment(line, ast.FUNC_DEFINE, 0)
+                            parser.add_assignment(line, ast.FUNC_DEFINE)
                         else:
                             raise stl.ParseException("Illegal function name '{}'".format(f_name))
                         parser.add_function(line, is_abstract, titles.copy(), func_doc)
@@ -180,7 +179,7 @@ class Parser:
                         op_token: stl.IdToken = self.tokens[i]
                         op_name = "__" + stl.BINARY_OPERATORS[op_token.symbol] + "__"
                         parser.add_name(line, op_name)
-                        parser.add_assignment(line, ast.FUNC_DEFINE, 0)
+                        parser.add_assignment(line, ast.FUNC_DEFINE)
                         parser.add_function(line, False, titles.copy(), func_doc)
                         param_nest_list.append(par_count)
                         par_count += 1
@@ -227,7 +226,7 @@ class Parser:
                         class_name = c_token.symbol
                         parser.add_class_new((c_token.line_number(), c_token.file_name()), class_name)
                     elif sym == "throw":
-                        parser.add_unary(line, "throw", 0)
+                        parser.add_unary(line, "throw")
                         # parser.add_throw(line)
                     elif sym == "try":
                         parser.add_try(line)
@@ -239,35 +238,35 @@ class Parser:
                     elif sym == "finally":
                         parser.add_finally(line)
                     elif sym == "assert":
-                        parser.add_unary(line, "assert", 0)
+                        parser.add_unary(line, "assert")
                     elif sym == "++" or sym == "--":
-                        parser.add_increment_decrement(line, sym, extra_precedence)
+                        parser.add_increment_decrement(line, sym)
                     elif sym in stl.TERNARY_OPERATORS and \
                             (parser.is_in_ternary() or stl.TERNARY_OPERATORS[sym]):
                         # This check should go strictly before the check of binary ops
                         if parser.is_in_ternary():
                             parser.finish_ternary(line, sym)
                         else:
-                            parser.add_ternary(line, sym, extra_precedence)
+                            parser.add_ternary(line, sym)
                     elif sym in stl.BINARY_OPERATORS:
                         if sym == "-" and (i == 0 or is_unary(self.tokens[i - 1])):
-                            parser.add_unary(line, "neg", extra_precedence)
+                            parser.add_unary(line, "neg")
                         elif sym == "*" and (i == 0 or is_unary(self.tokens[i - 1])):
                             next_token = self.tokens[i + 1]
                             if isinstance(next_token, stl.IdToken) and next_token.symbol == "*":
-                                parser.add_unary(line, "kw_unpack", 0)
+                                parser.add_unary(line, "kw_unpack")
                                 i += 1
                             else:
-                                parser.add_unary(line, "unpack", 0)
+                                parser.add_unary(line, "unpack")
                         else:
-                            parser.add_operator(line, sym, extra_precedence)
+                            parser.add_operator(line, sym)
                     elif sym in stl.UNARY_OPERATORS:
                         if sym == "!" or sym == "not":
-                            parser.add_unary(line, "!", extra_precedence)
+                            parser.add_unary(line, "!")
                         else:
                             print("Should not be here")
                     elif sym[:-1] in stl.OP_EQ:
-                        parser.add_operator(line, sym, extra_precedence, True)
+                        parser.add_operator(line, sym, True)
                     elif sym == ":":
                         parser.build_expr()
                         parser.add_type(line)
@@ -279,7 +278,7 @@ class Parser:
                             active.stack.clear()
                             for node in und_vars:
                                 active.stack.append(node)
-                                parser.add_assignment(line, var_level, extra_precedence)
+                                parser.add_assignment(line, var_level)
                                 parser.add_undefined(line)
                                 parser.build_line()
                             var_level = ast.ASSIGN
@@ -309,7 +308,7 @@ class Parser:
                                                                                   self.tokens[i].line_number()))
 
         if par_count != 0 or len(call_nest_list) != 0 or len(cond_nest_list) != 0 or len(param_nest_list) or \
-                len(square_nest_list) != 0 or brace_count != 0 or extra_precedence != 0:
+                len(square_nest_list) != 0 or brace_count != 0:
             raise stl.ParseEOFException(
                 "Reach the end while parsing, {},{},{},{}".format(par_count, call_nest_list,
                                                                   cond_nest_list, param_nest_list))

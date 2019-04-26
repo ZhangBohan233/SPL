@@ -174,6 +174,46 @@ function euler_phi_fp(n) {
 }
 
 
+function cos(x) {
+    return natives.cos(x);
+}
+
+
+function sin(x) {
+    return cos(PI/2 - x);
+}
+
+
+function tan(x) {
+    return sin(x) / cos(x);
+}
+
+
+function rad(x) {
+    return x * PI / 180;
+}
+
+
+function deg(x) {
+    return x * 180 / PI;
+}
+
+
+function acos(n) {
+    return PI / 2 - asin(n);
+}
+
+
+function asin(n) {
+    return natives.asin(n);
+}
+
+
+function atan(n) {
+    return natives.atan(n);
+}
+
+
 /*
  * Returns the prime factorization of integer <n>.
  */
