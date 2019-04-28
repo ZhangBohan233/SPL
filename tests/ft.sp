@@ -1,6 +1,6 @@
-import "functions"
-import "math"
-import "queue"
+import namespace "functions"
+import namespace "math"
+import namespace "queue"
 
 /*
  * This is the doc of a single function.
@@ -153,6 +153,7 @@ try {
 println(type(system));
 var c2 = new Clazz2;
 c2.over();
+println(c2 instanceof Object);
 
 function whole(dic) {
     println(dic);

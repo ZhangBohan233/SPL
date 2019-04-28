@@ -27,9 +27,11 @@ class Parser:
         square_nest_list = []
         # get_nest_list = []
         is_abstract = False
+        is_extending = False
         var_level = ast.ASSIGN
         brace_count = 0
-        class_brace = -1
+        class_braces = []
+        import_braces = []
         titles = []
 
         while True:
@@ -76,21 +78,27 @@ class Parser:
                         titles.append(next_token.symbol)
                     elif sym == "{":
                         brace_count += 1
+                        if is_extending:
+                            is_extending = False
+                            parser.build_extends()
                         last_token = self.tokens[i - 1]
                         if isinstance(last_token, stl.IdToken) and \
                                 (last_token.symbol == ")" or  # is a function
-                                 last_token.symbol.isidentifier()):  # is a class
+                                 last_token.symbol.isidentifier() or  # is a class
+                                 is_dot_identifier(last_token.symbol)):  # is a dotted import
                             parser.new_block()
                         else:
                             parser.add_dict()
                     elif sym == "}":
                         brace_count -= 1
-                        # parser.build_line()
                         parser.build_block()
                         parser.try_build_func()
-                        if brace_count == class_brace:
+                        if is_this_list(import_braces, brace_count):
+                            parser.build_import()
+                            import_braces.pop()
+                        elif is_this_list(class_braces, brace_count):
                             parser.build_class()
-                            class_brace = -1
+                            class_braces.pop()
                         next_token = self.tokens[i + 1]
                         if not (isinstance(next_token, stl.IdToken) and next_token.symbol in stl.NO_BUILD_LINE):
                             parser.build_line()
@@ -100,7 +108,6 @@ class Parser:
                             call_nest_list.append(par_count)
                         else:
                             parser.add_parenthesis()
-                            # extra_precedence += 1
                         par_count += 1
                     elif sym == ")":
                         par_count -= 1
@@ -143,10 +150,6 @@ class Parser:
                         parser.add_assignment(line, var_level)
                         var_level = ast.ASSIGN
                     elif sym == ",":
-                        # parser.build_expr()
-                        # if len(call_nest_list) > 0 or len(param_nest_list) > 0:
-                        # parser.build_line()
-                        # else:
                         if var_level == ast.ASSIGN:  # the normal level
                             parser.build_line()
                     elif sym == ".":
@@ -198,20 +201,11 @@ class Parser:
                             is_abstract,
                             class_doc
                         )
-                        class_brace = brace_count
+                        class_braces.append(brace_count)
                         is_abstract = False
                     elif sym == "extends":
-                        i += 1
-                        cla = parser.get_current_class()
-                        while True:
-                            c_token = self.tokens[i]
-                            superclass_name = c_token.symbol
-                            parser.add_extends(superclass_name, cla)
-                            next_token = self.tokens[i + 1]
-                            if isinstance(next_token, stl.IdToken) and next_token.symbol == ",":
-                                i += 2
-                            else:
-                                break
+                        parser.add_extends()
+                        is_extending = True
                     elif sym == "abstract":
                         next_token = self.tokens[i + 1]
                         if isinstance(next_token, stl.IdToken) and next_token.symbol in ABSTRACT_IDENTIFIER:
@@ -221,10 +215,8 @@ class Parser:
                                                      .format(line[1], line[0]))
                             # parser.add_abstract(line)
                     elif sym == "new":
-                        i += 1
-                        c_token = self.tokens[i]
-                        class_name = c_token.symbol
-                        parser.add_class_new((c_token.line_number(), c_token.file_name()), class_name)
+                        parser.add_unary(line, "new")
+                        # parser.add_class_new(line)
                     elif sym == "throw":
                         parser.add_unary(line, "throw")
                         # parser.add_throw(line)
@@ -239,6 +231,8 @@ class Parser:
                         parser.add_finally(line)
                     elif sym == "assert":
                         parser.add_unary(line, "assert")
+                    elif sym == "namespace":
+                        parser.add_unary(line, "namespace")
                     elif sym == "++" or sym == "--":
                         parser.add_increment_decrement(line, sym)
                     elif sym in stl.TERNARY_OPERATORS and \
@@ -270,6 +264,12 @@ class Parser:
                     elif sym == ":":
                         parser.build_expr()
                         parser.add_type(line)
+                    elif sym == "import":
+                        i += 1
+                        name_token: stl.IdToken = self.tokens[i]
+                        import_name = name_token.symbol
+                        parser.add_import(line, import_name)
+                        import_braces.append(brace_count)
                     elif token.is_eol():
                         if var_level != ast.ASSIGN:
                             active = parser.get_active()
@@ -331,6 +331,15 @@ def is_call(last_token: stl.Token) -> bool:
                 last_token.symbol == "]":
             return True
     return False
+
+
+def is_dot_identifier(s: str) -> bool:
+    if s.isidentifier():
+        return True
+    else:
+        if len(s) > 0 and s[0] != "." and s[-1] != ".":
+            s2 = s.replace(".", "")
+            return s2.isidentifier()
 
 
 def is_this_list(lst: list, count: int) -> bool:

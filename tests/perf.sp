@@ -1,5 +1,6 @@
-import "algorithm";
+import "algorithm"
 import "queue"
+import "math"
 
 class Test {
     abstract function get_name();
@@ -42,22 +43,22 @@ if (main()) {
     print("loop: ");
     println(t1 - t0);
 
-    fib(20);
+    math.fib(20);
 
     const t2 = system.time();
     print("fib: ");
     println(t2 - t1);
 
-    const lst = rand_list(500, -32768, 32767);
+    const lst = algorithm.rand_list(500, -32768, 32767);
 
     const t3 = system.time();
-    merge_sort(lst);
+    algorithm.merge_sort(lst);
     const t4 = system.time();
 
     print("sort: ");
     println(t4 - t3);
 
-    var link_lst = new LinkedList();
+    var link_lst = new queue.LinkedList();
     for (var i = 0; i < 1000; i++) {
         var obj = new TestObj(i);
         link_lst.add_last(obj);

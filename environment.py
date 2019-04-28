@@ -5,6 +5,7 @@ CLASS_SCOPE = 1
 FUNCTION_SCOPE = 2
 LOOP_SCOPE = 3
 SUB_SCOPE = 4
+MODULE_SCOPE = 5
 
 
 class NullPointer:
@@ -76,6 +77,9 @@ class Environment:
         self.variables.clear()
         self.constants.clear()
 
+    def is_module(self):
+        return self.scope_type == MODULE_SCOPE
+
     def is_global(self):
         raise NotImplementedError
 
@@ -97,6 +101,15 @@ class Environment:
         raise NotImplementedError
 
     def add_heap(self, k, v):
+        raise NotImplementedError
+
+    def add_namespace(self, namespace):
+        raise NotImplementedError
+
+    def search_namespace(self, key: str):
+        raise NotImplementedError
+
+    def assign_namespace(self, key: str, value):
         raise NotImplementedError
 
     def has_class(self, class_name):
@@ -190,7 +203,7 @@ class Environment:
                     out.variables[key] = value
                     return
                 out = out.outer
-            if not self.assign_const(key, value, lf):
+            if not self.assign_const(key, value, lf) and not self.assign_namespace(key, value):
                 raise lib.SplException("Name '{}' is not defined, in '{}', at line {}"
                                        .format(key, lf[1], lf[0]))
 
@@ -263,6 +276,10 @@ class Environment:
 
             out = out.outer
 
+        v = self.search_namespace(key)
+        if v is not NULLPTR:
+            return v
+
         return self.inner_get_heap(key)
 
     def get(self, key: str, line_file: tuple):
@@ -279,7 +296,13 @@ class Environment:
         # print(key + str(v))
         if v is NULLPTR:
             raise lib.SplException("Name '{}' is not defined, in file {}, at line {}"
-                                   .format(key, line_file[1], line_file[0]))
+                                    .format(key, line_file[1], line_file[0]))
+        return v
+
+    def get_class(self, class_name):
+        v = self.inner_get(class_name)
+        if v is NULLPTR:
+            raise lib.SplException("Class or module '{}' is not defined".format(class_name))
         return v
 
     def contains_key(self, key: str):
@@ -295,9 +318,86 @@ class Environment:
         return {**self.constants, **self.variables}
 
 
-class GlobalEnvironment(Environment):
+class MainAbstractEnvironment(Environment):
+    namespace: list
+
+    def __init__(self, scope_type, outer):
+        Environment.__init__(self, scope_type, outer)
+
+        self.namespace = []
+
+    def is_global(self):
+        raise NotImplementedError
+
+    def is_class(self):
+        raise NotImplementedError
+
+    def is_sub(self):
+        return False
+
+    def add_heap(self, k, v):
+        raise NotImplementedError
+
+    def inner_get_heap(self, key):
+        raise NotImplementedError
+
+    def add_namespace(self, namespace: Environment):
+        self.namespace.append(namespace)
+
+    def search_namespace(self, key: str):
+        for ns in self.namespace:
+            if key in ns.variables:
+                return ns.variables[key]
+            if key in ns.constants:
+                return ns.constants[key]
+        if self.outer:
+            return self.outer.search_namespace(key)
+        else:
+            return NULLPTR
+
+    def assign_namespace(self, key: str, value):
+        for ns in self.namespace:
+            if key in ns.variables:
+                ns.variables[key] = value
+                return True
+        if self.outer:
+            return self.outer.assign_namespace(key, value)
+        else:
+            return False
+
+
+class SubAbstractEnvironment(Environment):
+    def __init__(self, scope_type, outer):
+        Environment.__init__(self, scope_type, outer)
+
+    def is_sub(self):
+        return True
+
+    def is_global(self):
+        return False
+
+    def is_class(self):
+        return False
+
+    def add_namespace(self, namespace):
+        raise lib.TypeException("Sub environment does not support namespace definition")
+
+    def search_namespace(self, key: str):
+        return self.outer.search_namespace(key)
+
+    def assign_namespace(self, key: str, value):
+        return self.outer.assign_namespace(key, value)
+
+    def add_heap(self, k, v):
+        raise NotImplementedError
+
+    def inner_get_heap(self, key):
+        raise NotImplementedError
+
+
+class GlobalEnvironment(MainAbstractEnvironment):
     def __init__(self):
-        Environment.__init__(self, GLOBAL_SCOPE, None)
+        MainAbstractEnvironment.__init__(self, GLOBAL_SCOPE, None)
 
         self.heap = {}
 
@@ -306,9 +406,6 @@ class GlobalEnvironment(Environment):
 
     def is_global(self):
         return True
-
-    def is_sub(self):
-        return False
 
     def add_heap(self, k, v):
         if k in self.heap:
@@ -320,17 +417,31 @@ class GlobalEnvironment(Environment):
         return self.heap[key] if key in self.heap else NULLPTR
 
 
-class ClassEnvironment(Environment):
+class ModuleEnvironment(MainAbstractEnvironment):
     def __init__(self, outer):
-        Environment.__init__(self, CLASS_SCOPE, outer)
+        MainAbstractEnvironment.__init__(self, MODULE_SCOPE, outer)
+
+    def is_global(self):
+        return False
+
+    def is_class(self):
+        return False
+
+    def inner_get_heap(self, key):
+        return self.outer.inner_get_heap(key)
+
+    def add_heap(self, k, v):
+        self.outer.add_heap(k, v)
+
+
+class ClassEnvironment(MainAbstractEnvironment):
+    def __init__(self, outer):
+        MainAbstractEnvironment.__init__(self, CLASS_SCOPE, outer)
 
     def is_class(self):
         return True
 
     def is_global(self):
-        return False
-
-    def is_sub(self):
         return False
 
     def add_heap(self, k, v):
@@ -339,16 +450,16 @@ class ClassEnvironment(Environment):
     def inner_get_heap(self, key):
         return self.outer.inner_get_heap(key)
 
-    def extend_functions(self, other: Environment):
-        for f in other.variables:
-            x = other.variables[f].copy()
-            x.outer_scope = self
-            self.variables[f] = x
+    # def extend_functions(self, other: Environment):
+    #     for f in other.variables:
+    #         x = other.variables[f].copy()
+    #         x.outer_scope = self
+    #         self.variables[f] = x
 
 
-class FunctionEnvironment(Environment):
+class FunctionEnvironment(MainAbstractEnvironment):
     def __init__(self, outer):
-        Environment.__init__(self, FUNCTION_SCOPE, outer)
+        MainAbstractEnvironment.__init__(self, FUNCTION_SCOPE, outer)
 
         self.terminated = False
         self.exit_value = None
@@ -357,9 +468,6 @@ class FunctionEnvironment(Environment):
         return False
 
     def is_global(self):
-        return False
-
-    def is_sub(self):
         return False
 
     def terminate(self, exit_value):
@@ -379,24 +487,15 @@ class FunctionEnvironment(Environment):
         return self.outer.inner_get_heap(key)
 
 
-class LoopEnvironment(Environment):
+class LoopEnvironment(SubAbstractEnvironment):
     def __init__(self, outer):
-        Environment.__init__(self, LOOP_SCOPE, outer)
+        SubAbstractEnvironment.__init__(self, LOOP_SCOPE, outer)
 
         self.broken = False
         self.paused = False
 
-    def is_class(self):
-        return False
-
     def resume_loop(self):
         self.paused = False
-
-    def is_global(self):
-        return False
-
-    def is_sub(self):
-        return True
 
     def terminate(self, exit_value):
         self.broken = True
@@ -421,21 +520,12 @@ class LoopEnvironment(Environment):
         return self.outer.inner_get_heap(key)
 
 
-class SubEnvironment(Environment):
+class SubEnvironment(SubAbstractEnvironment):
     def __init__(self, outer):
-        Environment.__init__(self, SUB_SCOPE, outer)
+        SubAbstractEnvironment.__init__(self, SUB_SCOPE, outer)
 
     def resume_loop(self):
         self.outer.resume_loop()
-
-    def is_class(self):
-        return False
-
-    def is_global(self):
-        return False
-
-    def is_sub(self):
-        return True
 
     def terminate(self, exit_value):
         self.outer.terminate(exit_value)

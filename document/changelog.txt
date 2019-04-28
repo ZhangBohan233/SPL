@@ -1,3 +1,15 @@
+********** SPL 1.6 Alpha 6 **********
+===== Build 0077 2019/04/28 =====
+
+* Completely redesigned the module-import system:
+    * The modules are now separated
+    * New keyword 'namespace'
+    * New keyword 'as'
+* Optimized the Environment's
+* Changed keyword 'new' into an unary operator
+* Changed the mechanism of class extensions
+* Removed the class initialization optimization
+
 ********** SPL 1.6 Beta 2 **********
 ===== Build 0076 2019/04/25 =====
 

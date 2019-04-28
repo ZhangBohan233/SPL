@@ -9,6 +9,7 @@ OTHER_ARITHMETIC = {"*", "/", "%"}
 SELF_CONCATENATE = {0, 1, 8, 9, 10, 11, 14, 17}
 CROSS_CONCATENATE = {(8, 9), (1, 0), (0, 12), (12, 0), (15, 9), (17, 9), (20, 9), (16, 9), (10, 9), (11, 9),
                      (9, 8), (1, 14), (14, 1), (0, 14), (14, 0)}
+LINE_FILE = 0, "TOKENIZER"
 
 
 class Tokenizer:
@@ -18,7 +19,7 @@ class Tokenizer:
 
     def __init__(self):
         self.tokens = []
-        self.imported = None
+        # self.imported = None
         self.spl_path = ""
         self.script_dir = ""
         self.file_name = ""
@@ -36,14 +37,14 @@ class Tokenizer:
         :param spl_path: the directory path of spl interpreter
         :param file_name: the name of the main script
         :param script_dir: the directory of the main script
-        :param imported: the set of imported file names
+        # :param imported: the set of imported file names
         :param link: whether to write the result to file
         :return:
         """
         self.spl_path = spl_path
         self.file_name = file_name
         self.script_dir = script_dir
-        self.imported = imported
+        # self.imported = imported
         self.link = link
 
     def tokenize(self, source):
@@ -225,21 +226,49 @@ class Tokenizer:
         for i in range(from_, to, 1):
             token = self.tokens[i]
             if isinstance(token, stl.IdToken) and token.symbol == "import":
-                next_token: stl.LiteralToken = self.tokens[i + 1]
-                name = next_token.text
-                self.tokens.pop(i)
-                self.tokens.pop(i)
+                next_token: stl.Token = self.tokens[i + 1]
+                namespace_token = None
+                if isinstance(next_token, stl.IdToken) and next_token.symbol == "namespace":
+                    namespace_token = next_token
+                    self.tokens.pop(i + 1)
+                    path_token: stl.LiteralToken = self.tokens[i + 1]
+                elif isinstance(next_token, stl.LiteralToken):
+                    path_token: stl.LiteralToken = self.tokens[i + 1]
+                else:
+                    raise stl.ParseException("Unexpected token in file '{}', at line {}"
+                                             .format(next_token.file, next_token.line))
+                name = path_token.text
+                # self.tokens.pop(i)
                 if name[-3:] == ".sp":  # user lib
-                    file_name = "{}{}{}".format(self.script_dir, os.sep, name)
+                    file_name = "{}{}{}".format(self.script_dir, os.sep, name[:-3]).replace(".", "/") + ".sp"
+                    import_name = name[:-3]
                 else:  # system lib
                     file_name = "{}{}lib{}{}.sp".format(self.spl_path, os.sep, os.sep, name)
+                    import_name = name
 
-                if file_name not in self.imported:
-                    self.imported.add(file_name)
-                    self.import_file(file_name)
+                if len(self.tokens) > i + 2:
+                    as_token: stl.IdToken = self.tokens[i + 2]
+                    if as_token.symbol == "as":
+                        if namespace_token is not None:
+                            raise stl.ParseException("Unexpected combination 'import namespace ... as ...'")
+                        name_token: stl.IdToken = self.tokens[i + 3]
+                        import_name = name_token.symbol
+                        self.tokens.pop(i + 1)
+                        self.tokens.pop(i + 1)
+
+                self.tokens.pop(i + 1)  # remove the import name token
+
+                # if file_name not in self.imported:
+                #     self.imported.add(file_name)
+                self.import_file(file_name, import_name)
+                if namespace_token:
+                    lf = namespace_token.line, namespace_token.file
+                    self.tokens.append(namespace_token)
+                    self.tokens.append(stl.IdToken(lf, import_name))
+                    self.tokens.append(stl.IdToken(lf, stl.EOL))
                 break
 
-    def import_file(self, full_path):
+    def import_file(self, full_path, import_name):
         """
         Imports an external sp file.
 
@@ -247,16 +276,19 @@ class Tokenizer:
         file into the current file.
 
         :param full_path: the path of the file to be imported
-        :return: None
+        :param import_name: the name to be used
         """
         with open(full_path, "r") as file:
             lexer = Tokenizer()
-            lexer.setup(self.spl_path, full_path, get_dir(full_path), self.imported, False)
+            lexer.setup(self.spl_path, full_path, get_dir(full_path), set(), False)
             # lexer.script_dir = get_dir(full_path)
             lexer.tokenize(file)
             # print(lexer.tokens)
+            self.tokens.append(stl.IdToken(LINE_FILE, import_name))
+            self.tokens.append(stl.IdToken(LINE_FILE, "{"))
             self.tokens += lexer.tokens
             self.tokens.pop()  # remove the EOF token
+            self.tokens.append(stl.IdToken(LINE_FILE, "}"))
 
     def get_tokens(self):
         """

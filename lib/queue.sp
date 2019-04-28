@@ -1,6 +1,6 @@
-import "stack"
-import "iterable"
-import "iterator"
+import namespace "stack"
+import namespace "iterable"
+import namespace "iterator"
 
 
 /*

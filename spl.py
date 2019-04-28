@@ -45,7 +45,7 @@ Example
 
 
 def parse_arg(args):
-    d = {"file": None, "dir": None, "debugger": False, "timer": False, "ast": False, "tokens": False,
+    d = {"file": None, "dirs": None, "debugger": False, "timer": False, "ast": False, "tokens": False,
          "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False, "link": False}
     i = 1
     while i < len(args):
@@ -81,7 +81,7 @@ def parse_arg(args):
                 return None
             else:
                 d["file"] = arg
-                d["dir"] = spl_lexer.get_dir(arg)
+                d["dirs"] = spl_lexer.get_dir(arg)
                 d["argv"].append(arg)
         i += 1
     if d["file"] is None:
@@ -104,7 +104,7 @@ def interpret(mode: str):
 
     if mode == "sp":
         lexer = spl_lexer.Tokenizer()
-        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dir"], set(), link=argv["link"])
+        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dirs"], set(), link=argv["link"])
         lexer.tokenize(f)
     elif mode == "lsp":
         lexer = spl_lexer.Tokenizer()
@@ -129,7 +129,7 @@ def interpret(mode: str):
 
     interpret_start = time.time()
 
-    itr = spl_interpreter.Interpreter(argv["argv"], argv["dir"], argv["encoding"])
+    itr = spl_interpreter.Interpreter(argv["argv"], argv["dirs"], argv["encoding"])
     itr.set_ast(block)
     result = itr.interpret()
 

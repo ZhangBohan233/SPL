@@ -3,8 +3,8 @@ import spl_token_lib as stl
 PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "==": 20, ">": 25, "<": 25, ">=": 25, "<=": 25,
               "!=": 20, "&&": 5, "and": 5, "||": 5, "or": 5, "&": 12, "^": 11, "|": 10,
-              "<<": 40, ">>": 40, "unpack": 200, "kw_unpack": 200,
-              ".": 500, "!": 200, "neg": 200, "return": 1, "throw": 1,
+              "<<": 40, ">>": 40, "unpack": 200, "kw_unpack": 200, "new": 150,
+              ".": 500, "!": 200, "neg": 200, "return": 1, "throw": 1, "namespace": 150,
               "=": 2, "+=": 2, "-=": 2, "*=": 2, "/=": 2, "%=": 2,
               "&=": 2, "^=": 2, "|=": 2, "<<=": 2, ">>=": 2, "=>": 500,
               "===": 20, "is": 20, "!==": 20, "instanceof": 25, "assert": 1,
@@ -29,7 +29,7 @@ FOR_LOOP_STMT = 19
 DEF_STMT = 20
 FUNCTION_CALL = 21
 CLASS_STMT = 22
-CLASS_INIT = 23
+# CLASS_INIT = 23
 ABSTRACT = 25
 TRY_STMT = 27
 CATCH_STMT = 28
@@ -38,6 +38,7 @@ JUMP_NODE = 30
 UNDEFINED_NODE = 31
 IN_DECREMENT_OPERATOR = 32
 INDEXING_NODE = 33
+IMPORT_NODE = 34
 
 # Variable levels
 ASSIGN = 0
@@ -216,7 +217,7 @@ class AssignmentNode(BinaryExpr):
 
 class InDecrementOperator(Expr):
     operation: str
-    is_post: bool  # if is_post: i++
+    is_post: bool = True  # if is_post: i++
     value = None
 
     def __init__(self, lf, operation):
@@ -414,9 +415,26 @@ class IndexingNode(Node):
         return self.arg is not None
 
 
+class ImportNode(Node):
+    import_name: str
+    block: BlockStmt = None
+
+    def __init__(self, line, name):
+        Node.__init__(self, line)
+
+        self.import_name = name
+        self.node_type = IMPORT_NODE
+
+    def __str__(self):
+        return "import {}: {}".format(self.import_name, self.block)
+
+    def __repr__(self):
+        return self.__str__()
+
+
 class ClassStmt(Node):
     class_name: str = None
-    superclass_names: list = None
+    superclass_nodes: list
     block: BlockStmt = None
     abstract: bool = False
     doc: str
@@ -428,7 +446,7 @@ class ClassStmt(Node):
         self.class_name = name
         self.abstract = abstract
         self.doc = class_doc
-        self.superclass_names = ["Object"]
+        self.superclass_nodes = [NameNode(line, "Object")]
 
     def __str__(self):
         return "Class {}: {}".format(self.class_name, self.block)
@@ -437,24 +455,21 @@ class ClassStmt(Node):
         return self.__str__()
 
 
-class ClassInit(LeafNode):
-    class_name = None
-    args: BlockStmt = None
+# class ClassInit(UnaryOperator):
+#     # class_name: str = None
+#     # args: BlockStmt = None
+#
+#     def __init__(self, line):
+#         UnaryOperator.__init__(self, line, "new")
 
-    def __init__(self, line, name):
-        LeafNode.__init__(self, line)
+    # def __str__(self):
+    #     if self.args:
+    #         return "ClassInit {}({})".format(self.class_name, self.args)
+    #     else:
+    #         return "ClassInit {}".format(self.class_name)
 
-        self.node_type = CLASS_INIT
-        self.class_name = name
-
-    def __str__(self):
-        if self.args:
-            return "ClassInit {}({})".format(self.class_name, self.args)
-        else:
-            return "ClassInit {}".format(self.class_name)
-
-    def __repr__(self):
-        return self.__str__()
+    # def __repr__(self):
+    #     return self.__str__()
 
 
 class Dot(OperatorNode):
@@ -546,11 +561,12 @@ class AbstractSyntaxTree:
         self.inner = None
         self.in_expr = False
         self.in_ternary = False
-        # self.in_get = False
-        # self.in_cond = False
 
     def __str__(self):
         return str(self.elements)
+
+    def invalidate_inner(self):
+        self.inner = None
 
     def get_active(self):
         if self.inner:
@@ -651,6 +667,13 @@ class AbstractSyntaxTree:
             tp_node.left = name
             self.stack.append(tp_node)
 
+    def add_import(self, line, import_name):
+        if self.inner:
+            self.inner.add_import(line, import_name)
+        else:
+            node = ImportNode(line, import_name)
+            self.stack.append(node)
+
     def add_if(self, line):
         if self.inner:
             self.inner.add_if(line)
@@ -717,7 +740,7 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             block = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             function = self.stack.pop()
             function.params = block
             self.stack.append(function)
@@ -745,7 +768,7 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             block: BlockStmt = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             node: IndexingNode = self.stack.pop()
             node.arg = block
             self.stack.append(node)
@@ -788,10 +811,11 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             block: BlockStmt = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             call: FuncCall = self.stack.pop()
-            if len(self.stack) > 0 and isinstance(self.stack[-1], ClassInit):
-                call = self.stack.pop()
+            # if len(self.stack) > 0 and isinstance(self.stack[-1], ClassInit):
+            #     print(asdad)
+            #     call = self.stack.pop()
             call.args = block
             self.stack.append(call)
 
@@ -802,11 +826,19 @@ class AbstractSyntaxTree:
             self.inner.build_line()
             expr = self.inner.get_as_block()
             # print(expr)
-            self.inner = None
+            self.invalidate_inner()
             cond_stmt: CondStmt = self.stack.pop()
             cond_stmt.condition = expr
             # print(cond_stmt)
             self.stack.append(cond_stmt)
+
+    def build_import(self):
+        if self.inner:
+            self.inner.build_import()
+        else:
+            block: BlockStmt = self.stack.pop()
+            node: ImportNode = self.stack[-1]
+            node.block = block
 
     def new_block(self):
         if self.inner:
@@ -835,12 +867,11 @@ class AbstractSyntaxTree:
         else:
             return self.stack[-1]
 
-    def add_extends(self, superclass_name: str, target_class):
+    def add_extends(self):
         if self.inner:
-            self.inner.add_extends(superclass_name, target_class)
+            self.inner.add_extends()
         else:
-            target_class: ClassStmt
-            target_class.superclass_names.append(superclass_name)
+            self.inner = AbstractSyntaxTree()
 
     def build_class(self):
         if self.inner:
@@ -851,12 +882,12 @@ class AbstractSyntaxTree:
             class_node.block = node
             self.stack.append(class_node)
 
-    def add_class_new(self, line, class_name):
-        if self.inner:
-            self.inner.add_class_new(line, class_name)
-        else:
-            node = ClassInit(line, class_name)
-            self.stack.append(node)
+    # def add_class_new(self, line):
+    #     if self.inner:
+    #         self.inner.add_class_new(line)
+    #     else:
+    #         node = ClassInit(line)
+    #         self.stack.append(node)
 
     def add_dot(self, line):
         if self.inner:
@@ -879,10 +910,20 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             block = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             if len(block.lines) != 1:
                 raise stl.ParseException("Empty parenthesis")
             self.stack.append(block.lines[0])
+
+    def build_extends(self):
+        if self.inner.inner:
+            self.inner.build_extends()
+        else:
+            self.inner.build_line()
+            block = self.inner.get_as_block()
+            self.invalidate_inner()
+            clazz: ClassStmt = self.stack[-1]
+            clazz.superclass_nodes = block.lines
 
     def try_build_func(self):
         if self.inner:
@@ -904,7 +945,7 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             root = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             self.stack.append(root)
 
     def build_expr(self):
@@ -927,7 +968,6 @@ class AbstractSyntaxTree:
                         (isinstance(node, FuncCall) and node.fulfilled()) or \
                         (isinstance(node, IndexingNode) and node.fulfilled()) or \
                         isinstance(node, DefStmt) or \
-                        isinstance(node, ClassInit) or \
                         isinstance(node, UndefinedNode) or \
                         (isinstance(node, BlockStmt) and node.standalone):
                     lst.append(node)
