@@ -121,14 +121,15 @@ class NativeType(SplObject):
     def type_name__(cls) -> str:
         raise NotImplementedError
 
-    def doc__(self) -> str:
+    @classmethod
+    def doc__(cls) -> str:
         """
         :return: the doc string of this type
         """
-        doc = ["NativeObject ", self.type_name__(), " ", self.__doc__, "\n"]
-        for x in dir(self):
+        doc = ["NativeObject ", cls.type_name__(), " ", cls.__doc__, "\n"]
+        for x in dir(cls):
             if len(x) < 2 or x[-2:] != "__":
-                attr = getattr(self, x)
+                attr = getattr(cls, x)
                 if callable(attr):
                     doc.append("    method ")
                     doc.append(x)
@@ -146,7 +147,7 @@ class NativeType(SplObject):
                     if attr_doc:
                         doc.append(attr_doc)
                         doc.append("\n")
-        return "".join(doc)
+        return "".join([str(x) for x in doc])
 
 
 class Iterable:
@@ -281,6 +282,9 @@ class String(NativeType, Iterable):
 
 
 class List(NativeType, Iterable):
+    """
+    A collector of sequential data with dynamic size and type.
+    """
     def __init__(self, *initial, mutable=True):
         NativeType.__init__(self)
 
@@ -316,6 +320,11 @@ class List(NativeType, Iterable):
         return "List"
 
     def append(self, value):
+        """
+        Adds a value at the end of this list.
+
+        :param value: the item to be added
+        """
         if self.mutable:
             self.list.append(value)
         else:

@@ -25,7 +25,7 @@ class Tokenizer:
         self.file_name = ""
         self.link = False
 
-    def setup(self, spl_path: str, file_name: str, script_dir: str, imported: set, link: bool):
+    def setup(self, spl_path: str, file_name: str, script_dir: str, link: bool):
         """
         Sets up the parameters of this lexer.
 
@@ -55,6 +55,10 @@ class Tokenizer:
         :return: None
         """
         self.tokens.clear()
+        if self.file_name[-7:] != "lang.sp":
+            self.tokens += [stl.IdToken(LINE_FILE, "import"), stl.IdToken(LINE_FILE, "namespace"),
+                            stl.LiteralToken(LINE_FILE, "lang")]
+            self.find_import(0, 3)
         if isinstance(source, list):
             self.tokenize_text(source)
         else:
@@ -280,11 +284,12 @@ class Tokenizer:
         """
         with open(full_path, "r") as file:
             lexer = Tokenizer()
-            lexer.setup(self.spl_path, full_path, get_dir(full_path), set(), False)
+            lexer.setup(self.spl_path, full_path, get_dir(full_path), False)
             # lexer.script_dir = get_dir(full_path)
             lexer.tokenize(file)
             # print(lexer.tokens)
             self.tokens.append(stl.IdToken(LINE_FILE, import_name))
+            self.tokens.append(stl.IdToken(LINE_FILE, full_path))
             self.tokens.append(stl.IdToken(LINE_FILE, "{"))
             self.tokens += lexer.tokens
             self.tokens.pop()  # remove the EOF token

@@ -1,3 +1,16 @@
+********** SPL 1.6 Beta 3 **********
+===== Build 0078 2019/04/28 =====
+
+* Created 'lang.sp' which will be automatically imported
+* Optimizes on native functions dir() and help():
+    * These functions now work on native type itself, not instance of native object
+* Created new parser tool:
+    * Graphical abstract syntax tree visualizer
+* Optimization:
+    * Duplicated import from a same file now will not be imported again
+* Bug fixes:
+    * Fixed that classes with the same name could be identified as same classes
+
 ********** SPL 1.6 Alpha 6 **********
 ===== Build 0077 2019/04/28 =====
 

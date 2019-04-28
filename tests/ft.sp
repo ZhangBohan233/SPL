@@ -1,5 +1,5 @@
-import namespace "functions"
 import namespace "math"
+import namespace "functions"
 import namespace "queue"
 
 /*
@@ -122,10 +122,11 @@ if (main) {
     help(foo);
     help(Clazz2);
     help(list);
-    println(gcd(398, -298));
-    println(log(5));
-    println(log(8, 2));
-    println(E);
+    help(List);
+    println(math.gcd(398, -298));
+    println(math.log(5));
+    println(math.log(8, 2));
+    println(math.E);
     help(natives);
     var v = 1 + 2 * 3 - 2;
     println(v);
@@ -140,6 +141,7 @@ println(type(text));
 println(file0 instanceof File);
 println(1 instanceof int);
 println("ss" instanceof String);
+println(1 instanceof Object);
 
 try {
     var file2 = f_open("E:\GgGg.txt");
@@ -166,3 +168,6 @@ var lst = [{1, 2, 3, 1}, "dd", [3, 2, 1], {"a"=5, "b"={kk=6}}];
 println(lst[2][1]);
 println(lst[3]["b"][kk]++);
 println(lst);
+
+println(dir(Clazz2));
+println(dir(List));

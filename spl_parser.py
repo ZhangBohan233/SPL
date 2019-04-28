@@ -261,14 +261,12 @@ class Parser:
                             print("Should not be here")
                     elif sym[:-1] in stl.OP_EQ:
                         parser.add_operator(line, sym, True)
-                    elif sym == ":":
-                        parser.build_expr()
-                        parser.add_type(line)
                     elif sym == "import":
-                        i += 1
-                        name_token: stl.IdToken = self.tokens[i]
+                        i += 2
+                        name_token: stl.IdToken = self.tokens[i - 1]
+                        path_token: stl.IdToken = self.tokens[i]
                         import_name = name_token.symbol
-                        parser.add_import(line, import_name)
+                        parser.add_import(line, import_name, path_token.symbol)
                         import_braces.append(brace_count)
                     elif token.is_eol():
                         if var_level != ast.ASSIGN:

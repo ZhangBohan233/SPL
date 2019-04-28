@@ -55,7 +55,7 @@ class Interpreter:
         system = lib.System(lib.List(*parse_args(self.argv)), lib.String(self.dir), self.encoding)
         natives = NativeInvokes()
         os_ = lib.Os()
-        self.env.add_heap("Object", OBJECT)
+        self.env.define_const("Object", OBJECT, LINE_FILE)
         self.env.add_heap("system", system)
         self.env.add_heap("natives", natives)
         self.env.add_heap("os", os_)
@@ -87,50 +87,60 @@ def parse_args(argv):
     return [lib.String(x) for x in argv]
 
 
-def add_natives(self):
+def add_natives(env: Environment):
     """
     Adds a bundle of global variables to the global scope.
 
     Includes all built-in functions and some global vars.
 
-    :param self: the Environment
+    :param env: the Environment
     :return: None
     """
-    self.add_heap("print", NativeFunction(lib.print_, "print"))
-    self.add_heap("println", NativeFunction(lib.print_ln, "println"))
-    self.add_heap("type", NativeFunction(typeof, "type"))
-    self.add_heap("pair", NativeFunction(lib.make_pair, "pair"))
-    self.add_heap("list", NativeFunction(lib.make_list, "list"))
-    self.add_heap("i_list", NativeFunction(lib.make_immutable_list, "list"))
-    self.add_heap("set", NativeFunction(lib.make_set, "set"))
-    self.add_heap("int", NativeFunction(lib.to_int, "int"))
-    self.add_heap("float", NativeFunction(lib.to_float, "float"))
-    self.add_heap("string", NativeFunction(to_str, "string"))
-    self.add_heap("repr", NativeFunction(to_repr, "repr"))
-    self.add_heap("input", NativeFunction(lib.input_, "input"))
-    self.add_heap("f_open", NativeFunction(f_open, "f_open", True))
-    self.add_heap("eval", NativeFunction(eval_, "eval"))
-    self.add_heap("dir", NativeFunction(dir_, "dir", True))
-    self.add_heap("getcwf", NativeFunction(getcwf, "getcwf"))
-    self.add_heap("main", NativeFunction(is_main, "main", True))
-    self.add_heap("exit", NativeFunction(lib.exit_, "exit"))
-    self.add_heap("help", NativeFunction(help_, "help", True))
-    self.add_heap("exec", NativeFunction(exec_, "exec", True))
+    env.add_heap("print", NativeFunction(lib.print_, "print"))
+    env.add_heap("println", NativeFunction(lib.print_ln, "println"))
+    env.add_heap("type", NativeFunction(typeof, "type"))
+    env.add_heap("pair", NativeFunction(lib.make_pair, "pair"))
+    env.add_heap("list", NativeFunction(lib.make_list, "list"))
+    env.add_heap("i_list", NativeFunction(lib.make_immutable_list, "list"))
+    env.add_heap("set", NativeFunction(lib.make_set, "set"))
+    env.add_heap("int", NativeFunction(lib.to_int, "int"))
+    env.add_heap("float", NativeFunction(lib.to_float, "float"))
+    env.add_heap("string", NativeFunction(to_str, "string"))
+    env.add_heap("repr", NativeFunction(to_repr, "repr"))
+    env.add_heap("input", NativeFunction(lib.input_, "input"))
+    env.add_heap("f_open", NativeFunction(f_open, "f_open", True))
+    env.add_heap("eval", NativeFunction(eval_, "eval"))
+    env.add_heap("dir", NativeFunction(dir_, "dir", True))
+    env.add_heap("getcwf", NativeFunction(getcwf, "getcwf"))
+    env.add_heap("main", NativeFunction(is_main, "main", True))
+    env.add_heap("exit", NativeFunction(lib.exit_, "exit"))
+    env.add_heap("help", NativeFunction(help_, "help", True))
+    env.add_heap("exec", NativeFunction(exec_, "exec", True))
 
     # type of built-in
-    self.add_heap("boolean", NativeFunction(lib.to_boolean, "boolean"))
-    self.add_heap("void", NativeFunction(None, "void"))
+    env.add_heap("boolean", NativeFunction(lib.to_boolean, "boolean"))
+    env.add_heap("void", NativeFunction(None, "void"))
 
-    self.add_heap("String", lib.String)
-    self.add_heap("List", lib.List)
-    self.add_heap("Pair", lib.Pair)
-    self.add_heap("Set", lib.Set)
-    self.add_heap("File", lib.File)
-    self.add_heap("Thread", Thread)
-    self.add_heap("System", lib.System)
-    self.add_heap("Os", lib.Os)
-    self.add_heap("Natives", NativeInvokes)
-    self.add_heap("Function", Function)
+    # self.add_heap("String", lib.String)
+    # self.add_heap("List", lib.List)
+    # self.add_heap("Pair", lib.Pair)
+    # self.add_heap("Set", lib.Set)
+    # self.add_heap("File", lib.File)
+    # self.add_heap("Thread", Thread)
+    # self.add_heap("System", lib.System)
+    # self.add_heap("Os", lib.Os)
+    # self.add_heap("Natives", NativeInvokes)
+    # self.add_heap("Function", Function)
+    env.define_const("String", lib.String, LINE_FILE)
+    env.define_const("List", lib.List, LINE_FILE)
+    env.define_const("Pair", lib.Pair, LINE_FILE)
+    env.define_const("Set", lib.Set, LINE_FILE)
+    env.define_const("File", lib.File, LINE_FILE)
+    env.define_const("Thread", Thread, LINE_FILE)
+    env.define_const("System", lib.System, LINE_FILE)
+    env.define_const("Os", lib.Os, LINE_FILE)
+    env.define_const("Natives", NativeInvokes, LINE_FILE)
+    env.define_const("Function", Function, LINE_FILE)
 
     # global variables
 
@@ -539,8 +549,8 @@ def dir_(env, obj):
     lst = lib.List()
     if isinstance(obj, Class):
         mem.MEMORY.store_status()
-        create = ast.ClassInit((0, "dir"), obj.class_name)
-        instance: ClassInstance = evaluate(create, env)
+        clazz: Class = env.get_class(obj.class_name)
+        instance: ClassInstance = create_instance(clazz, env, clazz.outer_env)
         exc = {"this"}
         # for attr in instance.env.variables:
         for attr in instance.env.attributes():
@@ -549,12 +559,15 @@ def dir_(env, obj):
         mem.MEMORY.restore_status()
     elif isinstance(obj, NativeFunction):
         for nt in lib.NativeType.__subclasses__():
-            if nt.type_name__(nt) == obj.name:
+            nt: lib.NativeType
+            if nt.type_name__() == obj.name:
                 lst.extend(dir(nt))
-    elif isinstance(obj, lib.NativeType):
+    elif isinstance(obj, type) and issubclass(obj, lib.NativeType):
         for nt in lib.NativeType.__subclasses__():
-            if nt.type_name__(nt) == obj.type_name__():
+            if nt.type_name__() == obj.type_name__():
                 lst.extend(dir(nt))
+    else:
+        raise lib.TypeException("No such type '{}'".format(typeof(obj)))
     lst.sort()
     return lst
 
@@ -633,7 +646,7 @@ def help_(env: Environment, obj):
         print("function ", obj.name, "(*args, **kwargs):", sep="")
         print(obj.function.__doc__)
         print("========== End of help ==========")
-    elif isinstance(obj, lib.NativeType):
+    elif isinstance(obj, type) and issubclass(obj, lib.NativeType):
         print("========== Help on native object ==========")
         print(obj.doc__())
         print("========== End of help ==========")
@@ -797,9 +810,9 @@ def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
         # env.broken = False
         return result
     elif isinstance(iterable, ClassInstance):
-        if is_subclass_of(title_scope.get_class(iterable.class_name), "Iterator", title_scope):
+        if is_subclass_of(title_scope.get_class(iterable.class_name), env.get_class("Iterator"), title_scope):
             return loop_spl_iterator(iterable, invariant, node.body, title_scope, block_scope, lf)
-        elif is_subclass_of(title_scope.get_class(iterable.class_name), "Iterable", title_scope):
+        elif is_subclass_of(title_scope.get_class(iterable.class_name), env.get_class("Iterable"), title_scope):
             iter_func = iterable.env.get("__iter__", lf)
             iterator: ClassInstance = call_function(ast.NameNode(lf, "__iter__"), [], lf, iter_func, title_scope)
             return loop_spl_iterator(iterator, invariant, node.body, title_scope, block_scope, lf)
@@ -815,16 +828,20 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
     except RuntimeException as re:  # catches the exceptions thrown by SPL program
         block_scope = SubEnvironment(env)
         exception: ClassInstance = re.exception
-        exception_class = block_scope.get_heap(exception.class_name)
+        exception_class = block_scope.get_class(exception.class_name)
         catches = node.catch_blocks
         for cat in catches:  # catch blocks
             block_scope.invalidate()
             for line in cat.condition.lines:
-                block_scope.define_var(line.left.name, exception, (line.line_num, line.file))
-                catch_name = line.right.name
-                if is_subclass_of(exception_class, catch_name, block_scope):
-                    result = evaluate(cat.then, block_scope)
-                    return result
+                if isinstance(line, ast.BinaryOperator) and line.operation == ":":
+                    block_scope.define_var(line.left.name, exception, (line.line_num, line.file))
+                    caught_exception: Class = evaluate(line.right, env)
+                    if is_subclass_of(exception_class, caught_exception, block_scope):
+                        result = evaluate(cat.then, block_scope)
+                        return result
+                else:
+                    raise lib.SplException("Unexpected content inside catch statement, in file '{}', at line {}"
+                                           .format(line.file, line.operation))
         raise re
     except Exception as e:  # catches the exceptions raised by python
         block_scope = SubEnvironment(env)
@@ -832,14 +849,18 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
         for cat in catches:
             block_scope.invalidate()
             for line in cat.condition.lines:
-                block_scope.define_var(line.left.name, e, (line.line_num, line.file))
-                catch_name = line.right.name
-                if catch_name == "Exception":
-                    result = evaluate(cat.then, block_scope)
-                    return result
-                elif catch_name == type(e).__name__:
-                    result = evaluate(cat.then, block_scope)
-                    return result
+                if isinstance(line, ast.BinaryOperator) and line.operation == ":":
+                    block_scope.define_var(line.left.name, e, (line.line_num, line.file))
+                    catch_name = line.right.name
+                    if catch_name == "Exception":
+                        result = evaluate(cat.then, block_scope)
+                        return result
+                    elif catch_name == type(e).__name__:
+                        result = evaluate(cat.then, block_scope)
+                        return result
+                else:
+                    raise lib.SplException("Unexpected content inside catch statement, in file '{}', at line {}"
+                                           .format(line.file, line.operation))
         raise e
     finally:
         block_scope = SubEnvironment(env)
@@ -847,25 +868,25 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
             return evaluate(node.finally_block, block_scope)
 
 
-def is_subclass_of(child_class: Class, class_name: str, env: Environment) -> bool:
+def is_subclass_of(child_class: Class, target_class: Class, env: Environment) -> bool:
     """
     Returns whether the child class is the ancestor class itself or inherited from that class.
 
     :param child_class: the child class to be check
-    :param class_name: the ancestor class
+    :param target_class: the ancestor class
     :param env: the environment, doesn't matter whether it is global or not
     :return: whether the child class is the ancestor class itself or inherited from that class
     """
     if isinstance(child_class, Class):
-        if child_class.class_name == class_name:
+        if child_class is target_class:
             return True
         else:
-            return any([is_subclass_of(ccn, class_name, env) for ccn in child_class.superclasses])
+            return any([is_subclass_of(ccn, target_class, env) for ccn in child_class.superclasses])
     else:
         return False
 
 
-def eval_operator(node: ast.OperatorNode, env: Environment):
+def eval_operator(node: ast.BinaryOperator, env: Environment):
     left = evaluate(node.left, env)
     if node.assignment:
         right = evaluate(node.right, env)
@@ -1237,7 +1258,7 @@ def instance_arithmetic(left: ClassInstance, right, symbol, env: Environment, ri
         return not isinstance(right, ClassInstance) or left.id != right.id
     elif symbol == "instanceof":
         if isinstance(right, Class):
-            return is_subclass_of(env.get_class(left.class_name), right.class_name, env)
+            return is_subclass_of(env.get_class(left.class_name), right, env)
         elif isinstance(right_node, ast.NameNode) and isinstance(right, Function):
             right_extra = env.get_heap(right_node.name)
             return is_subclass_of(env.get_class(left.class_name), right_extra.class_name, env)
@@ -1664,14 +1685,23 @@ def eval_indexing_node(node: ast.IndexingNode, env: Environment):
 
 def eval_import_node(node: ast.ImportNode, env: Environment):
     block = node.block
+    path = node.path
+    global_env: GlobalEnvironment = env.get_global()
+    prev_module = global_env.find_module(path)
+
     lst = node.import_name.split(".")
     outer = env
     module = None
     for i in range(len(lst)):
         module_env = ModuleEnvironment(outer)
-        if i == len(lst) - 1:
-            evaluate(block, module_env)
         module = Module(module_env)
+        if i == len(lst) - 1:
+            if prev_module is None:
+                evaluate(block, module_env)
+                global_env.add_module(path, module)
+            else:
+                module = prev_module
+
         outer.define_var(lst[i], module, LINE_FILE)
         outer = module_env
     return module
@@ -1689,7 +1719,7 @@ NODE_TABLE = {
     ast.CONTINUE_STMT: lambda n, env: env.pause_loop(),
     ast.ASSIGNMENT_NODE: eval_assignment_node,
     ast.DOT: eval_dot,
-    ast.OPERATOR_NODE: eval_operator,
+    ast.BINARY_OPERATOR: eval_operator,
     ast.UNARY_OPERATOR: eval_unary_expression,
     ast.TERNARY_OPERATOR: eval_ternary_expression,
     ast.BLOCK_STMT: eval_block,
@@ -1699,7 +1729,6 @@ NODE_TABLE = {
     ast.DEF_STMT: eval_def,
     ast.FUNCTION_CALL: eval_func_call,
     ast.CLASS_STMT: eval_class_stmt,
-    # ast.CLASS_INIT: init_class,
     ast.TRY_STMT: eval_try_catch,
     ast.JUMP_NODE: eval_jump,
     ast.UNDEFINED_NODE: lambda n, env: UNDEFINED,

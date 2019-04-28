@@ -8,7 +8,7 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "=": 2, "+=": 2, "-=": 2, "*=": 2, "/=": 2, "%=": 2,
               "&=": 2, "^=": 2, "|=": 2, "<<=": 2, ">>=": 2, "=>": 500,
               "===": 20, "is": 20, "!==": 20, "instanceof": 25, "assert": 1,
-              "?": 3, "++": 300, "--": 300}
+              "?": 3, "++": 300, "--": 300, ":": 2}
 
 MULTIPLIER = 1000
 
@@ -19,7 +19,7 @@ BREAK_STMT = 7
 CONTINUE_STMT = 8
 ASSIGNMENT_NODE = 9
 DOT = 10
-OPERATOR_NODE = 12
+BINARY_OPERATOR = 12
 UNARY_OPERATOR = 14
 TERNARY_OPERATOR = 15
 BLOCK_STMT = 16
@@ -33,7 +33,7 @@ CLASS_STMT = 22
 ABSTRACT = 25
 TRY_STMT = 27
 CATCH_STMT = 28
-TYPE_NODE = 29
+# TYPE_NODE = 29
 JUMP_NODE = 30
 UNDEFINED_NODE = 31
 IN_DECREMENT_OPERATOR = 32
@@ -87,6 +87,32 @@ class Expr(Node):
         Node.__init__(self, line)
 
 
+class BlockStmt(Node):
+    lines: list = None
+    standalone = False
+
+    def __init__(self, line):
+        Node.__init__(self, line)
+
+        self.node_type = BLOCK_STMT
+        self.lines = []
+
+    def add_line(self, node: Node):
+        self.lines.append(node)
+
+    def __str__(self):
+        s = "\n" + " " * SPACES.get() + "{"
+        SPACES.add_space()
+        for line in self.lines:
+            s += "\n" + " " * SPACES.get() + str(line)
+        SPACES.remove_space()
+        s += "\n" + " " * SPACES.get() + "}"
+        return s
+
+    def __repr__(self):
+        return "BlockStmt"
+
+
 class BinaryExpr(Expr):
     """
     :type operation: str
@@ -108,7 +134,7 @@ class BinaryExpr(Expr):
         return "BE({} {} {})".format(self.left, self.operation, self.right)
 
     def __repr__(self):
-        return self.__str__()
+        return "BE'{}'".format(self.operation)
 
 
 class LiteralNode(LeafNode):
@@ -157,16 +183,16 @@ class TernaryOperator(Expr):
         return "TE({} {} {} {} {})".format(self.left, self.first_op, self.mid, self.second_op, self.right)
 
     def __repr__(self):
-        return self.__str__()
+        return "TE'{} {}'".format(self.first_op, self.second_op)
 
 
-class OperatorNode(BinaryExpr):
+class BinaryOperator(BinaryExpr):
     assignment = False
 
     def __init__(self, line, op):
         BinaryExpr.__init__(self, line, op)
 
-        self.node_type = OPERATOR_NODE
+        self.node_type = BINARY_OPERATOR
 
 
 class UnaryOperator(Expr):
@@ -186,11 +212,11 @@ class UnaryOperator(Expr):
         return "UE({} {})".format(self.operation, self.value)
 
     def __repr__(self):
-        return self.__str__()
+        return "UE'{}'".format(self.operation)
 
 
 class NameNode(LeafNode):
-    name = None
+    name: str = None
 
     def __init__(self, line, n):
         LeafNode.__init__(self, line)
@@ -202,7 +228,7 @@ class NameNode(LeafNode):
         return "N(" + self.name + ")"
 
     def __repr__(self):
-        return self.__str__()
+        return self.name
 
 
 class AssignmentNode(BinaryExpr):
@@ -236,14 +262,17 @@ class InDecrementOperator(Expr):
             return self.operation + str(self.value)
 
     def __repr__(self):
-        return self.__str__()
+        if self.is_post:
+            return "post" + self.operation
+        else:
+            return self.operation + "pre"
 
 
-class TypeNode(BinaryExpr):
-    def __init__(self, line):
-        BinaryExpr.__init__(self, line, ".")
-
-        self.node_type = TYPE_NODE
+# class TypeNode(BinaryExpr):
+#     def __init__(self, line):
+#         BinaryExpr.__init__(self, line, ":")
+#
+#         self.node_type = TYPE_NODE
 
 
 class BreakStmt(LeafNode):
@@ -272,32 +301,6 @@ class ContinueStmt(LeafNode):
         return self.__str__()
 
 
-class BlockStmt(Node):
-    lines: list = None
-    standalone = False
-
-    def __init__(self, line):
-        Node.__init__(self, line)
-
-        self.node_type = BLOCK_STMT
-        self.lines = []
-
-    def add_line(self, node: Node):
-        self.lines.append(node)
-
-    def __str__(self):
-        s = "\n" + " " * SPACES.get() + "{"
-        SPACES.add_space()
-        for line in self.lines:
-            s += "\n" + " " * SPACES.get() + str(line)
-        SPACES.remove_space()
-        s += "\n" + " " * SPACES.get() + "}"
-        return s
-
-    def __repr__(self):
-        return self.__str__()
-
-
 class CondStmt(Node):
     condition = None
 
@@ -319,7 +322,7 @@ class IfStmt(CondStmt):
         return "if({} then {} else[{}] {})".format(self.condition, self.then_block, self.has_else, self.else_block)
 
     def __repr__(self):
-        return self.__str__()
+        return "If-else Stmt"
 
 
 class WhileStmt(CondStmt):
@@ -334,7 +337,7 @@ class WhileStmt(CondStmt):
         return "while({} do {})".format(self.condition, self.body)
 
     def __repr__(self):
-        return self.__str__()
+        return "WhileStmt"
 
 
 class ForLoopStmt(CondStmt):
@@ -349,7 +352,7 @@ class ForLoopStmt(CondStmt):
         return "for ({}) do {}".format(self.condition, self.body)
 
     def __repr__(self):
-        return self.__str__()
+        return "ForLoopStmt"
 
 
 class DefStmt(TitleNode):
@@ -372,15 +375,15 @@ class DefStmt(TitleNode):
         return "func(({}) -> {})".format(self.params, self.body)
 
     def __repr__(self):
-        return self.__str__()
+        return ("abstract " if self.abstract else "") + "function"
 
 
-class FuncCall(LeafNode):
+class FuncCall(Node):
     call_obj = None
     args: BlockStmt = None
 
     def __init__(self, line, call_obj):
-        LeafNode.__init__(self, line)
+        Node.__init__(self, line)
 
         self.node_type = FUNCTION_CALL
         self.call_obj = call_obj
@@ -389,7 +392,7 @@ class FuncCall(LeafNode):
         return "call:[{}({})]".format(self.call_obj, self.args)
 
     def __repr__(self):
-        return self.__str__()
+        return "Call"
 
     def fulfilled(self):
         return self.args is not None
@@ -409,7 +412,7 @@ class IndexingNode(Node):
         return "{}[{}]".format(self.call_obj, self.arg)
 
     def __repr__(self):
-        return self.__str__()
+        return "indexing"
 
     def fulfilled(self):
         return self.arg is not None
@@ -417,19 +420,21 @@ class IndexingNode(Node):
 
 class ImportNode(Node):
     import_name: str
+    path: str
     block: BlockStmt = None
 
-    def __init__(self, line, name):
+    def __init__(self, line, name, path):
         Node.__init__(self, line)
 
         self.import_name = name
+        self.path = path
         self.node_type = IMPORT_NODE
 
     def __str__(self):
         return "import {}: {}".format(self.import_name, self.block)
 
     def __repr__(self):
-        return self.__str__()
+        return "import {}".format(self.import_name)
 
 
 class ClassStmt(Node):
@@ -452,7 +457,7 @@ class ClassStmt(Node):
         return "Class {}: {}".format(self.class_name, self.block)
 
     def __repr__(self):
-        return self.__str__()
+        return ("abstract " if self.abstract else "") + "class " + self.class_name
 
 
 # class ClassInit(UnaryOperator):
@@ -472,9 +477,9 @@ class ClassStmt(Node):
     #     return self.__str__()
 
 
-class Dot(OperatorNode):
+class Dot(BinaryOperator):
     def __init__(self, line):
-        OperatorNode.__init__(self, line, ".")
+        BinaryOperator.__init__(self, line, ".")
 
         self.node_type = DOT
 
@@ -482,7 +487,7 @@ class Dot(OperatorNode):
         return "({} dot {})".format(self.left, self.right)
 
     def __repr__(self):
-        return self.__str__()
+        return "."
 
 
 class CatchStmt(CondStmt):
@@ -497,7 +502,7 @@ class CatchStmt(CondStmt):
         return "catch ({}) {}".format(self.condition, self.then)
 
     def __repr__(self):
-        return self.__str__()
+        return "CatchStmt"
 
 
 class TryStmt(Node):
@@ -516,7 +521,7 @@ class TryStmt(Node):
             .format(self.try_block, self.catch_blocks, self.finally_block)
 
     def __repr__(self):
-        return self.__str__()
+        return "TryStmt"
 
 
 class JumpNode(Node):
@@ -606,7 +611,7 @@ class AbstractSyntaxTree:
             self.inner.add_operator(line, op, assignment)
         else:
             self.in_expr = True
-            op_node = OperatorNode(line, op)
+            op_node = BinaryOperator(line, op)
             op_node.assignment = assignment
             self.stack.append(op_node)
 
@@ -658,20 +663,21 @@ class AbstractSyntaxTree:
             node = UndefinedNode(line)
             self.stack.append(node)
 
-    def add_type(self, line):
-        if self.inner:
-            self.inner.add_type(line)
-        else:
-            name = self.stack.pop()
-            tp_node = TypeNode(line)
-            tp_node.left = name
-            self.stack.append(tp_node)
+    # def add_type(self, line):
+    #     if self.inner:
+    #         self.inner.add_type(line)
+    #     else:
+    #         print(123123)
+    #         name = self.stack.pop()
+    #         tp_node = TypeNode(line)
+    #         tp_node.left = name
+    #         self.stack.append(tp_node)
 
-    def add_import(self, line, import_name):
+    def add_import(self, line, import_name, path):
         if self.inner:
-            self.inner.add_import(line, import_name)
+            self.inner.add_import(line, import_name, path)
         else:
-            node = ImportNode(line, import_name)
+            node = ImportNode(line, import_name, path)
             self.stack.append(node)
 
     def add_if(self, line):

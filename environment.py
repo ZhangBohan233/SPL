@@ -296,7 +296,7 @@ class Environment:
         # print(key + str(v))
         if v is NULLPTR:
             raise lib.SplException("Name '{}' is not defined, in file {}, at line {}"
-                                    .format(key, line_file[1], line_file[0]))
+                                   .format(key, line_file[1], line_file[0]))
         return v
 
     def get_class(self, class_name):
@@ -304,6 +304,18 @@ class Environment:
         if v is NULLPTR:
             raise lib.SplException("Class or module '{}' is not defined".format(class_name))
         return v
+
+    def get_global(self):
+        if self.is_global():
+            return self
+        else:
+            return self.outer.get_global()
+
+    # def get_lib_class(self, class_name):
+    #     if self.is_global():
+    #         pass
+    #     else:
+    #         return self.outer.get_lib_class(class_name)
 
     def contains_key(self, key: str):
         v = self.inner_get(key)
@@ -346,10 +358,10 @@ class MainAbstractEnvironment(Environment):
 
     def search_namespace(self, key: str):
         for ns in self.namespace:
-            if key in ns.variables:
-                return ns.variables[key]
             if key in ns.constants:
                 return ns.constants[key]
+            if key in ns.variables:
+                return ns.variables[key]
         if self.outer:
             return self.outer.search_namespace(key)
         else:
@@ -400,6 +412,7 @@ class GlobalEnvironment(MainAbstractEnvironment):
         MainAbstractEnvironment.__init__(self, GLOBAL_SCOPE, None)
 
         self.heap = {}
+        self.modules = {}  # module path : Module objects
 
     def is_class(self):
         return False
@@ -415,6 +428,24 @@ class GlobalEnvironment(MainAbstractEnvironment):
 
     def inner_get_heap(self, key):
         return self.heap[key] if key in self.heap else NULLPTR
+
+    def find_module(self, file_path):
+        """
+        Returns a reference to the module.
+
+        If the module is already imported, returns the reference to the previous imported one.
+        Otherwise, adds the module and returns the reference to the the newly added module.
+
+        :param file_path:
+        :return: a reference to the module
+        """
+        if file_path in self.modules:
+            return self.modules[file_path]
+        else:
+            return None
+
+    def add_module(self, file_path, module):
+        self.modules[file_path] = module
 
 
 class ModuleEnvironment(MainAbstractEnvironment):

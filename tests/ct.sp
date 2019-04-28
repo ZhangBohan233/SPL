@@ -1,4 +1,4 @@
-import "queue"
+import namespace "queue"
 
 
 class Test {

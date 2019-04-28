@@ -104,16 +104,16 @@ def interpret(mode: str):
 
     if mode == "sp":
         lexer = spl_lexer.Tokenizer()
-        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dirs"], set(), link=argv["link"])
+        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dirs"], link=argv["link"])
         lexer.tokenize(f)
-    elif mode == "lsp":
-        lexer = spl_lexer.Tokenizer()
-        lexer.restore_tokens(f)
+    # elif mode == "lsp":
+    #     lexer = spl_lexer.Tokenizer()
+    #     lexer.restore_tokens(f)
     else:
         raise Exception
 
     if argv["tokens"]:
-        print(lexer.tokens)
+        print(lexer.get_tokens())
 
     parse_start = time.time()
 

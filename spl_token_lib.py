@@ -10,7 +10,7 @@ BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mo
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
                     "<<": "lshift", ">>": "rshift", "===": "", "!==": "", "instanceof": "",
-                    "and": "and", "or": "or", "is": ""}
+                    "and": "and", "or": "or", "is": "", ":": ""}
 UNARY_OPERATORS = {"!": "not", "not": "not"}
 OTHERS = {"=", "@", ":"}
 ALL = set().union(SYMBOLS) \
