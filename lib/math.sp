@@ -1,5 +1,4 @@
 import namespace "functions"
-import namespace "exception"
 
 
 const E = 2.718281828459045;

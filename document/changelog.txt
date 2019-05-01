@@ -1,3 +1,30 @@
+********** SPL 1.6 Beta 4 **********
+===== Build 0079 2019/05/01 =====
+
+* New syntax:
+    * New binary operator 'subclassof'
+    * Constructor.clazz
+    * Native object initialization via operator 'new'
+    * Native object method call and native function call now supports *args and **kwargs
+* Nre library:
+    * SPL Graphics Library (sgl.sp)
+* New tool:
+    * SPL IDLE (early development version)
+* Added some type check:
+    * The object used by keyword 'throw' must be derived from Exception
+    * Catching exception must be an exception
+* Added new command-line flag:
+    * -ni, --noimport, do not import lib.lang.sp automatically
+* Structural optimization:
+    * Moved some tools into /bin directory
+* Bug fixes:
+    * Fixed that try-catch block would cause error if the exception thrown is an spl exception, but the expecting
+        exception is a python exception
+    * Fixed that console and eval() did not work, due to problem in import
+    * Fixed that eval() only take one line
+    * Fixed that imported iterable class without namespace caused error when used in for-each loop
+    * Fixed that parser might misidentify reserved names as function names (e.g "return (1 + 2)")
+
 ********** SPL 1.6 Beta 3 **********
 ===== Build 0078 2019/04/28 =====
 

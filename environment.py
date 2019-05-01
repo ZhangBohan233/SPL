@@ -1,4 +1,4 @@
-import spl_lib as lib
+from bin import spl_lib as lib
 
 GLOBAL_SCOPE = 0
 CLASS_SCOPE = 1
@@ -97,7 +97,7 @@ class Environment:
         """
         raise NotImplementedError
 
-    def inner_get_heap(self, key):
+    def _inner_get_heap(self, key):
         raise NotImplementedError
 
     def add_heap(self, k, v):
@@ -112,9 +112,6 @@ class Environment:
     def assign_namespace(self, key: str, value):
         raise NotImplementedError
 
-    def has_class(self, class_name):
-        return not self.inner_get_heap(class_name) is NULLPTR
-
     def get_heap(self, class_name: str):
         """
         Returns the heap-variable corresponding to the key 'class_name'.
@@ -125,9 +122,9 @@ class Environment:
         :return: the heap-variable corresponding to the key 'class_name'. Instance will be returned if the
         value stored in heap is a pointer.
         """
-        obj = self.inner_get_heap(class_name)
+        obj = self._inner_get_heap(class_name)
         if obj is NULLPTR:
-            raise lib.SplException("Global name '{}' is not defined".format(class_name))
+            raise lib.NameException("Global name '{}' is not defined".format(class_name))
         return obj
 
     def terminate(self, exit_value):
@@ -180,16 +177,16 @@ class Environment:
         self.variables[key] = value
 
     def define_var(self, key, value, lf):
-        if self.local_contains(key):
-            raise lib.SplException("Name '{}' is already defined in this scope, in '{}', at line {}"
-                                   .format(key, lf[1], lf[0]))
+        if self._local_contains(key):
+            raise lib.NameException("Name '{}' is already defined in this scope, in '{}', at line {}"
+                                    .format(key, lf[1], lf[0]))
         else:
             self.variables[key] = value
 
     def define_const(self, key, value, lf):
         if self.contains_key(key):
-            raise lib.SplException("Name '{}' is already defined in this scope, in {}, at line {}"
-                                   .format(key, lf[1], lf[0]))
+            raise lib.NameException("Name '{}' is already defined in this scope, in {}, at line {}"
+                                    .format(key, lf[1], lf[0]))
         else:
             self.constants[key] = value
 
@@ -204,8 +201,8 @@ class Environment:
                     return
                 out = out.outer
             if not self.assign_const(key, value, lf) and not self.assign_namespace(key, value):
-                raise lib.SplException("Name '{}' is not defined, in '{}', at line {}"
-                                       .format(key, lf[1], lf[0]))
+                raise lib.NameException("Name '{}' is not defined, in '{}', at line {}"
+                                        .format(key, lf[1], lf[0]))
 
     def assign_const(self, key, value, lf) -> bool:
         if key in self.constants:
@@ -213,8 +210,8 @@ class Environment:
                 self.constants[key] = value
                 return True
             else:
-                raise lib.SplException("Assignment to constant '{}' is not allowed, in '{}', at line {}"
-                                       .format(key, lf[1], lf[0]))
+                raise lib.NameException("Assignment to constant '{}' is not allowed, in '{}', at line {}"
+                                        .format(key, lf[1], lf[0]))
         else:
             out = self.outer
             while out:
@@ -223,12 +220,12 @@ class Environment:
                         out.constants[key] = value
                         return True
                     else:
-                        raise lib.SplException("Assignment to constant '{}' is not allowed, in '{}', at line {}"
-                                               .format(key, lf[1], lf[0]))
+                        raise lib.NameException("Assignment to constant '{}' is not allowed, in '{}', at line {}"
+                                                .format(key, lf[1], lf[0]))
                 out = out.outer
         return False
 
-    def local_inner_get(self, key: str):
+    def _local_inner_get(self, key: str):
         if key in self.constants:
             return self.constants[key]
         if key in self.variables:
@@ -243,19 +240,19 @@ class Environment:
             if key in out.variables:
                 return out.variables[key]
 
-        return self.inner_get_heap(key)
+        return self._inner_get_heap(key)
 
-    def local_contains(self, key: str) -> bool:
+    def _local_contains(self, key: str) -> bool:
         """
         Returns True iff this main scope has this key, or the heap has this key.
 
         :param key:
         :return:
         """
-        v = self.local_inner_get(key)
+        v = self._local_inner_get(key)
         return v is not NULLPTR
 
-    def inner_get(self, key: str):
+    def _inner_get(self, key: str):
         """
         Internally gets a value stored in this scope, 'NULLPTR' if not found.
 
@@ -280,7 +277,7 @@ class Environment:
         if v is not NULLPTR:
             return v
 
-        return self.inner_get_heap(key)
+        return self._inner_get_heap(key)
 
     def get(self, key: str, line_file: tuple):
         """
@@ -292,17 +289,19 @@ class Environment:
         :param line_file:
         :return: the value corresponding to the key. Instance will be returned if the value is a pointer.
         """
-        v = self.inner_get(key)
+        v = self._inner_get(key)
         # print(key + str(v))
         if v is NULLPTR:
-            raise lib.SplException("Name '{}' is not defined, in file {}, at line {}"
-                                   .format(key, line_file[1], line_file[0]))
+            raise lib.NameException("Name '{}' is not defined, in file {}, at line {}"
+                                    .format(key, line_file[1], line_file[0]))
         return v
 
     def get_class(self, class_name):
-        v = self.inner_get(class_name)
+        v = self._inner_get(class_name)
         if v is NULLPTR:
-            raise lib.SplException("Class or module '{}' is not defined".format(class_name))
+            raise lib.NameException("Class or module '{}' is not defined".format(class_name))
+        elif type(v).__name__ == "Function":
+            return v.outer_scope.outer.get_class(class_name)
         return v
 
     def get_global(self):
@@ -311,14 +310,8 @@ class Environment:
         else:
             return self.outer.get_global()
 
-    # def get_lib_class(self, class_name):
-    #     if self.is_global():
-    #         pass
-    #     else:
-    #         return self.outer.get_lib_class(class_name)
-
     def contains_key(self, key: str):
-        v = self.inner_get(key)
+        v = self._inner_get(key)
         return v is not NULLPTR
 
     def attributes(self):
@@ -350,7 +343,7 @@ class MainAbstractEnvironment(Environment):
     def add_heap(self, k, v):
         raise NotImplementedError
 
-    def inner_get_heap(self, key):
+    def _inner_get_heap(self, key):
         raise NotImplementedError
 
     def add_namespace(self, namespace: Environment):
@@ -403,7 +396,7 @@ class SubAbstractEnvironment(Environment):
     def add_heap(self, k, v):
         raise NotImplementedError
 
-    def inner_get_heap(self, key):
+    def _inner_get_heap(self, key):
         raise NotImplementedError
 
 
@@ -422,11 +415,11 @@ class GlobalEnvironment(MainAbstractEnvironment):
 
     def add_heap(self, k, v):
         if k in self.heap:
-            raise lib.SplException("Global name '{}' has already defined".format(k))
+            raise lib.NameException("Global name '{}' has already defined".format(k))
         else:
             self.heap[k] = v
 
-    def inner_get_heap(self, key):
+    def _inner_get_heap(self, key):
         return self.heap[key] if key in self.heap else NULLPTR
 
     def find_module(self, file_path):
@@ -458,8 +451,8 @@ class ModuleEnvironment(MainAbstractEnvironment):
     def is_class(self):
         return False
 
-    def inner_get_heap(self, key):
-        return self.outer.inner_get_heap(key)
+    def _inner_get_heap(self, key):
+        return self.outer._inner_get_heap(key)
 
     def add_heap(self, k, v):
         self.outer.add_heap(k, v)
@@ -478,14 +471,8 @@ class ClassEnvironment(MainAbstractEnvironment):
     def add_heap(self, k, v):
         self.outer.add_heap(k, v)
 
-    def inner_get_heap(self, key):
-        return self.outer.inner_get_heap(key)
-
-    # def extend_functions(self, other: Environment):
-    #     for f in other.variables:
-    #         x = other.variables[f].copy()
-    #         x.outer_scope = self
-    #         self.variables[f] = x
+    def _inner_get_heap(self, key):
+        return self.outer._inner_get_heap(key)
 
 
 class FunctionEnvironment(MainAbstractEnvironment):
@@ -514,8 +501,8 @@ class FunctionEnvironment(MainAbstractEnvironment):
     def add_heap(self, k, v):
         self.outer.add_heap(k, v)
 
-    def inner_get_heap(self, key):
-        return self.outer.inner_get_heap(key)
+    def _inner_get_heap(self, key):
+        return self.outer._inner_get_heap(key)
 
 
 class LoopEnvironment(SubAbstractEnvironment):
@@ -547,8 +534,8 @@ class LoopEnvironment(SubAbstractEnvironment):
     def add_heap(self, k, v):
         self.outer.add_heap(k, v)
 
-    def inner_get_heap(self, key):
-        return self.outer.inner_get_heap(key)
+    def _inner_get_heap(self, key):
+        return self.outer._inner_get_heap(key)
 
 
 class SubEnvironment(SubAbstractEnvironment):
@@ -576,5 +563,5 @@ class SubEnvironment(SubAbstractEnvironment):
     def add_heap(self, k, v):
         self.outer.add_heap(k, v)
 
-    def inner_get_heap(self, key):
-        return self.outer.inner_get_heap(key)
+    def _inner_get_heap(self, key):
+        return self.outer._inner_get_heap(key)

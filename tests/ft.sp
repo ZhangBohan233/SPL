@@ -111,7 +111,10 @@ class Clazz2 extends Clazz {
     }
 
     function other() {
-
+        var x = this instanceof Clazz.clazz;
+        var y = Clazz2.clazz subclassof Clazz.clazz;
+        println(x);
+        println(y);
     }
 }
 
@@ -171,3 +174,8 @@ println(lst);
 
 println(dir(Clazz2));
 println(dir(List));
+
+println(lst instanceof List);
+println(Clazz2 subclassof Object);
+println(q instanceof lang.Iterable);
+c2.other();

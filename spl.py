@@ -6,7 +6,7 @@ import spl_interpreter
 import spl_parser as psr
 import time
 import os
-import spl_lib as lib
+from bin import spl_lib as lib
 
 sys.setrecursionlimit(10000)
 
@@ -29,12 +29,13 @@ OPTIONS:
     -et,             execution               shows the execution times of each node
     -e,   --exit,    exit value              shows the program's exit value
     -l,   --link,    link                    write the linked script to file
+    -ni,  --noimport                         do not automatically import lib.lang.sp
     -t,   --timer,   timer                   enables the timer
     -tk,  --tokens,   tokens                 shows language tokens
     -v,   --vars,    variables               prints out all global variables after execution
     
 FLAGS:
-    -Dfile ENCODING    --file encoding    changes the sp file decoding
+    -Dfile ENCODING    --file encoding       changes the sp file decoding
     
 ARGV:
     command-line argument for the spl program
@@ -46,7 +47,8 @@ Example
 
 def parse_arg(args):
     d = {"file": None, "dirs": None, "debugger": False, "timer": False, "ast": False, "tokens": False,
-         "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False, "link": False}
+         "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False, "link": False,
+         "import": True}
     i = 1
     while i < len(args):
         arg: str = args[i]
@@ -69,6 +71,8 @@ def parse_arg(args):
                     d["exit"] = True
                 elif flag == "l" or flag == "-link":
                     d["link"] = True
+                elif flag == "ni" or flag == "-noimport":
+                    d["import"] = False
                 elif flag == "Dfile":
                     i += 1
                     d["encoding"] = args[i]
@@ -104,7 +108,8 @@ def interpret(mode: str):
 
     if mode == "sp":
         lexer = spl_lexer.Tokenizer()
-        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dirs"], link=argv["link"])
+        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dirs"], link=argv["link"],
+                    import_lang=argv["import"])
         lexer.tokenize(f)
     # elif mode == "lsp":
     #     lexer = spl_lexer.Tokenizer()

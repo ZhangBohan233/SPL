@@ -313,7 +313,7 @@ class List(NativeType, Iterable):
             raise IllegalOperationException("Mutating an immutable list")
 
     def get(self, key):
-        self.__getitem__(key)
+        return self.__getitem__(key)
 
     @classmethod
     def type_name__(cls):
@@ -327,6 +327,7 @@ class List(NativeType, Iterable):
         """
         if self.mutable:
             self.list.append(value)
+            return value
         else:
             raise IllegalOperationException("Mutating an immutable list")
 
@@ -640,6 +641,11 @@ class InterpretException(Exception):
 class SplException(InterpretException):
     def __init__(self, msg=""):
         InterpretException.__init__(self, msg)
+
+
+class NameException(SplException):
+    def __init__(self, msg=""):
+        SplException.__init__(self, msg)
 
 
 class TypeException(SplException):

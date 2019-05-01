@@ -7,7 +7,7 @@ PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               ".": 500, "!": 200, "neg": 200, "return": 1, "throw": 1, "namespace": 150,
               "=": 2, "+=": 2, "-=": 2, "*=": 2, "/=": 2, "%=": 2,
               "&=": 2, "^=": 2, "|=": 2, "<<=": 2, ">>=": 2, "=>": 500,
-              "===": 20, "is": 20, "!==": 20, "instanceof": 25, "assert": 1,
+              "===": 20, "is": 20, "!==": 20, "instanceof": 25, "subclassof": 25, "assert": 1,
               "?": 3, "++": 300, "--": 300, ":": 2}
 
 MULTIPLIER = 1000
@@ -888,13 +888,6 @@ class AbstractSyntaxTree:
             class_node.block = node
             self.stack.append(class_node)
 
-    # def add_class_new(self, line):
-    #     if self.inner:
-    #         self.inner.add_class_new(line)
-    #     else:
-    #         node = ClassInit(line)
-    #         self.stack.append(node)
-
     def add_dot(self, line):
         if self.inner:
             self.inner.add_dot(line)
@@ -1055,15 +1048,15 @@ class AbstractSyntaxTree:
                     last = self.elements.lines[-1]
                     if place_else(last, lst[0]):
                         return
-                    # if isinstance(last, IfStmt) and last.else_block is None and last.has_else:
-                    #     last.else_block = lst[0]
-                    #     return
                 self.elements.add_line(lst[0])
 
     def get_as_block(self) -> BlockStmt:
         if len(self.stack) > 0 or self.in_expr:
             raise stl.ParseException("Line is not terminated")
         return self.elements
+
+    def print_stack(self):
+        print([str(x) for x in self.stack])
 
 
 def get_number(line, v: str):

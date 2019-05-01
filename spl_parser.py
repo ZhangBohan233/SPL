@@ -265,6 +265,7 @@ class Parser:
                         i += 2
                         name_token: stl.IdToken = self.tokens[i - 1]
                         path_token: stl.IdToken = self.tokens[i]
+                        # print(name_token)
                         import_name = name_token.symbol
                         parser.add_import(line, import_name, path_token.symbol)
                         import_braces.append(brace_count)
@@ -323,7 +324,7 @@ class Parser:
 def is_call(last_token: stl.Token) -> bool:
     if last_token.is_identifier():
         last_token: stl.IdToken
-        if last_token.symbol.isidentifier() or \
+        if (last_token.symbol.isidentifier() and last_token.symbol not in stl.RESERVED) or \
                 last_token.symbol == "." or \
                 last_token.symbol == ")" or \
                 last_token.symbol == "]":

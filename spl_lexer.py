@@ -19,13 +19,13 @@ class Tokenizer:
 
     def __init__(self):
         self.tokens = []
-        # self.imported = None
+        self.import_lang = True
         self.spl_path = ""
         self.script_dir = ""
         self.file_name = ""
         self.link = False
 
-    def setup(self, spl_path: str, file_name: str, script_dir: str, link: bool):
+    def setup(self, spl_path: str, file_name: str, script_dir: str, link: bool = False, import_lang: bool = True):
         """
         Sets up the parameters of this lexer.
 
@@ -39,6 +39,7 @@ class Tokenizer:
         :param script_dir: the directory of the main script
         # :param imported: the set of imported file names
         :param link: whether to write the result to file
+        :param import_lang: whether to import lib.lang.sp automatically
         :return:
         """
         self.spl_path = spl_path
@@ -46,6 +47,7 @@ class Tokenizer:
         self.script_dir = script_dir
         # self.imported = imported
         self.link = link
+        self.import_lang = import_lang
 
     def tokenize(self, source):
         """
@@ -55,7 +57,7 @@ class Tokenizer:
         :return: None
         """
         self.tokens.clear()
-        if self.file_name[-7:] != "lang.sp":
+        if self.import_lang and self.file_name[-7:] != "lang.sp":
             self.tokens += [stl.IdToken(LINE_FILE, "import"), stl.IdToken(LINE_FILE, "namespace"),
                             stl.LiteralToken(LINE_FILE, "lang")]
             self.find_import(0, 3)
@@ -87,10 +89,14 @@ class Tokenizer:
 
     def tokenize_text(self, lines):
         doc = ""
+        in_doc = False
         for i in range(len(lines)):
-            line_number = i + 1
+            line_num = i + 1
+            tup = (line_num, self.file_name)
             line = lines[i]
-            self.proceed_line(line, (line_number, "console"), False, doc)
+            last_index = len(self.tokens)
+            in_doc, doc = self.proceed_line(line, tup, in_doc, doc)
+            self.find_import(last_index, len(self.tokens))
 
         self.tokens.append(stl.Token((stl.EOF, None)))
 

@@ -1,6 +1,7 @@
 import tkinter
 import tkinter.ttk
 import sys
+import argparse
 import os
 import spl_ast as ast
 import spl_lexer
@@ -132,9 +133,17 @@ class Visualizer:
 
 
 if __name__ == "__main__":
-    file_name = sys.argv[1]
+    ap = argparse.ArgumentParser(description="Visualize an SPL abstract syntax tree")
+    ap.add_argument('file_name', type=str)
+    ap.add_argument('-ni', help="Do not automatically import lib.lang.sp", action='store_true')
+    args = ap.parse_args()
+
+    file_name = args.file_name
+    ni = args.ni
+
     lexer = spl_lexer.Tokenizer()
-    lexer.setup(os.path.dirname(os.path.abspath("")), file_name, spl_lexer.get_dir(file_name), False)
+    lexer.setup(os.path.dirname(os.path.abspath("")), file_name, spl_lexer.get_dir(file_name), link=False,
+                import_lang=not ni)
     f = open(file_name, "r")
     lexer.tokenize(f)
     f.close()

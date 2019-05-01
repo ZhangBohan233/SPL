@@ -1,4 +1,19 @@
 /*
+ * Superclass of all spl exceptions.
+ */
+class Exception {
+    var message = "";
+
+    /*
+     * Create a new <Exception>, with message <msg>.
+     */
+    function Exception(msg="") {
+        message = msg;
+    }
+}
+
+
+/*
  * A superclass of all iterator classes.
  */
 abstract class Iterator {
@@ -57,13 +72,4 @@ abstract class Iterable {
      * Returns an object to be iterated, probably an <Iterator>.
      */
     abstract function __iter__();
-}
-
-
-/*
- * The sign of iteration ends.
- */
-class StopIteration {
-    function StopIteration() {
-    }
 }

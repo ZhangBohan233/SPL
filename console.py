@@ -16,6 +16,9 @@ if __name__ == "__main__":
     line_terminated = True
 
     lex2 = lex.Tokenizer()
+
+    interpreter_path = os.path.dirname(os.path.abspath(__file__))
+    lex2.setup(interpreter_path, "console", interpreter_path, import_lang=True)
     itr = spl_interpreter.Interpreter([], os.getcwd(), "utf8")
     lines = []
 
@@ -27,6 +30,8 @@ if __name__ == "__main__":
         lines.append(line)
 
         try:
+            if lex2.import_lang:
+                lex2.import_lang = False
             lex2.tokenize(lines)
 
             parser_ = psr.Parser(lex2.get_tokens())

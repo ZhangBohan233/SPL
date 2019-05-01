@@ -113,6 +113,7 @@ class LinkedList extends Deque, Iterable {
             tail = n;
             size_ += 1;
         }
+        return element;
     }
 
     @Override
@@ -127,6 +128,7 @@ class LinkedList extends Deque, Iterable {
             head = n;
             size_ += 1;
         }
+        return element;
     }
 
     @Override

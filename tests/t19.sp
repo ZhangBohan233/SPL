@@ -1,6 +1,3 @@
-import "exception"
-
-
 var lst = [1];
 
 try {
@@ -11,12 +8,14 @@ try {
 
 println(lst);
 
-class RTE extends exception.Exception {
+class RTE extends Exception {
 
 }
 
 try {
     throw new RTE;
-} catch (e: exception.Exception) {
-    println(e);
+} catch (e: IndexError) {
+    println(111);
+} catch (e: Exception) {
+    println(223);
 }
