@@ -1,4 +1,7 @@
 import "queue"
+//import "io"
+
+//system.set_out(new io.TextOutputStream("out.txt"));
 
 if (main()) {
     var iter = new RangeIterator(0, 8, 1);
@@ -15,4 +18,7 @@ if (main()) {
     for (var x; ll) {
         print(x);
     }
+    println();
+} else {
+    println("Not in main");
 }

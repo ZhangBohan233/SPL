@@ -1,22 +1,3 @@
-class Stage {
-
-    var window;
-    var root;
-
-    function Stage() {
-        window = new Window();
-    }
-
-    function set_root(root) {
-        this.root = root;
-        window.set_root(root.node);
-    }
-
-    function show() {
-        window.show();
-    }
-}
-
 
 /*
  *
@@ -29,8 +10,23 @@ abstract class Node {
         this.node = node;
     }
 
-    function set_parent(parent) {
-        node.set_attr("master", parent.node.tk);
+    function update() {
+        node.call("update", [], {});
+    }
+}
+
+class Window extends Node {
+
+    function Window() {
+        node = new Graphic("Tk")
+    }
+
+    function set_root(root) {
+        root.node.call("grid", [], {});
+    }
+
+    function show() {
+        node.call("mainloop", [], {});
     }
 }
 
@@ -57,12 +53,11 @@ abstract class Pane extends Node {
 
 class VBox extends Pane {
 
-    function VBox() {
-        Pane(new Graphic("Frame"));
+    function VBox(parent) {
+        Pane(new Graphic("Frame", parent.node));
     }
 
-    function add_child(n) {
-        n.set_parent(this);
+    function add(n) {
         n.node.call("grid", [], {"row"=children.size(), "column"=0});
         children.append(n);
     }
@@ -71,12 +66,11 @@ class VBox extends Pane {
 
 class HBox extends Pane {
 
-    function HBox() {
-        Pane(new Graphic("Frame"));
+    function HBox(parent) {
+        Pane(new Graphic("Frame", parent.node));
     }
 
-    function add_child(n) {
-        n.set_parent(this);
+    function add(n) {
         n.node.call("grid", [], {"row"=0, "column"=children.size()});
         children.append(n);
     }
@@ -96,8 +90,8 @@ abstract class LabelAble extends Node {
 
 class Label extends LabelAble {
 
-    function Label(text="") {
-        Node(new Graphic("Label"));
+    function Label(parent, text="") {
+        Node(new Graphic("Label", parent.node));
         set_text(text);
     }
 }
@@ -105,8 +99,8 @@ class Label extends LabelAble {
 
 class TextField extends Node {
 
-    function TextField() {
-        Node(new Graphic("Entry"));
+    function TextField(parent) {
+        Node(new Graphic("Entry", parent.node));
     }
 
     function get() {
@@ -117,12 +111,14 @@ class TextField extends Node {
 
 class TextArea extends Node {
 
-    function TextArea() {
-        Node(new Graphic("Text"));
+    function TextArea(parent) {
+        Node(new Graphic("Text", parent.node));
     }
 
     function append_text(text) {
         node.call("insert", ["'end'", "'''" + text + "'''"], {});
+        node.call("see", ["'end'"], {});
+        update();
     }
 
     function clear() {
@@ -137,8 +133,8 @@ class TextArea extends Node {
 
 class Button extends LabelAble {
 
-    function Button(text="") {
-        Node(new Graphic("Button"));
+    function Button(parent, text="") {
+        Node(new Graphic("Button", parent.node));
         set_text(text);
     }
 
@@ -149,5 +145,5 @@ class Button extends LabelAble {
 
 
 function ask_file_dialog(types={}) {
-    return (new Graphic("Button")).file_dialog(types);
+    return (new Graphic("Button", null)).file_dialog(types);
 }

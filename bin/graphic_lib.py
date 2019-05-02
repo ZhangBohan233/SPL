@@ -5,11 +5,12 @@ from tkinter import filedialog
 
 
 class Graphic(lib.NativeType):
-    def __init__(self, name: lib.String):
+    def __init__(self, name: lib.String, parent=None):
         lib.NativeType.__init__(self)
 
-        true_name = "tkinter." + name.literal + "()"
-        self.tk: tkinter.Label = eval(true_name)
+        content = "" if parent is None else "parent.tk"
+        true_name = "tkinter." + name.literal + "({})".format(content)
+        self.tk = eval(true_name)
 
     @classmethod
     def type_name__(cls) -> str:
@@ -49,21 +50,3 @@ class Graphic(lib.NativeType):
             return lib.String(res)
         else:
             return res
-
-
-class Window(lib.NativeType):
-    def __init__(self):
-        lib.NativeType.__init__(self)
-
-        self.window = tkinter.Tk()
-
-    @classmethod
-    def type_name__(cls) -> str:
-        return "Window"
-
-    def set_root(self, root: Graphic):
-        root.tk.master = self.window
-        root.tk.grid()
-
-    def show(self):
-        self.window.mainloop()

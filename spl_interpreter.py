@@ -35,12 +35,13 @@ class Interpreter:
     a program.
     """
 
-    def __init__(self, argv: list, directory: str, encoding: str):
+    def __init__(self, argv: list, directory: str, encoding: str, in_out_err: tuple):
         # mem.start()
         self.ast = None
         self.argv = argv
         self.dir = directory
         self.encoding = encoding
+        self.in_out_err = in_out_err
         self.env = GlobalEnvironment()
         self.env.scope_name = "Global"
         self.set_up_env()
@@ -53,7 +54,7 @@ class Interpreter:
         """
         add_natives(self.env)
         # obj = lib.SplObject()
-        system = lib.System(lib.List(*parse_args(self.argv)), lib.String(self.dir), self.encoding)
+        system = lib.System(lib.List(*parse_args(self.argv)), lib.String(self.dir), self.encoding, self.in_out_err)
         natives = NativeInvokes()
         # native_graphics = gra.NativeGraphics()
         os_ = lib.Os()
@@ -99,8 +100,8 @@ def add_natives(env: Environment):
     :param env: the Environment
     :return: None
     """
-    env.add_heap("print", NativeFunction(lib.print_, "print"))
-    env.add_heap("println", NativeFunction(lib.print_ln, "println"))
+    env.add_heap("print", NativeFunction(print_, "print", True))
+    env.add_heap("println", NativeFunction(print_ln, "println", True))
     env.add_heap("type", NativeFunction(typeof, "type"))
     env.add_heap("pair", NativeFunction(lib.make_pair, "pair"))
     env.add_heap("list", NativeFunction(lib.make_list, "list"))
@@ -135,7 +136,7 @@ def add_natives(env: Environment):
     env.define_const("Os", lib.Os, LINE_FILE)
     env.define_const("Natives", NativeInvokes, LINE_FILE)
     env.define_const("Function", Function, LINE_FILE)
-    env.define_const("Window", gra.Window, LINE_FILE)
+    # env.define_const("Window", gra.Window, LINE_FILE)
     env.define_const("Graphic", gra.Graphic, LINE_FILE)
 
     # global variables
@@ -500,6 +501,37 @@ def to_repr(v) -> lib.String:
         return lib.String(v)
 
 
+def print_ln(env: Environment, s="", stream=None):
+    """
+    Prints out message to an output stream, with a new line at the end and the stream flushed.
+
+    :param env: the calling environment
+    :param s: the content to be printed, empty string as default
+    :param stream: the output stream, stdout as default
+    """
+    if stream is None:
+        stream = env.get_heap("system").stdout
+    print_(env, s, stream)
+    print_(env, '\n', stream)
+    flush: Function = stream.env.get("flush", LINE_FILE)
+    call_function(None, [], LINE_FILE, flush, env)
+
+
+def print_(env: Environment, s, stream: ClassInstance = None):
+    """
+    Prints out message to an output stream.
+
+    :param env: the calling environment
+    :param s: the content to be printed
+    :param stream: the output stream, stdout as default
+    """
+    # s2 = replace_bool_none(String(s).text__())
+    if stream is None:
+        stream = env.get_heap("system").stdout
+    write: Function = stream.env.get("write", LINE_FILE)
+    call_function(None, [s], LINE_FILE, write, env)
+
+
 def typeof(obj) -> lib.String:
     """
     Returns the type name of an object.
@@ -529,12 +561,14 @@ def eval_(env: Environment, expr: lib.String):
     :return: the evaluation result
     """
     lexer = lex.Tokenizer()
-    lexer.setup(os.path.dirname(os.path.abspath(__file__)), "expression", env.get("system", LINE_FILE).argv[0],
+    system = env.get("system", LINE_FILE)
+    lexer.setup(os.path.dirname(os.path.abspath(__file__)), system.argv[0].literal, system.argv[0].literal,
                 import_lang=False)
     lexer.tokenize(str(expr).split('\n'))
     # print(lexer.tokens)
     parser = psr.Parser(lexer.get_tokens())
     block = parser.parse()
+    # print(block)
     return block
 
 
@@ -582,13 +616,13 @@ def getcwf(obj: str):
     return lib.String(obj)
 
 
-def is_main(env: Environment):
+def is_main(env: Environment, obj):
     """
     Returns <true> iff the interpreter is working on the main script.
 
     :return: <true> iff the interpreter is working on the main script
     """
-    return env.is_global()
+    return obj == env.get_heap("system").argv[0].literal
 
 
 def f_open(env: Environment, file: lib.String, mode=lib.String("r"), encoding=lib.String("utf-8")):
@@ -1087,17 +1121,9 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
         call_function(call_obj, arg_list, lf, constructor, env)  # call constructor
         return func
     elif isinstance(func, NativeFunction):
-        # args = []
-        # kwargs = {}
-        # for i in range(len(node.args.lines)):
-        #     arg = node.args.lines[i]
-        #     if isinstance(arg, ast.AssignmentNode):
-        #         kwargs[evaluate(arg.left, env)] = evaluate(arg.right, env)
-        #     else:
-        #         args.append(evaluate(arg, env))
         args, kwargs = parse_function_args(node.args.lines, env)
         # print(args, kwargs)
-        if func.name == "getcwf":
+        if func.name == "getcwf" or func.name == "main":
             args.append(node.file)
         result = func.call(env, args, kwargs)
         if isinstance(result, ast.BlockStmt):

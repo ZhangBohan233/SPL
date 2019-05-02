@@ -73,3 +73,66 @@ abstract class Iterable {
      */
     abstract function __iter__();
 }
+
+
+abstract class OutputStream {
+    abstract function write(obj);
+
+    abstract function flush();
+
+    abstract function close();
+}
+
+abstract class InputStream {
+    abstract function read();
+
+    abstract function close();
+}
+
+class NativeInputStream extends InputStream {
+
+    var ns;
+
+    function NativeInputStream(stream) {
+        ns = stream;
+    }
+
+    @Override
+    function read() {
+        return ns.read();
+    }
+
+    @Override
+    function close() {
+        ns.close();
+    }
+}
+
+class NativeOutputStream extends OutputStream {
+
+    var ns;
+
+    function NativeOutputStream(stream) {
+        ns = stream;
+    }
+
+    @Override
+    function write(obj) {
+        ns.write(obj);
+    }
+
+    @Override
+    function flush() {
+        ns.flush();
+    }
+
+    @Override
+    function close() {
+        ns.close();
+    }
+}
+
+
+system.set_in(new NativeInputStream(system.native_in));
+system.set_out(new NativeOutputStream(system.native_out));
+system.set_err(new NativeOutputStream(system.native_err));

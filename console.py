@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     interpreter_path = os.path.dirname(os.path.abspath(__file__))
     lex2.setup(interpreter_path, "console", interpreter_path, import_lang=True)
-    itr = spl_interpreter.Interpreter([], os.getcwd(), "utf8")
+    itr = spl_interpreter.Interpreter([], os.getcwd(), "utf8", (sys.stdin, sys.stdout, sys.stderr))
     lines = []
 
     while True:

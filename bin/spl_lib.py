@@ -281,6 +281,43 @@ class String(NativeType, Iterable):
         return String(self.literal[from_: end])
 
 
+class PyInputStream(NativeType):
+    def __init__(self, stream):
+        NativeType.__init__(self)
+
+        self.stream = stream
+
+    @classmethod
+    def type_name__(cls) -> str:
+        return "PyInputStream"
+
+    def read(self):
+        return self.stream.read()
+
+    def close(self):
+        self.stream.close()
+
+
+class PyOutputStream(NativeType):
+    def __init__(self, stream):
+        NativeType.__init__(self)
+
+        self.stream = stream
+
+    @classmethod
+    def type_name__(cls) -> str:
+        return "PyOutputStream"
+
+    def write(self, obj):
+        self.stream.write(str(obj))
+
+    def flush(self):
+        self.stream.flush()
+
+    def close(self):
+        self.stream.close()
+
+
 class List(NativeType, Iterable):
     """
     A collector of sequential data with dynamic size and type.
@@ -468,24 +505,39 @@ class System(NativeType):
         argv: command line arguments
         cwd: the working directory
         encoding: the encoding mode
-        stdout: system standard output stream
-        stderr: system standard error output stream
-        stdin: system standard input stream
+        stdout: system standard output stream, ClassInstance extends OutputStream
+        stderr: system standard error output stream, ClassInstance extends OutputStream
+        stdin: system standard input stream, ClassInstance extends InputStream
     """
 
     argv: List
     cwd: String
     encoding: str
-    stdout = sys.stdout
-    stderr = sys.stderr
-    stdin = sys.stdin
+    native_in = None
+    native_out = None
+    native_err = None
+    stdout = None  # ClassInstance <NativeOutputStream>
+    stderr = None  # ClassInstance <NativeOutputStream>
+    stdin = None  # ClassInstance <NativeInputStream>
 
-    def __init__(self, argv_: List, directory: String, enc: str):
+    def __init__(self, argv_: List, directory: String, enc: str, in_out_err):
         NativeType.__init__(self)
 
-        type(self).cwd = directory
-        type(self).argv = argv_
-        type(self).encoding = enc
+        self.native_in = PyInputStream(in_out_err[0])
+        self.native_out = PyOutputStream(in_out_err[1])
+        self.native_err = PyOutputStream(in_out_err[2])
+        self.cwd = directory
+        self.argv = argv_
+        self.encoding = enc
+
+    def set_in(self, in_):
+        self.stdin = in_
+
+    def set_out(self, out):
+        self.stdout = out
+
+    def set_err(self, err):
+        self.stderr = err
 
     @staticmethod
     def time():
@@ -701,29 +753,6 @@ class StringFormatException(SplException):
 class AssertionException(SplException):
     def __init__(self, msg=""):
         SplException.__init__(self, msg)
-
-
-def print_ln(s="", stream=sys.stdout):
-    """
-    Prints out message to an output stream, with a new line at the end and the stream flushed.
-
-    :param s: the content to be printed, empty string as default
-    :param stream: the output stream, stdout as default
-    """
-    print_(s, stream)
-    stream.write("\n")
-    stream.flush()
-
-
-def print_(s, stream=sys.stdout):
-    """
-    Prints out message to an output stream.
-
-    :param s: the content to be printed
-    :param stream: the output stream, stdout as default
-    """
-    # s2 = replace_bool_none(String(s).text__())
-    stream.write(str(String(s)))
 
 
 def exit_(code=0):

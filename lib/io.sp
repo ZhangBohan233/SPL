@@ -1,7 +1,7 @@
 /*
  * An input stream that reads text file.
  */
-class TextInputStream {
+class TextInputStream extends InputStream {
 
     var fp = null;
 
@@ -9,6 +9,7 @@ class TextInputStream {
         fp = f_open(file_name, "r");
     }
 
+    @Override
     function read() {
         return fp.read();
     }
@@ -17,6 +18,7 @@ class TextInputStream {
         return fp.readline();
     }
 
+    @Override
     function close() {
         return fp.close();
     }
@@ -26,7 +28,7 @@ class TextInputStream {
 /*
  * An input stream that reads binary file.
  */
-class FileInputStream {
+class FileInputStream extends InputStream {
 
     var fp = null;
 
@@ -34,6 +36,7 @@ class FileInputStream {
         fp = f_open(file_name, "rb");
     }
 
+    @Override
     function read() {
         return fp.read();
     }
@@ -42,6 +45,7 @@ class FileInputStream {
         return fp.read_one();
     }
 
+    @Override
     function close() {
         return fp.close();
     }
@@ -51,7 +55,7 @@ class FileInputStream {
 /*
  * An output stream that writes text file.
  */
-class TextOutputStream {
+class TextOutputStream extends OutputStream {
 
     var fp = null;
 
@@ -59,14 +63,17 @@ class TextOutputStream {
         fp = f_open(file_name, "w");
     }
 
+    @Override
     function write(s) {
         return fp.write(s);
     }
 
+    @Override
     function flush() {
         return fp.flush();
     }
 
+    @Override
     function close() {
         return fp.close();
     }
@@ -76,7 +83,7 @@ class TextOutputStream {
 /*
  * An output stream that writes binary file.
  */
-class FileOutputStream {
+class FileOutputStream extends OutputStream {
 
     var fp = null;
 
@@ -84,14 +91,17 @@ class FileOutputStream {
         fp = f_open(file_name, "wb");
     }
 
+    @Override
     function write(s) {
         return fp.write(s);
     }
 
+    @Override
     function flush() {
         return fp.flush();
     }
 
+    @Override
     function close() {
         return fp.close();
     }
