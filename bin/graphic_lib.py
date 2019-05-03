@@ -8,7 +8,7 @@ class Graphic(lib.NativeType):
     def __init__(self, name: lib.String, parent=None):
         lib.NativeType.__init__(self)
 
-        true_func = eval("tkinter." + name.literal)
+        true_func = getattr(tkinter, name.literal)
         if parent is None:
             self.tk = true_func()
         else:
@@ -32,7 +32,7 @@ class Graphic(lib.NativeType):
         setattr(self.tk, attr.literal, value)
 
     def callback(self, env, cmd: lib.String, ftn):
-        cfg = {cmd.literal: lambda: inter.call_function(None, [], (0, "callback"), ftn, env)}
+        cfg = {cmd.literal: proceed_function(ftn, env)}
         self.tk.configure(cfg)
 
     @staticmethod
@@ -42,7 +42,7 @@ class Graphic(lib.NativeType):
             return lib.String(res)
 
     def call(self, env, func_name: lib.String, *args, **kwargs):
-        func = eval("self.tk.{}".format(func_name))
+        func = getattr(self.tk, func_name.literal)
         args2 = []
         kwargs2 = {}
         for a in args:
@@ -58,7 +58,7 @@ class Graphic(lib.NativeType):
 
 def proceed_function(ftn, env):
     if type(ftn).__name__ == "Function":
-        return lambda: inter.call_function(None, [], (0, "callback"), ftn, env)
+        return lambda: inter.call_function([], (0, "callback"), ftn, env)
     elif isinstance(ftn, lib.String):
         return str(ftn)
     else:

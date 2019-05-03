@@ -63,7 +63,8 @@ class IDLE {
         var run_btn = new sgl.Button(cmd_bar, "Run");
         run_btn.callback("command", function() {
             var text = code_area.get_text();
-            eval(text);
+            var exit_value = eval(text);
+            println("Process finished with exit value " + string(exit_value));
         });
 
         pane.add(code_area);

@@ -1,3 +1,11 @@
+********** SPL 1.6 Beta 8 **********
+===== Build 0083 2019/05/03 =====
+
+* Optimized function call
+* Updated native function help():
+    * Changed the output of 'help' to system.stdout
+    * Added the help for module
+
 ********** SPL 1.6 Beta 7 **********
 ===== Build 0082 2019/05/02 =====
 

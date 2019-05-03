@@ -13,6 +13,10 @@ class Node {
     function set_child(c) {
         child = c;
     }
+
+    function __str__() {
+        return "Node %r (%r)".format(value, child);
+    }
 }
 
 if (main()) {

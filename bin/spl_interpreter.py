@@ -479,7 +479,7 @@ class SPLBaseException(Exception):
 def to_str(v) -> lib.String:
     if isinstance(v, ClassInstance):
         func: Function = v.env.get("__str__", LINE_FILE)
-        result = call_function(ast.NameNode(LINE_FILE, "__str__"), [], LINE_FILE, func, None)
+        result = call_function([], LINE_FILE, func, None)
         return result
     else:
         return lib.String(v)
@@ -488,7 +488,7 @@ def to_str(v) -> lib.String:
 def to_repr(v) -> lib.String:
     if isinstance(v, ClassInstance):
         func: Function = v.env.get("__repr__", LINE_FILE)
-        result = call_function(ast.NameNode(LINE_FILE, "__repr__"), [], LINE_FILE, func, None)
+        result = call_function([], LINE_FILE, func, None)
         return result
     else:
         return lib.String(v)
@@ -507,7 +507,7 @@ def print_ln(env: Environment, s="", stream=None):
     print_(env, s, stream)
     print_(env, '\n', stream)
     flush: Function = stream.env.get("flush", LINE_FILE)
-    call_function(None, [], LINE_FILE, flush, env)
+    call_function([], LINE_FILE, flush, env)
 
 
 def print_(env: Environment, s, stream: ClassInstance = None):
@@ -522,7 +522,7 @@ def print_(env: Environment, s, stream: ClassInstance = None):
     if stream is None:
         stream = env.get_heap("system").stdout
     write: Function = stream.env.get("write", LINE_FILE)
-    call_function(None, [lib.String(s)], LINE_FILE, write, env)
+    call_function([lib.String(s)], LINE_FILE, write, env)
 
 
 def input_(env: Environment, prompt=lib.String("")):
@@ -538,10 +538,10 @@ def input_(env: Environment, prompt=lib.String("")):
     system = env.get_heap("system")
     print_(env, prompt, system.stdout)
     flush: Function = system.stdout.env.get("flush", LINE_FILE)
-    call_function(None, [], LINE_FILE, flush, env)
+    call_function([], LINE_FILE, flush, env)
 
     readline: Function = system.stdin.env.get("readline", LINE_FILE)
-    line = call_function(None, [], LINE_FILE, readline, env)
+    line = call_function([], LINE_FILE, readline, env)
     return lib.String(line)
 
 
@@ -684,29 +684,35 @@ def exec_(env: Environment, *args):
         return _exec_line(line, path)
 
 
-def help_(env: Environment, obj):
+def help_(env: Environment, obj=None):
     """
     Prints out the doc message of a function or a class.
     """
-    if isinstance(obj, NativeFunction):
-        print("========== Help on native function ==========")
-        print("function ", obj.name, "(*args, **kwargs):", sep="")
-        print(obj.function.__doc__)
-        print("========== End of help ==========")
+    if obj is None:
+        print_ln(env, "Usage: help(obj)")
+    elif isinstance(obj, NativeFunction):
+        print_ln(env, "========== Help on native function ==========")
+        print_ln(env, "function {}({})".format(obj.name, "(*args, **kwargs):"))
+        print_ln(env, obj.function.__doc__)
+        print_ln(env, "========== End of help ==========")
     elif isinstance(obj, type) and issubclass(obj, lib.NativeType):
-        print("========== Help on native object ==========")
-        print(obj.doc__())
-        print("========== End of help ==========")
+        print_ln(env, "========== Help on native object ==========")
+        print_ln(env, obj.doc__())
+        print_ln(env, "========== End of help ==========")
     elif isinstance(obj, Function):
-        print("========== Help on function ==========")
-        print(_get_func_title(obj))
-        print(_get_func_doc(obj))
-        print("========== End of help ==========")
+        print_ln(env, "========== Help on function ==========")
+        print_ln(env, _get_func_title(obj))
+        print_ln(env, _get_func_doc(obj))
+        print_ln(env, "========== End of help ==========")
+    elif isinstance(obj, Module):
+        print_ln(env, "========== Help on Module ==========")
+        print_ln(env, "Module object at <{}>".format(obj.id))
+        print_ln(env, "========== End of help ==========")
     elif isinstance(obj, Class):
-        print("========== Help on function ==========")
+        print_ln(env, "========== Help on function ==========")
         class_doc = _get_class_doc(obj)
-        print(class_doc)
-        print("---------- Methods ----------")
+        print_ln(env, class_doc)
+        print_ln(env, "---------- Methods ----------")
 
         mem.MEMORY.store_status()
         clazz: Class = env.get_class(obj.class_name)
@@ -715,15 +721,15 @@ def help_(env: Environment, obj):
             if attr_name != "this":
                 attr = instance.env.get(attr_name, (0, "help"))
                 if isinstance(attr, Function):
-                    print("  ", _get_func_title(attr, attr_name))
-                    print(_get_func_doc(attr))
+                    print_ln(env, "   " + _get_func_title(attr, attr_name))
+                    print_ln(env, _get_func_doc(attr))
                 elif isinstance(attr, ast.AssignmentNode):
-                    print("  ", attr_name)
+                    print_ln(env, "   " + attr_name)
                 # print(_get_doc(instance.env.get(attr, (0, "help"))))
         mem.MEMORY.restore_status()
-        print("========== End of help ==========")
+        print_ln(env, "========== End of help ==========")
     else:
-        print("help() can only be used for classes, functions, native types, or native functions.")
+        print_ln(env, "help() can only be used for classes, functions, native types, or native functions.")
 
 
 # helper functions
@@ -813,9 +819,9 @@ def loop_spl_iterator(iterator: ClassInstance, invariant: str, body: ast.Node,
     result = None
     while not title_scope.broken:
         block_scope.invalidate()
-        has_next = call_function(ast.NameNode(lf, "__more__"), [], lf, has_next_func, title_scope)
+        has_next = call_function([], lf, has_next_func, title_scope)
         if has_next:
-            next_call_res = call_function(ast.NameNode(lf, "__next__"), [], lf, next_func, title_scope)
+            next_call_res = call_function([], lf, next_func, title_scope)
             block_scope.assign(invariant, next_call_res, lf)
             result = evaluate(body, block_scope)
             title_scope.resume_loop()
@@ -865,7 +871,7 @@ def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
             return loop_spl_iterator(iterable, invariant, node.body, title_scope, block_scope, lf)
         elif is_subclass_of(iterable.clazz, env.get_class("Iterable"), title_scope):
             iter_func = iterable.env.get("__iter__", lf)
-            iterator: ClassInstance = call_function(ast.NameNode(lf, "__iter__"), [], lf, iter_func, title_scope)
+            iterator: ClassInstance = call_function([], lf, iter_func, title_scope)
             return loop_spl_iterator(iterator, invariant, node.body, title_scope, block_scope, lf)
     raise lib.SplException(
         "For-each loop on non-iterable objects, in {}, at line {}".format(node.file, node.line_num))
@@ -1044,7 +1050,7 @@ def set_item(call_obj, index_node, value, env):
     arg_list = index_node.lines.copy()
     arg_list.append(value)
     if isinstance(obj, ClassInstance):
-        return call_function(setitem_object, arg_list, LINE_FILE, obj.env.get("__setitem__", LINE_FILE), env)
+        return call_function(arg_list, LINE_FILE, obj.env.get("__setitem__", LINE_FILE), env)
     elif isinstance(obj, lib.NativeType):
         return native_types_call(obj, setitem_object, arg_list, env)
     else:
@@ -1105,8 +1111,8 @@ def create_instance(clazz: Class, call_env: Environment, class_define_env: Envir
     if call is not None:
         lf = call.line_num, call.file
         func: Function = scope.get(clazz.class_name, lf)
-        call_obj, args_list = make_arg_list(call)
-        call_function(call_obj, args_list, lf, func, call_env)
+        args_list = make_arg_list(call)[1]
+        call_function(args_list, lf, func, call_env)
 
     return instance
 
@@ -1133,11 +1139,11 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
     call_obj, arg_list = make_arg_list(node)
 
     if isinstance(func, Function):
-        result = call_function(call_obj, arg_list, lf, func, env)
+        result = call_function(arg_list, lf, func, env)
         return result
     elif isinstance(func, ClassInstance):
         constructor: Function = func.env.get(func.class_name, lf)
-        call_function(call_obj, arg_list, lf, constructor, env)  # call constructor
+        call_function(arg_list, lf, constructor, env)  # call constructor
         return func
     elif isinstance(func, NativeFunction):
         args, kwargs = parse_function_args(node.args.lines, env)
@@ -1189,11 +1195,10 @@ def parse_function_args(args: list, call_env: Environment) -> (list, dict):
     return pos_args, kwargs
 
 
-def call_function(call_obj: ast.Node, args: list, lf: tuple, func: Function, call_env: Environment):
+def call_function(args: list, lf: tuple, func: Function, call_env: Environment):
     """
     Calls a function
 
-    :param call_obj: the calling object
     :param args: the arguments list
     :param lf: line and file of the caller
     :param func: the function object itself
@@ -1231,23 +1236,15 @@ def call_function(call_obj: ast.Node, args: list, lf: tuple, func: Function, cal
         elif param.preset is not INVALID:
             arg = param.preset
         else:
-            if isinstance(call_obj, ast.NameNode):
-                f_name = call_obj.name
-            else:
-                f_name = call_obj
-            raise lib.ArgumentException("Function '{}' missing a positional argument '{}', in file '{}', at line {}"
-                                        .format(f_name, param.name, lf[1], lf[0]))
+            raise lib.ArgumentException("Function at <{}> missing a positional argument '{}', in file '{}', at line {}"
+                                        .format(func.id, param.name, lf[1], lf[0]))
 
         e = evaluate(arg, call_env)
         scope.define_var(param.name, e, lf)
 
     if not variable_length and len(pos_args) + len(kwargs) > len(params):
-        if isinstance(call_obj, ast.NameNode):
-            f_name = call_obj.name
-        else:
-            f_name = call_obj
-        raise lib.ArgumentException("Too many arguments for function '{}', in file '{}', at line {}"
-                                    .format(f_name, lf[1], lf[0]))
+        raise lib.ArgumentException("Too many arguments for function at <{}>, in file '{}', at line {}"
+                                    .format(func.id, lf[1], lf[0]))
 
     return evaluate(func.body, scope)
 
@@ -1305,7 +1302,7 @@ def eval_dot(node: ast.Dot, env: Environment):
                                                    .format(node.file, node.line_num))
         elif isinstance(instance, ClassInstance) or isinstance(instance, Module):
             func = evaluate(obj.call_obj, instance.env)
-            result = call_function(call_obj, args, lf, func, env)
+            result = call_function(args, lf, func, env)
             return result
         else:
             raise lib.TypeException("Not a class instance; {} instead, in file '{}', at line {}"
@@ -1375,7 +1372,7 @@ def instance_arithmetic(left: ClassInstance, right, symbol, env: Environment):
         block.add_line(right)
         # func: Function = left.env.get(fc.f_name, LINE_FILE)
         func: Function = evaluate(call_obj, left.env)
-        result = call_function(call_obj, [right], LINE_FILE, func, env)
+        result = call_function([right], LINE_FILE, func, env)
         return result
 
 
@@ -1776,7 +1773,7 @@ def eval_indexing_node(node: ast.IndexingNode, env: Environment):
     call_obj = ast.NameNode(LINE_FILE, "__getitem__")
 
     if isinstance(obj, ClassInstance):
-        return call_function(call_obj, node.arg.lines, LINE_FILE, obj.env.get("__getitem__", LINE_FILE), env)
+        return call_function(node.arg.lines, LINE_FILE, obj.env.get("__getitem__", LINE_FILE), env)
     elif isinstance(obj, lib.NativeType):
         return native_types_call(obj, call_obj, node.arg.lines, env)
     else:

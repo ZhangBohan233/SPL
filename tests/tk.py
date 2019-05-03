@@ -2,7 +2,9 @@ import tkinter
 
 
 if __name__ == "__main__":
-    root = tkinter.Tk()
+    tk = getattr(tkinter, "Tk")
+    root = tk()
+    # root = tkinter.Tk()
 
     frame = tkinter.Frame()
     frame.master = root
