@@ -1,11 +1,8 @@
 import tkinter
 import tkinter.ttk
-import sys
 import argparse
 import os
-import spl_ast as ast
-import spl_lexer
-import spl_parser as psr
+from bin import spl_lexer, spl_ast as ast, spl_parser as psr
 
 
 class Visualizer:

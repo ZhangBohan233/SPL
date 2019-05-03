@@ -1,5 +1,5 @@
 import _io
-import spl_token_lib as stl
+from bin import spl_token_lib as stl
 import os
 
 # SPL_PATH = os.getcwd()

@@ -1,5 +1,6 @@
 if __name__ == "__main__":
-    import spl_ast
+    from bin import spl_ast, spl_interpreter
+
     psr = spl_ast.Parser()
 
     psr.add_function("main")
@@ -88,8 +89,6 @@ if __name__ == "__main__":
 
     block = spl_ast.BlockStmt()
     block.lines = psr.elements
-
-    import spl_interpreter
 
     itr = spl_interpreter.Interpreter(block)
     print(itr.interpret())

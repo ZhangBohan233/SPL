@@ -1,16 +1,13 @@
-import spl_memory as mem
-import spl_ast as ast
-import spl_lexer as lex
-import spl_parser as psr
-import spl_token_lib as stl
+from bin import spl_lexer as lex, spl_ast as ast, spl_token_lib as stl, spl_parser as psr, spl_memory as mem
 import bin.spl_lib as lib
 import bin.graphic_lib as gra
+import script
 import multiprocessing
 import math
 import inspect
 import os
 import subprocess
-from environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
+from bin.environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
     FunctionEnvironment, ClassEnvironment, ModuleEnvironment, UNDEFINED
 
 LST = [72, 97, 112, 112, 121, 32, 66, 105, 114, 116, 104, 100, 97, 121, 32,
@@ -578,7 +575,7 @@ def eval_(env: Environment, expr: lib.String):
     """
     lexer = lex.Tokenizer()
     system = env.get("system", LINE_FILE)
-    lexer.setup(os.path.dirname(os.path.abspath(__file__)), system.argv[0].literal, system.argv[0].literal,
+    lexer.setup(script.get_spl_path(), system.argv[0].literal, system.argv[0].literal,
                 import_lang=False)
     lexer.tokenize(str(expr).split('\n'))
     # print(lexer.tokens)

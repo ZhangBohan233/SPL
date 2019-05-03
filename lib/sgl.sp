@@ -1,4 +1,11 @@
 
+const ALIGN_LEFT = "w";
+const ALIGN_RIGHT = "e";
+const ALIGN_TOP = "n";
+const ALIGN_BOTTOM = "s";
+const ALIGN_WIDTH = "ew";
+const ALIGN_CENTER = "";
+
 /*
  *
  */
@@ -37,6 +44,7 @@ class Window extends Node {
 abstract class Container extends Node {
 
     var children = [];
+    var alignment = ALIGN_WIDTH;
 
     function Container(node) {
         Node(node);
@@ -53,6 +61,10 @@ abstract class Container extends Node {
     function background(color) {
         node.set_bg(color);
     }
+
+    function align(value) {
+        alignment = value;
+    }
 }
 
 class VBox extends Container {
@@ -62,7 +74,7 @@ class VBox extends Container {
     }
 
     function add(n) {
-        n.node.call("grid", row=children.size(), column=0);
+        n.node.call("grid", row=children.size(), column=0, sticky=alignment);
         children.append(n);
     }
 }
@@ -75,7 +87,7 @@ class HBox extends Container {
     }
 
     function add(n) {
-        n.node.call("grid", row=0, column=children.size());
+        n.node.call("grid", row=0, column=children.size(), sticky=alignment);
         children.append(n);
     }
 }

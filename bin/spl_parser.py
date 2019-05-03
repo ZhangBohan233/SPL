@@ -1,5 +1,4 @@
-import spl_ast as ast
-import spl_token_lib as stl
+from bin import spl_ast as ast, spl_token_lib as stl
 
 ABSTRACT_IDENTIFIER = {"function", "def", "class"}
 

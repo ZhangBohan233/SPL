@@ -1,7 +1,5 @@
-import spl_interpreter
-import spl_lexer as lex
-import spl_token_lib as stl
-import spl_parser as psr
+from bin import spl_lexer as lex, spl_token_lib as stl, spl_parser as psr, spl_interpreter
+import script
 import os
 import sys
 
@@ -17,8 +15,7 @@ if __name__ == "__main__":
 
     lex2 = lex.Tokenizer()
 
-    interpreter_path = os.path.dirname(os.path.abspath(__file__))
-    lex2.setup(interpreter_path, "console", interpreter_path, import_lang=True)
+    lex2.setup(script.get_spl_path(), "console", script.get_spl_path(), import_lang=True)
     itr = spl_interpreter.Interpreter([], os.getcwd(), "utf8", (sys.stdin, sys.stdout, sys.stderr))
     lines = []
 

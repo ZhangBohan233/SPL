@@ -1,4 +1,4 @@
-import spl_token_lib as stl
+from bin import spl_token_lib as stl
 
 PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "==": 20, ">": 25, "<": 25, ">=": 25, "<=": 25,

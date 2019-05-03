@@ -59,6 +59,7 @@ class IDLE {
         code_area = new sgl.TextArea(pane);
 
         var cmd_bar = new sgl.HBox(pane);
+        cmd_bar.align(sgl.ALIGN_LEFT);
         var run_btn = new sgl.Button(cmd_bar, "Run");
         run_btn.callback("command", function() {
             var text = code_area.get_text();

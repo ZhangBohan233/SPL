@@ -1,12 +1,10 @@
 """ The main SPL runner. """
 
 import sys
-import spl_lexer
-import spl_interpreter
-import spl_parser as psr
+import script
 import time
 import os
-from bin import spl_lib as lib
+from bin import spl_lib as lib, spl_lexer, spl_parser as psr, spl_interpreter
 
 sys.setrecursionlimit(10000)
 
@@ -108,7 +106,7 @@ def interpret(mode: str):
 
     if mode == "sp":
         lexer = spl_lexer.Tokenizer()
-        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dir"], link=argv["link"],
+        lexer.setup(script.get_spl_path(), file_name, argv["dir"], link=argv["link"],
                     import_lang=argv["import"])
         lexer.tokenize(f)
     # elif mode == "lsp":

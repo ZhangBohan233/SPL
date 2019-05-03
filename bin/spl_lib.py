@@ -1,7 +1,7 @@
 import sys
 import time as time_lib
 import os
-import spl_memory as mem
+from bin import spl_memory as mem
 
 
 def replace_bool_none(string: str):

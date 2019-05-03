@@ -1,7 +1,7 @@
-import tkinter
-import spl_interpreter as inter
+from bin import spl_interpreter as inter
 import bin.spl_lib as lib
 from tkinter import filedialog
+import tkinter
 
 
 class Graphic(lib.NativeType):

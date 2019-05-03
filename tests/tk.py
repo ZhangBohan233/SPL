@@ -22,6 +22,12 @@ if __name__ == "__main__":
     menu.add_cascade(label="File", menu=file_menu)
     root.configure(menu=menu)
 
+    bar = tkinter.Frame(frame)
+    run = tkinter.Button(bar, text="Button")
+    run.grid(row=0, column=0, sticky="e")
+
+    bar.grid(sticky="ew")
+
     frame.grid()
 
     root.mainloop()
