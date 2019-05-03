@@ -8,9 +8,11 @@ class Graphic(lib.NativeType):
     def __init__(self, name: lib.String, parent=None):
         lib.NativeType.__init__(self)
 
-        content = "" if parent is None else "parent.tk"
-        true_name = "tkinter." + name.literal + "({})".format(content)
-        self.tk = eval(true_name)
+        true_func = eval("tkinter." + name.literal)
+        if parent is None:
+            self.tk = true_func()
+        else:
+            self.tk = true_func(parent.tk)
 
     @classmethod
     def type_name__(cls) -> str:
@@ -35,18 +37,29 @@ class Graphic(lib.NativeType):
 
     @staticmethod
     def file_dialog(types: lib.Pair):
-        return filedialog.askopenfilename(filetypes=[(str(types[ext]), str(ext)) for ext in types])
+        res = filedialog.askopenfilename(filetypes=[(str(types[ext]), str(ext)) for ext in types])
+        if res is not None:
+            return lib.String(res)
 
-    def call(self, func_name: lib.String, pos_args: lib.List, kwargs: lib.Pair):
-        args = []
-        for pa in pos_args:
-            args.append(str(pa))
-        for kwa in kwargs:
-            args.append("{}={}".format(kwa, kwargs[kwa]))
-        arguments = ", ".join(args)
-        command = "self.tk.{}({})".format(func_name, arguments)
-        res = eval(command)
+    def call(self, env, func_name: lib.String, *args, **kwargs):
+        func = eval("self.tk.{}".format(func_name))
+        args2 = []
+        kwargs2 = {}
+        for a in args:
+            args2.append(proceed_function(a, env))
+        for k in kwargs:
+            kwargs2[str(k)] = proceed_function(kwargs[k], env)
+        res = func(*args2, **kwargs2)
         if isinstance(res, str):
             return lib.String(res)
         else:
             return res
+
+
+def proceed_function(ftn, env):
+    if type(ftn).__name__ == "Function":
+        return lambda: inter.call_function(None, [], (0, "callback"), ftn, env)
+    elif isinstance(ftn, lib.String):
+        return str(ftn)
+    else:
+        return ftn

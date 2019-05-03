@@ -7,6 +7,9 @@ class TextInputStream extends InputStream {
 
     function TextInputStream(file_name) {
         fp = f_open(file_name, "r");
+        if (fp == -1) {
+            throw new FileNotFoundException(file_name + " not found");
+        }
     }
 
     @Override
@@ -34,6 +37,9 @@ class FileInputStream extends InputStream {
 
     function FileInputStream(file_name) {
         fp = f_open(file_name, "rb");
+        if (fp == -1) {
+            throw new FileNotFoundException(file_name + " not found");
+        }
     }
 
     @Override
@@ -61,6 +67,9 @@ class TextOutputStream extends OutputStream {
 
     function TextOutputStream(file_name) {
         fp = f_open(file_name, "w");
+        if (fp == -1) {
+            throw new FileNotFoundException(file_name + " not found");
+        }
     }
 
     @Override
@@ -89,6 +98,9 @@ class FileOutputStream extends OutputStream {
 
     function FileOutputStream(file_name) {
         fp = f_open(file_name, "wb");
+        if (fp == -1) {
+            throw new FileNotFoundException(file_name + " not found");
+        }
     }
 
     @Override
@@ -104,5 +116,19 @@ class FileOutputStream extends OutputStream {
     @Override
     function close() {
         return fp.close();
+    }
+}
+
+
+class IOException extends Exception {
+    function IOException(msg="") {
+        Exception(msg);
+    }
+}
+
+
+class FileNotFoundException extends IOException {
+    function FileNotFoundException(msg="") {
+        IOException(msg);
     }
 }

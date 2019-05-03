@@ -1,3 +1,14 @@
+********** SPL 1.6 Beta 6 **********
+===== Build 0081 2019/05/02 =====
+
+* Updated native functions:
+    * input()
+* spl lib updates:
+    * io.sp: added spl based IOException
+    * sgl.sp: Menus
+* Bug fixes:
+    * try-catch block could not catch Exception from modules
+
 ********** SPL 1.6 Beta 5 **********
 ===== Build 0080 2019/05/02 =====
 

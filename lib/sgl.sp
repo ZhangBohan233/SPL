@@ -11,7 +11,7 @@ abstract class Node {
     }
 
     function update() {
-        node.call("update", [], {});
+        node.call("update");
     }
 }
 
@@ -22,19 +22,23 @@ class Window extends Node {
     }
 
     function set_root(root) {
-        root.node.call("grid", [], {});
+        root.node.call("grid");
+    }
+
+    function set_menu(menu) {
+        node.configure("menu", menu.node.tk);
     }
 
     function show() {
-        node.call("mainloop", [], {});
+        node.call("mainloop");
     }
 }
 
-abstract class Pane extends Node {
+abstract class Container extends Node {
 
     var children = [];
 
-    function Pane(node) {
+    function Container(node) {
         Node(node);
     }
 
@@ -51,27 +55,27 @@ abstract class Pane extends Node {
     }
 }
 
-class VBox extends Pane {
+class VBox extends Container {
 
     function VBox(parent) {
-        Pane(new Graphic("Frame", parent.node));
+        Container(new Graphic("Frame", parent.node));
     }
 
     function add(n) {
-        n.node.call("grid", [], {"row"=children.size(), "column"=0});
+        n.node.call("grid", row=children.size(), column=0);
         children.append(n);
     }
 }
 
 
-class HBox extends Pane {
+class HBox extends Container {
 
     function HBox(parent) {
-        Pane(new Graphic("Frame", parent.node));
+        Container(new Graphic("Frame", parent.node));
     }
 
     function add(n) {
-        n.node.call("grid", [], {"row"=0, "column"=children.size()});
+        n.node.call("grid", row=0, column=children.size());
         children.append(n);
     }
 }
@@ -116,17 +120,17 @@ class TextArea extends Node {
     }
 
     function append_text(text) {
-        node.call("insert", ["'end'", "'''" + text + "'''"], {});
-        node.call("see", ["'end'"], {});
+        node.call("insert", "end", text);
+        node.call("see", "end");
         update();
     }
 
     function clear() {
-        node.call("delete", ["'1.0'", "'end'"], {});
+        node.call("delete", "1.0", "end");
     }
 
     function get_text() {
-        return node.call("get", ["'1.0'", "'end'"], {});
+        return node.call("get", "1.0", "end");
     }
 }
 
@@ -140,6 +144,35 @@ class Button extends LabelAble {
 
     function callback(command, ftn) {
         node.callback(command, ftn);
+    }
+}
+
+
+class MenuBar extends Node {
+
+    function MenuBar(parent) {
+        Node(new Graphic("Menu", parent.node));
+    }
+
+    function add_menu(menu, name) {
+        node.call("add_cascade", label=name, menu=menu.node.tk);
+    }
+}
+
+
+class Menu extends Node {
+
+    function Menu(parent) {
+        Node(new Graphic("Menu", parent.node));
+        node.configure("tearoff", 0);
+    }
+
+    function add_item(name, ftn) {
+        node.call("add_command", label=name, command=ftn);
+    }
+
+    function add_separator() {
+        node.call("add_separator");
     }
 }
 

@@ -89,12 +89,21 @@ abstract class InputStream {
     abstract function close();
 }
 
-class NativeInputStream extends InputStream {
+abstract class LineInputStream extends InputStream {
+    abstract function readline();
+}
+
+class NativeInputStream extends LineInputStream {
 
     var ns;
 
     function NativeInputStream(stream) {
         ns = stream;
+    }
+
+    @Override
+    function readline() {
+        return ns.readline();
     }
 
     @Override

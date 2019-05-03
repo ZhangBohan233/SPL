@@ -111,7 +111,7 @@ def add_natives(env: Environment):
     env.add_heap("float", NativeFunction(lib.to_float, "float"))
     env.add_heap("string", NativeFunction(to_str, "string"))
     env.add_heap("repr", NativeFunction(to_repr, "repr"))
-    env.add_heap("input", NativeFunction(lib.input_, "input"))
+    env.add_heap("input", NativeFunction(input_, "input", True))
     env.add_heap("f_open", NativeFunction(f_open, "f_open", True))
     env.add_heap("eval", NativeFunction(eval_, "eval", True))
     env.add_heap("dir", NativeFunction(dir_, "dir", True))
@@ -314,10 +314,6 @@ class NativeInvokes(lib.NativeType):
 
         process = multiprocessing.Process(target=call_function, args=(call, target, env))
         return Thread(process)
-
-    @staticmethod
-    def window(env: Environment):
-        return gra.Window()
 
     @staticmethod
     def log(x):
@@ -529,7 +525,27 @@ def print_(env: Environment, s, stream: ClassInstance = None):
     if stream is None:
         stream = env.get_heap("system").stdout
     write: Function = stream.env.get("write", LINE_FILE)
-    call_function(None, [s], LINE_FILE, write, env)
+    call_function(None, [lib.String(s)], LINE_FILE, write, env)
+
+
+def input_(env: Environment, prompt=lib.String("")):
+    """
+    Asks input from user.
+
+    This function will hold the program until the user inputs a new line character.
+
+    :param env: the calling environment
+    :param prompt: the prompt text to be shown to the user
+    :return the user input, as <String>
+    """
+    system = env.get_heap("system")
+    print_(env, prompt, system.stdout)
+    flush: Function = system.stdout.env.get("flush", LINE_FILE)
+    call_function(None, [], LINE_FILE, flush, env)
+
+    readline: Function = system.stdin.env.get("readline", LINE_FILE)
+    line = call_function(None, [], LINE_FILE, readline, env)
+    return lib.String(line)
 
 
 def typeof(obj) -> lib.String:
@@ -644,7 +660,7 @@ def f_open(env: Environment, file: lib.String, mode=lib.String("r"), encoding=li
         file = lib.File(f, str(mode))
         return file
     except IOError as e:
-        raise lib.IOException(str(e))
+        return -1
 
 
 def exec_(env: Environment, *args):
@@ -714,6 +730,10 @@ def help_(env: Environment, obj):
 
 
 # helper functions
+
+
+def print_waring(env: Environment, msg: str):
+    print_ln(env, msg, env.get_heap("system").stderr)
 
 
 def _get_class_doc(clazz: Class) -> str:
@@ -862,7 +882,7 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
     except SPLBaseException as re:  # catches the exceptions thrown by SPL program
         block_scope = SubEnvironment(env)
         exception: ClassInstance = re.exception
-        exception_class = block_scope.get_class(exception.class_name)
+        exception_class = exception.clazz
         spl_base_exception: Class = env.get_class("Exception")
         catches = node.catch_blocks
         for cat in catches:  # catch blocks
@@ -876,7 +896,7 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
                             if not is_subclass_of(catching_exception, spl_base_exception, block_scope):
                                 raise lib.TypeException(
                                     "Catching exception must derive from 'Exception', in file '{}', at line {}"
-                                        .format(line.file, line.line_num))
+                                    .format(line.file, line.line_num))
                             if is_subclass_of(exception_class, catching_exception, block_scope):
                                 result = evaluate(cat.then, block_scope)
                                 return result
@@ -895,13 +915,15 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
             for line in cat.condition.lines:
                 if isinstance(line, ast.BinaryOperator) and line.operation == ":":
                     block_scope.define_var(line.left.name, e, (line.line_num, line.file))
-                    catch_name = line.right.name
-                    if catch_name == "Exception":
-                        result = evaluate(cat.then, block_scope)
-                        return result
-                    elif catch_name == type(e).__name__:
-                        result = evaluate(cat.then, block_scope)
-                        return result
+                    if isinstance(line.right, ast.NameNode):
+                        catch_name = line.right.name
+                        # catch_name = evaluate(line.right, env)
+                        if catch_name == "Exception":
+                            result = evaluate(cat.then, block_scope)
+                            return result
+                        elif catch_name == type(e).__name__:
+                            result = evaluate(cat.then, block_scope)
+                            return result
                 else:
                     raise lib.SplException("Unexpected content inside catch statement, in file '{}', at line {}"
                                            .format(line.file, line.operation))
@@ -1145,7 +1167,7 @@ def parse_function_args(args: list, call_env: Environment) -> (list, dict):
         if isinstance(arg, ast.Node):
             if arg.node_type == ast.ASSIGNMENT_NODE:
                 arg: ast.AssignmentNode
-                kwargs[arg.left.name] = arg.right
+                kwargs[arg.left.name] = evaluate(arg.right, call_env)
             elif arg.node_type == ast.UNARY_OPERATOR:
                 arg: ast.UnaryOperator
                 if arg.operation == "unpack":
@@ -1155,8 +1177,6 @@ def parse_function_args(args: list, call_env: Environment) -> (list, dict):
                         pos_args.append(an_arg)
                 elif arg.operation == "kw_unpack":
                     args_pair: lib.List = evaluate(arg.value, call_env)
-                    # args_pair: lib.Pair = call_env.get(arg.value.name, LINE_FILE)
-                    # print(args_pair)
                     for an_arg in args_pair:
                         kwargs[an_arg.literal] = args_pair[an_arg]
                 elif arg.operation == "neg" or arg.operation == "new":

@@ -173,7 +173,7 @@ class Environment:
         if not annotations.contains(lib.String("Override")) and \
                 not annotations.contains(lib.String("Suppress")) and \
                 key[0].islower() and self.contains_key(key):
-            lib.print_waring("Warning: re-declaring method '{}' in '{}', at line {}".format(key, lf[1], lf[0]))
+            lib.compile_time_warning("Warning: re-declaring method '{}' in '{}', at line {}".format(key, lf[1], lf[0]))
         self.variables[key] = value
 
     def define_var(self, key, value, lf):

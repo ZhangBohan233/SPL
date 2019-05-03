@@ -58,7 +58,7 @@ def replace_bool_none(string: str):
     return "".join(lst)
 
 
-def print_waring(msg: str):
+def compile_time_warning(msg: str):
     sys.stderr.write(msg + "\n")
     sys.stderr.flush()
 
@@ -255,7 +255,7 @@ class String(NativeType, Iterable):
                     lit = args[count]
                     lst.append(str(lit))
                 else:
-                    print_waring("Warning: Unknown flag: %" + flag)
+                    # print_waring("Warning: Unknown flag: %" + flag)
                     lst.append("%")
                     i = j
                     continue
@@ -265,8 +265,8 @@ class String(NativeType, Iterable):
             lst.append(ch)
             i += 1
 
-        if count < len(args):
-            print_waring("Warning: too much arguments for string format")
+        # if count < len(args):
+        #     print_waring("Warning: too much arguments for string format")
         return String("".join(lst))
 
     @classmethod
@@ -293,6 +293,9 @@ class PyInputStream(NativeType):
 
     def read(self):
         return self.stream.read()
+
+    def readline(self):
+        return self.stream.readline()
 
     def close(self):
         self.stream.close()
@@ -615,7 +618,7 @@ class File(NativeType):
             elif self.mode == "rb":
                 return int(self.fp.read(1)[0])
             else:
-                raise IOException("Wrong mode")
+                raise PyIOException("Wrong mode")
         else:
             return None
 
@@ -630,7 +633,7 @@ class File(NativeType):
         elif self.mode == "rb":
             return List(*list(self.fp.read()))
         else:
-            raise IOException("Wrong mode")
+            raise PyIOException("Wrong mode")
 
     def readline(self):
         """
@@ -647,7 +650,7 @@ class File(NativeType):
             else:
                 return None
         else:
-            raise IOException("Wrong mode")
+            raise PyIOException("Wrong mode")
 
     def write(self, s):
         """
@@ -661,7 +664,7 @@ class File(NativeType):
             else:
                 self.fp.write(str(s))
         else:
-            raise IOException("Wrong mode")
+            raise PyIOException("Wrong mode")
 
     def flush(self):
         """
@@ -670,7 +673,7 @@ class File(NativeType):
         if "w" in self.mode:
             self.fp.flush()
         else:
-            raise IOException("Wrong mode")
+            raise PyIOException("Wrong mode")
 
     def close(self):
         """
@@ -710,7 +713,7 @@ class IndexOutOfRangeException(SplException):
         SplException.__init__(self, msg)
 
 
-class IOException(SplException):
+class PyIOException(SplException):
     def __init__(self, msg=""):
         SplException.__init__(self, msg)
 
@@ -762,20 +765,6 @@ def exit_(code=0):
     :param code: the exit code, 0 as default.
     """
     exit(code)
-
-
-def input_(*prompt):
-    """
-    Asks input from user.
-
-    This function will hold the program until the user inputs a new line character.
-
-    :param prompt: the prompt text to be shown to the user
-    :return the user input, as <String>
-    """
-    s = input(*prompt)
-    st = String(s)
-    return st
 
 
 def make_list(*initial_elements):

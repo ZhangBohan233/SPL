@@ -3,3 +3,11 @@ function f() {
 }
 
 println(f());
+
+function g(text="") {
+    println(text);
+}
+
+var lst = [1, 2, 3];
+
+lst.pop(index=lst.size());

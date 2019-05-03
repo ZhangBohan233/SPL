@@ -16,19 +16,11 @@ if __name__ == "__main__":
 
     print(a.get("1.0", 'end'))
 
-    # hbox.master = frame
-    t2 = tkinter.Label(hbox)
-    t2.configure(text="text")
-    # t2.master = hbox
-    t2.grid()
-    b3 = tkinter.Button(hbox)
-    b3.configure(text="btn")
-    # b3.master = hbox
-    b3.grid(row=0, column=1)
-    # hbox.configure(master=frame)
-    # # setattr(hbox, "master", frame)
-
-    hbox.grid(row=0)
+    menu = tkinter.Menu(root)
+    file_menu = tkinter.Menu(menu)
+    file_menu.add_command(label="Open", command=lambda: print(2))
+    menu.add_cascade(label="File", menu=file_menu)
+    root.configure(menu=menu)
 
     frame.grid()
 
