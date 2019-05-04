@@ -142,6 +142,125 @@ class NativeOutputStream extends OutputStream {
 }
 
 
+class List extends Iterable {
+
+    var arr;
+    var length = 0;
+
+    function List(*args) {
+        arr = array(length=8);
+        for (var x; args) {
+            append(x);
+        }
+    }
+
+    function __getitem__(index) {
+        return arr[index];
+    }
+
+    function __setitem__(index, value) {
+        arr[index] = value;
+    }
+
+    function __iter__() {
+        return to_array();
+    }
+
+    function __str__() {
+        return string(to_array());
+    }
+
+    function __repr__() {
+        return __str__();
+    }
+
+    function __unpack__() {
+        return __iter__();
+    }
+
+    function append(v) {
+        if (length >= arr.size()) {
+            double_size();
+        }
+        arr[length] = v;
+        length++;
+        return this;
+    }
+
+    function insert(index, value) {
+        if (length >= arr.size()) {
+            double_size();
+        }
+        for (var i = length + 1; i >= index; i--) {
+            arr[i] = arr[i - 1];
+        }
+        arr[index] = value;
+        length++;
+    }
+
+    function pop(index=null) {
+        if (index === null) {
+            index = length - 1;
+        }
+        var val = arr[index];
+        for (var i = index; i < length; i++) {
+            arr[i] = arr[i + 1];
+        }
+        length--;
+        if (length < arr.size() / 4) {
+            half_size();
+        }
+        return val;
+    }
+
+    function extend(iter) {
+        for (var x; iter) {
+            append(x);
+        }
+    }
+
+    function clear() {
+        arr = array(length = 8);
+    }
+
+    function copy() {
+        return new List(*this);
+    }
+
+    function size() {
+        return length;
+    }
+
+    function to_array() {
+        var s_arr = array(length=length);
+        for (var i = 0; i < length; i++) {
+            s_arr[i] = arr[i];
+        }
+        return s_arr;
+    }
+
+    function double_size() {
+        var big_arr = array(length = arr.size() * 2);
+        for (var i = 0; i < arr.size(); i++) {
+            big_arr[i] = arr[i];
+        }
+        arr = big_arr;
+    }
+
+    function half_size() {
+        var sml_array = array(length = arr.size() / 2);
+        for (var i = 0; i < sml_arr.size(); i++) {
+            sml_arr[i] = arr[i];
+        }
+        arr = sml_arr;
+    }
+}
+
+
+function list(*args) {
+    return new List(*args);
+}
+
 system.set_in(new NativeInputStream(system.native_in));
 system.set_out(new NativeOutputStream(system.native_out));
 system.set_err(new NativeOutputStream(system.native_err));

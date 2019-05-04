@@ -1,3 +1,22 @@
+********** SPL 1.6 Beta 9 **********
+===== Build 0084 2019/05/04 =====
+
+* Change the NativeType 'List' to 'Array'
+* Added new native function 'array()'
+* Implemented 'List' in SPL, in lang.sp
+* Functional updates:
+    * SPL object __iter__ can now return a native iterable object
+    * Hidden function __unpack__
+* New native function:
+    * get_env()
+* New library:
+    * util.sp:
+        * memory_view()
+* New SGL widget:
+    * TreeView
+* Bug fixes:
+    * Access of Class might be blocked by constructor in class
+
 ********** SPL 1.6 Beta 8 **********
 ===== Build 0083 2019/05/03 =====
 

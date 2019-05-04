@@ -5,6 +5,7 @@ const ALIGN_TOP = "n";
 const ALIGN_BOTTOM = "s";
 const ALIGN_WIDTH = "ew";
 const ALIGN_CENTER = "";
+const ALIGN_EXPAND = "news";
 
 /*
  *
@@ -20,6 +21,18 @@ abstract class Node {
     function update() {
         node.call("update");
     }
+
+    function set_width(width) {
+        node.configure("width", width);
+    }
+
+    function set_height(height) {
+        node.configure("height", height);
+    }
+
+    function background(color) {
+        node.set_bg(color);
+    }
 }
 
 class Window extends Node {
@@ -29,7 +42,7 @@ class Window extends Node {
     }
 
     function set_root(root) {
-        root.node.call("grid");
+        root.node.call("grid", sticky=ALIGN_EXPAND);
     }
 
     function set_menu(menu) {
@@ -48,18 +61,6 @@ abstract class Container extends Node {
 
     function Container(node) {
         Node(node);
-    }
-
-    function set_width(width) {
-        node.configure("width", width);
-    }
-
-    function set_height(height) {
-        node.configure("height", height);
-    }
-
-    function background(color) {
-        node.set_bg(color);
     }
 
     function align(value) {
@@ -185,6 +186,36 @@ class Menu extends Node {
 
     function add_separator() {
         node.call("add_separator");
+    }
+}
+
+
+class TreeView extends Node {
+
+    function TreeView(parent) {
+        Node(new Graphic("ttk.Treeview", parent.node));
+    }
+
+    function columns(num_cols) {
+        var cols = [];
+        for (var i = 1; i < num_cols; i++) {
+            cols.append("#" + string(i));
+        }
+        node.configure("columns", cols);
+    }
+
+    function column_heading(index, name) {
+        var index_name = "#" + string(index);
+        node.call("heading", index_name, text=name);
+    }
+
+    function add_item(text, values, n) {
+        return node.call("insert", n, "end", text=text, values=values);
+    }
+
+    function column_width(index, width, min_width=0) {
+        var index_name = "#" + string(index);
+        node.call("column", index_name, width=width, minwidth=min_width);
     }
 }
 

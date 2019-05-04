@@ -133,7 +133,7 @@ class Parser:
                             if i > 0:
                                 last_token = self.tokens[i - 1]
                                 if isinstance(last_token, stl.IdToken) and last_token.symbol == "~":
-                                    func_name = "i_list"
+                                    func_name = "array"
                             parser.add_name(line, func_name)
                             parser.add_call(line)
                         square_count += 1

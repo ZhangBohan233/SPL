@@ -8,7 +8,7 @@ Release date: 2019/05/XX
 * List creation with `[a, b, c]`
 * Pair creation with `{a = x, b = y, c = z}`
 * Set creation with `{a, b, c}`
-* Immutable List creation with `~[a, b, c]`
+* Array creation with `~[a, b, c]`
 * New keywords `as` and `namespace`
 * New binary operator `subclassof`
 * Native types object creation via operator `new`
@@ -35,12 +35,13 @@ This library will be automatically imported unless the flag `-ni` is
 applied
 * New Library: SPL Graphics Library `sgl.sp`
 * Updated `unittest.sp`: added annotations `@RunBefore` and `@RunAfter`
+* Implemented `List` in SPL, in `lang.sp`
 
 #### Functional Updates:
 * `system.stdin`, `system.stdout`, `system.stderr` now takes SPL 
 `LineInputStream/OutputStream` objects, and can be set via SPL codes
 * `Instance.clazz` attribute records the `Class` of it
-* `*args` is now immutable
+* `*args` is now an array
 * More runtime type check
 
 #### Console Updates:
@@ -61,6 +62,7 @@ into '/bin'
 
 ## Bugs Fixes:
 * Some bugs in try-catch system
+* Bugs in iteration system
 * Parser might misidentify reserved names as function names
 * Assignment for nested dot chain, for example 
 `a.get_child().something = 1;`

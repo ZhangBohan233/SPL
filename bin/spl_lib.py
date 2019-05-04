@@ -321,14 +321,13 @@ class PyOutputStream(NativeType):
         self.stream.close()
 
 
-class List(NativeType, Iterable):
+class Array(NativeType, Iterable):
     """
-    A collector of sequential data with dynamic size and type.
+    A collector of sequential data with static size and dynamic type.
     """
-    def __init__(self, *initial, mutable=True):
+    def __init__(self, *initial):
         NativeType.__init__(self)
 
-        self.mutable = mutable
         self.list = [*initial]
 
     def __iter__(self):
@@ -346,79 +345,28 @@ class List(NativeType, Iterable):
     def __setitem__(self, key, value):
         self.list[key] = value
 
-    def set(self, key, value):
-        if self.mutable:
-            self.__setitem__(key, value)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
-
-    def get(self, key):
-        return self.__getitem__(key)
-
     @classmethod
     def type_name__(cls):
-        return "List"
-
-    def append(self, value):
-        """
-        Adds a value at the end of this list.
-
-        :param value: the item to be added
-        """
-        if self.mutable:
-            self.list.append(value)
-            return value
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
+        return "Array"
 
     def contains(self, item):
         return item in self.list
-
-    def insert(self, index, item):
-        if self.mutable:
-            self.list.insert(index, item)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
-
-    def pop(self, index=-1):
-        if self.mutable:
-            return self.list.pop(index)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
-
-    def clear(self):
-        if self.mutable:
-            return self.list.clear()
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
-
-    def extend(self, lst):
-        if self.mutable:
-            return self.list.extend(lst)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
 
     def size(self):
         return len(self.list)
 
     def sort(self):
-        if self.mutable:
-            return self.list.sort()
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
+        return self.list.sort()
 
-    def sublist(self, from_, to=None):
+    def sub_array(self, from_, to=None):
         length = self.size()
         end = length if to is None else to
         if from_ < 0 or end > length:
-            raise IndexOutOfRangeException("Sublist index out of range")
-        return List(self.list[from_: end])
+            raise IndexOutOfRangeException("Sub array index out of range")
+        return Array(self.list[from_: end])
 
     def reverse(self):
-        if self.mutable:
-            return self.list.reverse()
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
+        return self.list.reverse()
 
 
 class Pair(NativeType, Iterable):
@@ -513,7 +461,7 @@ class System(NativeType):
         stdin: system standard input stream, ClassInstance extends InputStream
     """
 
-    argv: List
+    argv: Array
     cwd: String
     encoding: str
     native_in = None
@@ -523,7 +471,7 @@ class System(NativeType):
     stderr = None  # ClassInstance <NativeOutputStream>
     stdin = None  # ClassInstance <NativeInputStream>
 
-    def __init__(self, argv_: List, directory: String, enc: str, in_out_err):
+    def __init__(self, argv_: Array, directory: String, enc: str, in_out_err):
         NativeType.__init__(self)
 
         self.native_in = PyInputStream(in_out_err[0])
@@ -584,14 +532,14 @@ class Os(NativeType):
         return "Os"
 
     @staticmethod
-    def list_files(path) -> List:
+    def list_files(path) -> Array:
         """
         Returns a <List> consists of all files under the directory <path>.
 
         :param path: the directory path
         :return: a <List> consists of all files under the directory <path>
         """
-        return List(os.listdir(path))
+        return Array(os.listdir(path))
 
 
 class File(NativeType):
@@ -631,7 +579,7 @@ class File(NativeType):
         if self.mode == "r":
             return String(self.fp.read())
         elif self.mode == "rb":
-            return List(*list(self.fp.read()))
+            return Array(*list(self.fp.read()))
         else:
             raise PyIOException("Wrong mode")
 
@@ -767,26 +715,29 @@ def exit_(code=0):
     exit(code)
 
 
-def make_list(*initial_elements):
+def make_array(*initial_elements, **kwargs):
     """
     Creates a dynamic mutable list.
 
     :param initial_elements: the elements that the list initially contains
     :return: a reference of the newly created <List> object
     """
-    lst = List(*initial_elements)
-    return lst
+    if 'length' in kwargs:
+        lst = [None for _ in range(kwargs['length'])]
+        return Array(*lst)
+    else:
+        return Array(*initial_elements)
 
 
-def make_immutable_list(*initial_elements):
-    """
-        Creates an immutable list.
-
-        :param initial_elements: the elements that the list initially contains
-        :return: a reference of the newly created <List> object
-        """
-    lst = List(*initial_elements, mutable=False)
-    return lst
+# def make_immutable_list(*initial_elements):
+#     """
+#         Creates an immutable list.
+#
+#         :param initial_elements: the elements that the list initially contains
+#         :return: a reference of the newly created <List> object
+#         """
+#     lst = List(*initial_elements, mutable=False)
+#     return lst
 
 
 def make_pair(initial_elements: dict = None):

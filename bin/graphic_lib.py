@@ -2,13 +2,17 @@ from bin import spl_interpreter as inter
 import bin.spl_lib as lib
 from tkinter import filedialog
 import tkinter
+import tkinter.ttk
 
 
 class Graphic(lib.NativeType):
     def __init__(self, name: lib.String, parent=None):
         lib.NativeType.__init__(self)
 
-        true_func = getattr(tkinter, name.literal)
+        if len(name.literal) > 4 and name.literal[:4] == "ttk.":
+            true_func = getattr(tkinter.ttk, name.literal[4:])
+        else:
+            true_func = getattr(tkinter, name.literal)
         if parent is None:
             self.tk = true_func()
         else:
@@ -21,8 +25,9 @@ class Graphic(lib.NativeType):
     def set_bg(self, color: lib.String):
         self.tk.configure(bg=color.literal)
 
-    def configure(self, key: lib.String, value):
-        cfg = {key.literal: value}
+    def configure(self, env, key: lib.String, value):
+        v = proceed_function(value, env)
+        cfg = {key.literal: v}
         self.tk.configure(cfg)
 
     def get(self, key: lib.String):
@@ -61,5 +66,7 @@ def proceed_function(ftn, env):
         return lambda: inter.call_function([], (0, "callback"), ftn, env)
     elif isinstance(ftn, lib.String):
         return str(ftn)
+    elif isinstance(ftn, lib.Array):
+        return ftn.list
     else:
         return ftn

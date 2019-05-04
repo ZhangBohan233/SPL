@@ -51,7 +51,7 @@ class Interpreter:
         """
         add_natives(self.env)
         # obj = lib.SplObject()
-        system = lib.System(lib.List(*parse_args(self.argv)), lib.String(self.dir), self.encoding, self.in_out_err)
+        system = lib.System(lib.Array(*parse_args(self.argv)), lib.String(self.dir), self.encoding, self.in_out_err)
         natives = NativeInvokes()
         # native_graphics = gra.NativeGraphics()
         os_ = lib.Os()
@@ -101,8 +101,8 @@ def add_natives(env: Environment):
     env.add_heap("println", NativeFunction(print_ln, "println", True))
     env.add_heap("type", NativeFunction(typeof, "type"))
     env.add_heap("pair", NativeFunction(lib.make_pair, "pair"))
-    env.add_heap("list", NativeFunction(lib.make_list, "list"))
-    env.add_heap("i_list", NativeFunction(lib.make_immutable_list, "list"))
+    # env.add_heap("array", NativeFunction(lib.make_array_of_length, "array"))
+    env.add_heap("array", NativeFunction(lib.make_array, "array"))
     env.add_heap("set", NativeFunction(lib.make_set, "set"))
     env.add_heap("int", NativeFunction(lib.to_int, "int"))
     env.add_heap("float", NativeFunction(lib.to_float, "float"))
@@ -112,7 +112,8 @@ def add_natives(env: Environment):
     env.add_heap("f_open", NativeFunction(f_open, "f_open", True))
     env.add_heap("eval", NativeFunction(eval_, "eval", True))
     env.add_heap("dir", NativeFunction(dir_, "dir", True))
-    env.add_heap("getcwf", NativeFunction(getcwf, "getcwf"))
+    env.add_heap("get_env", NativeFunction(get_env, "get_env", True))
+    env.add_heap("get_cwf", NativeFunction(get_cwf, "get_cwf"))
     env.add_heap("main", NativeFunction(is_main, "main", True))
     env.add_heap("exit", NativeFunction(lib.exit_, "exit"))
     env.add_heap("help", NativeFunction(help_, "help", True))
@@ -124,7 +125,7 @@ def add_natives(env: Environment):
     env.add_heap("void", NativeFunction(None, "void"))
 
     env.define_const("String", lib.String, LINE_FILE)
-    env.define_const("List", lib.List, LINE_FILE)
+    env.define_const("Array", lib.Array, LINE_FILE)
     env.define_const("Pair", lib.Pair, LINE_FILE)
     env.define_const("Set", lib.Set, LINE_FILE)
     env.define_const("File", lib.File, LINE_FILE)
@@ -135,6 +136,9 @@ def add_natives(env: Environment):
     env.define_const("Function", Function, LINE_FILE)
     # env.define_const("Window", gra.Window, LINE_FILE)
     env.define_const("Graphic", gra.Graphic, LINE_FILE)
+    env.define_const("EnvWrapper", EnvWrapper, LINE_FILE)
+    env.define_const("Class", Class, LINE_FILE)
+    env.define_const("Module", Module, LINE_FILE)
 
     # global variables
 
@@ -157,12 +161,12 @@ class NativeFunction:
     def call(self, env, args, kwargs):
         if self.need_env:
             if len(kwargs) > 0:
-                return self.function(env, *args, kwargs)
+                return self.function(env, *args, **kwargs)
             else:
                 return self.function(env, *args)
         else:
             if len(kwargs) > 0:
-                return self.function(*args, kwargs)
+                return self.function(*args, **kwargs)
             else:
                 return self.function(*args)
 
@@ -222,6 +226,10 @@ class Class(lib.SplObject):
         self.line_num = line
         self.file = file
 
+    @classmethod
+    def type_name__(cls):
+        return "Class"
+
     def __str__(self):
         if len(self.superclasses):
             return "Class<{}> extends {}".format(self.class_name, self.superclasses)
@@ -230,6 +238,27 @@ class Class(lib.SplObject):
 
     def __repr__(self):
         return self.__str__()
+
+
+class EnvWrapper(lib.NativeType):
+
+    def __init__(self, env: Environment):
+        lib.NativeType.__init__(self)
+
+        self.attrs = lib.Pair({})
+        attrs = env.attributes()
+        for key in attrs:
+            self.attrs[lib.String(key)] = attrs[key]
+
+    @classmethod
+    def type_name__(cls) -> str:
+        return "EnvWrapper"
+
+    def get(self, name):
+        return self.attrs[name]
+
+    def attributes(self):
+        return self.attrs
 
 
 class Thread(lib.NativeType):
@@ -295,7 +324,7 @@ class NativeInvokes(lib.NativeType):
             raise lib.TypeException("Object is not a native-iterable object.")
 
     @staticmethod
-    def thread(env: Environment, target: Function, args: lib.List):
+    def thread(env: Environment, target: Function, args: lib.Array):
         """
         Creates a new spl Thread.
 
@@ -393,6 +422,16 @@ class NativeInvokes(lib.NativeType):
             pair.put(lib.String(name), env.constants[name])
         return pair
 
+    @staticmethod
+    def locals(env: Environment):
+        """
+        Returns all variables and constants of this environment
+
+        :param env:
+        :return:
+        """
+        return env.attributes()
+
 
 class ClassInstance(lib.SplObject):
     def __init__(self, env: Environment, class_name: str, clazz):
@@ -462,6 +501,10 @@ class Module(lib.SplObject):
         lib.SplObject.__init__(self)
 
         self.env = module_env
+
+    @classmethod
+    def type_name__(cls):
+        return "Module"
 
 
 class SPLBaseException(Exception):
@@ -585,7 +628,7 @@ def eval_(env: Environment, expr: lib.String):
     return block
 
 
-def dir_(env, obj):
+def dir_(env: Environment, obj):
     """
     Returns a List containing all attributes of a type.
 
@@ -593,7 +636,7 @@ def dir_(env, obj):
     :param obj: the object
     :return: a <List> of all attributes of a type.
     """
-    lst = lib.List()
+    lst = []
     if isinstance(obj, Class):
         mem.MEMORY.store_status()
         clazz: Class = env.get_class(obj.class_name)
@@ -616,10 +659,17 @@ def dir_(env, obj):
     else:
         raise lib.TypeException("No such type '{}'".format(typeof(obj)))
     lst.sort()
-    return lst
+    return lib.Array(*lst)
 
 
-def getcwf(obj: str):
+def get_env(env: Environment, obj=None):
+    if obj is None:
+        return EnvWrapper(env)
+    else:
+        return EnvWrapper(obj.env)
+
+
+def get_cwf(obj: str):
     """
     Returns the name of current working spl script.
 
@@ -668,13 +718,13 @@ def exec_(env: Environment, *args):
         if isinstance(args[0], lib.String):
             line = str(args[0])
             return _exec_line(line, path)
-        elif isinstance(args[0], lib.List):
+        elif isinstance(args[0], lib.Array):
             line = " ".join(str(x) for x in args[0])
             return _exec_line(line, path)
         else:
             raise lib.TypeException("Unknown argument type of exec()")
     elif len(args) == 2:
-        if isinstance(args[0], lib.String) and isinstance(args[1], lib.List):
+        if isinstance(args[0], lib.String) and isinstance(args[1], lib.Array):
             line = str(args[0]) + " " + " ".join(str(x) for x in args[1])
             return _exec_line(line, path)
         else:
@@ -853,6 +903,10 @@ def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
     target = con.lines[1]
     # print(target)
     iterable = evaluate(target, title_scope)
+    return iterate(iterable, invariant, node, title_scope, block_scope, env, lf)
+
+
+def iterate(iterable, invariant, node, title_scope, block_scope, env, lf):
     if isinstance(iterable, lib.Iterable):
         result = None
         for x in iterable:
@@ -872,7 +926,8 @@ def eval_for_each_loop(node: ast.ForLoopStmt, env: Environment):
         elif is_subclass_of(iterable.clazz, env.get_class("Iterable"), title_scope):
             iter_func = iterable.env.get("__iter__", lf)
             iterator: ClassInstance = call_function([], lf, iter_func, title_scope)
-            return loop_spl_iterator(iterator, invariant, node.body, title_scope, block_scope, lf)
+            return iterate(iterator, invariant, node, title_scope, block_scope, env, lf)
+            # return loop_spl_iterator(iterator, invariant, node.body, title_scope, block_scope, lf)
     raise lib.SplException(
         "For-each loop on non-iterable objects, in {}, at line {}".format(node.file, node.line_num))
 
@@ -1076,6 +1131,8 @@ def init_class(node: ast.Node, call_env: Environment, class_define_env=None):
         clazz = evaluate(node.call_obj, class_define_env)
         if isinstance(clazz, Class):
             return create_instance(clazz, call_env, class_define_env, node)
+        elif isinstance(clazz, Function):
+            return create_instance(clazz.clazz, call_env, class_define_env, node)
         elif issubclass(clazz, lib.NativeType):
             return create_native_instance(clazz, call_env, node)
         else:
@@ -1147,7 +1204,6 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
         return func
     elif isinstance(func, NativeFunction):
         args, kwargs = parse_function_args(node.args.lines, env)
-        # print(args, kwargs)
         if func.name == "getcwf" or func.name == "main":
             args.append(node.file)
         result = func.call(env, args, kwargs)
@@ -1174,12 +1230,10 @@ def parse_function_args(args: list, call_env: Environment) -> (list, dict):
             elif arg.node_type == ast.UNARY_OPERATOR:
                 arg: ast.UnaryOperator
                 if arg.operation == "unpack":
-                    args_list: lib.List = evaluate(arg.value, call_env)
-                    # args_list: lib.List = call_env.get(arg.value.name, LINE_FILE)
-                    for an_arg in args_list:
-                        pos_args.append(an_arg)
+                    args_list: lib.Array = evaluate(arg.value, call_env)
+                    proceed_unpack(args_list, pos_args, (arg.line_num, arg.file), call_env)
                 elif arg.operation == "kw_unpack":
-                    args_pair: lib.List = evaluate(arg.value, call_env)
+                    args_pair: lib.Array = evaluate(arg.value, call_env)
                     for an_arg in args_pair:
                         kwargs[an_arg.literal] = args_pair[an_arg]
                 elif arg.operation == "neg" or arg.operation == "new":
@@ -1193,6 +1247,19 @@ def parse_function_args(args: list, call_env: Environment) -> (list, dict):
             pos_args.append(evaluate(arg, call_env))
 
     return pos_args, kwargs
+
+
+def proceed_unpack(args_list, pos_args, lf, call_env):
+    if isinstance(args_list, lib.Array):
+        for an_arg in args_list:
+            pos_args.append(an_arg)
+    elif isinstance(args_list, ClassInstance):
+        unpack = args_list.env.get("__unpack__", lf)
+        res = call_function([], lf, unpack, call_env)
+        proceed_unpack(res, pos_args, lf, call_env)
+    else:
+        raise lib.TypeException("Type '{}' does not support unpack operation, in file '{}', at line {}."
+                                .format(typeof(args_list), lf[1], lf[0]))
 
 
 def call_function(args: list, lf: tuple, func: Function, call_env: Environment):
@@ -1257,7 +1324,7 @@ def call_unpack(name: str, pos_args: list, index, scope: Environment, call_env: 
         lst.append(e)
         index += 1
 
-    spl_lst = lib.List(*lst, mutable=False)
+    spl_lst = lib.Array(*lst)
     scope.define_var(name, spl_lst, lf)
     return index
 
@@ -1555,6 +1622,7 @@ def native_types_call(instance: lib.NativeType, call_obj: ast.NameNode, arg_list
     args, kwargs = parse_function_args(arg_list, env)
     name = call_obj.name
     type_ = type(instance)
+    # print(type_, name)
     method = getattr(type_, name)
     params: tuple = method.__code__.co_varnames
     if "self" in params and params.index("self") == 0:
@@ -1579,9 +1647,12 @@ def native_types_attr_invoke(instance: lib.NativeType, node: ast.NameNode):
     :return:
     """
     name = node.name
-    # type_ = type(instance)
-    res = getattr(instance, name)
-    return res
+    try:
+        res = getattr(instance, name)
+        return res
+    except AttributeError:
+        raise lib.AttributeException("'{}' object has no attribute '{}', in file '{}', at line {}"
+                                     .format(instance.type_name__(), name, node.file, node.line_num))
 
 
 def self_return(node):
