@@ -1,7 +1,7 @@
 import "queue"
-//import "io"
+import "io"
 
-//system.set_out(new io.TextOutputStream("out.txt"));
+//system.set_err(new io.TextOutputStream("out.txt"));
 
 if (main()) {
     var iter = new RangeIterator(0, 8, 1);
@@ -22,3 +22,4 @@ if (main()) {
 } else {
     println("Not in main");
 }
+a=5;

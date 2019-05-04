@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "E:\GitHub\SPL\bin\spl_interpreter.py", line 81, in interpret
+    return evaluate(self.ast, self.env)
+  File "E:\GitHub\SPL\bin\spl_interpreter.py", line 1931, in evaluate
+    return tn(node, env)
+  File "E:\GitHub\SPL\bin\spl_interpreter.py", line 1681, in eval_block
+    result = evaluate(line, env)
+  File "E:\GitHub\SPL\bin\spl_interpreter.py", line 1931, in evaluate
+    return tn(node, env)
+  File "E:\GitHub\SPL\bin\spl_interpreter.py", line 1054, in eval_assignment_node
+    return assignment(key, value, env, node.level)
+  File "E:\GitHub\SPL\bin\spl_interpreter.py", line 1064, in assignment
+    env.assign(key.name, value, lf)
+  File "E:\GitHub\SPL\bin\environment.py", line 205, in assign
+    .format(key, lf[1], lf[0]))
+bin.spl_lib.NameException: Name 'a' is not defined, in 'tests/t18.sp', at line 25
+

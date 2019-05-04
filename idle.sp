@@ -5,14 +5,16 @@ import "io"
 class TextAreaOutputStream extends OutputStream {
 
     var field;
+    var tag;
 
-    function TextAreaOutputStream(text_area) {
+    function TextAreaOutputStream(text_area, tag) {
         field = text_area;
+        this.tag = tag;
     }
 
     @Override
     function write(obj) {
-        field.append_text(string(obj));
+        field.append_text(string(obj), tag);
     }
 
     @Override
@@ -75,7 +77,11 @@ class IDLE {
         output_area = new sgl.TextArea(pane);
         pane.add(output_area);
 
-        system.set_out(new TextAreaOutputStream(output_area));
+        output_area.tag('stdout');
+        output_area.tag('stderr', foreground="red");
+
+        system.set_out(new TextAreaOutputStream(output_area, 'stdout'));
+        system.set_err(new TextAreaOutputStream(output_area, 'stderr'));
 
         window.set_menu(menubar);
         window.set_root(pane);

@@ -7,6 +7,7 @@ import math
 import inspect
 import os
 import subprocess
+import traceback
 from bin.environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
     FunctionEnvironment, ClassEnvironment, ModuleEnvironment, UNDEFINED
 
@@ -1918,13 +1919,18 @@ def evaluate(node: ast.Node, env: Environment):
     """
     if env.is_terminated():
         return env.terminate_value()
-    if isinstance(node, ast.Node):
-        t = node.node_type
-        node.execution += 1
-        tn = NODE_TABLE[t]
-        return tn(node, env)
-    else:
-        return node
+    try:
+        if isinstance(node, ast.Node):
+            t = node.node_type
+            node.execution += 1
+            tn = NODE_TABLE[t]
+            return tn(node, env)
+        else:
+            return node
+    except Exception:
+        error = traceback.format_exc()
+        print_waring(env, error)
+        return -1
 
 
 # Processes before run

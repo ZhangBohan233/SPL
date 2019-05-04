@@ -33,6 +33,10 @@ abstract class Node {
     function background(color) {
         node.set_bg(color);
     }
+
+    function foreground(color) {
+        node.configure("foreground", color);
+    }
 }
 
 class Window extends Node {
@@ -132,10 +136,14 @@ class TextArea extends Node {
         Node(new Graphic("Text", parent.node));
     }
 
-    function append_text(text) {
-        node.call("insert", "end", text);
+    function append_text(text, tag="") {
+        node.call("insert", "end", text, tag);
         node.call("see", "end");
         update();
+    }
+
+    function tag(tag_name, **kwargs) {
+        node.call("tag_configure", tag_name, **kwargs);
     }
 
     function clear() {

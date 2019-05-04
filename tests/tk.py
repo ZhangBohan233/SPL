@@ -14,7 +14,12 @@ if __name__ == "__main__":
     a = tkinter.Text(frame)
     a.grid()
 
-    a.insert('end', "aaaaaaaaaaa")
+    # a.tag_add("fix", "1.2", "1.5")
+    a.tag_configure("fix", foreground="yellow")
+
+    a.insert('end', "aaaaaaaaaaa", 'fix')
+
+    a.insert('end', "333", '')
 
     print(a.get("1.0", 'end'))
 
