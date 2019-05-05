@@ -77,7 +77,12 @@ class Interpreter:
 
         :return: the exit value
         """
-        return evaluate(self.ast, self.env)
+        try:
+            return evaluate(self.ast, self.env)
+        except Exception:
+            error = traceback.format_exc()
+            print_waring(self.env, error)
+            return -1
 
 
 def parse_args(argv):
@@ -1191,6 +1196,16 @@ def make_arg_list(call: ast.FuncCall) -> (ast.Node, list):
     return call.call_obj, call.args.lines
 
 
+def eval_eval(block: ast.BlockStmt, env: Environment):
+    try:
+        res = evaluate(block, env)
+        return res
+    except Exception:
+        error = traceback.format_exc()
+        print_waring(env, error)
+        return -1
+
+
 def eval_func_call(node: ast.FuncCall, env: Environment):
     lf = node.line_num, node.file
     func = evaluate(node.call_obj, env)
@@ -1210,8 +1225,7 @@ def eval_func_call(node: ast.FuncCall, env: Environment):
         result = func.call(env, args, kwargs)
         if isinstance(result, ast.BlockStmt):
             # Special case for "eval"
-            res = evaluate(result, env)
-            return res
+            return eval_eval(result, env)
         else:
             return result
     else:
@@ -1919,18 +1933,13 @@ def evaluate(node: ast.Node, env: Environment):
     """
     if env.is_terminated():
         return env.terminate_value()
-    try:
-        if isinstance(node, ast.Node):
-            t = node.node_type
-            node.execution += 1
-            tn = NODE_TABLE[t]
-            return tn(node, env)
-        else:
-            return node
-    except Exception:
-        error = traceback.format_exc()
-        print_waring(env, error)
-        return -1
+    if isinstance(node, ast.Node):
+        t = node.node_type
+        node.execution += 1
+        tn = NODE_TABLE[t]
+        return tn(node, env)
+    else:
+        return node
 
 
 # Processes before run

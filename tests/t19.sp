@@ -19,3 +19,4 @@ try {
 } catch (e: Exception) {
     println(223);
 }
+a=5;

@@ -1,3 +1,8 @@
+********** SPL 1.6 Beta 11 **********
+===== Build 0086 2019/05/05 =====
+
+* Added the error traceback of eval()
+
 ********** SPL 1.6 Beta 10 **********
 ===== Build 0085 2019/05/04 =====
 
