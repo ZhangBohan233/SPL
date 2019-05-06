@@ -292,7 +292,7 @@ class Environment:
         v = self._inner_get(key)
         # print(key + str(v))
         if v is NULLPTR:
-            raise lib.NameException("Name '{}' is not defined, in file {}, at line {}"
+            raise lib.NameException("Name '{}' is not defined, in file '{}', at line {}"
                                     .format(key, line_file[1], line_file[0]))
         return v
 

@@ -1,6 +1,7 @@
 import namespace "math"
 import namespace "functions"
 import namespace "queue"
+import "util"
 
 /*
  * This is the doc of a single function.
@@ -179,3 +180,8 @@ println(lst instanceof List);
 println(Clazz2 subclassof Object);
 println(q instanceof lang.Iterable);
 c2.other();
+
+println(lang instanceof Module);
+
+var str = string(c2);
+util.memory_view(get_env());

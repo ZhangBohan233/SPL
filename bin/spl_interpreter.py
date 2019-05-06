@@ -124,6 +124,7 @@ def add_natives(env: Environment):
     env.add_heap("exit", NativeFunction(lib.exit_, "exit"))
     env.add_heap("help", NativeFunction(help_, "help", True))
     env.add_heap("exec", NativeFunction(exec_, "exec", True))
+    env.add_heap("id", NativeFunction(id_, "id"))
     # env.add_heap("get_class", NativeFunction(get_class, "get_class", True))
 
     # type of built-in
@@ -480,7 +481,9 @@ class ClassInstance(lib.SplObject):
 
     def __repr__(self):
         if self.env.contains_key("__repr__"):
-            return to_repr(self).literal
+            func: Function = self.env.get("__repr__", LINE_FILE)
+            result = call_function([], LINE_FILE, func, None)
+            return result.literal
         else:
             return "<{} at {}>".format(self.class_name, self.id)
 
@@ -495,7 +498,9 @@ class ClassInstance(lib.SplObject):
 
     def __str__(self):
         if self.env.contains_key("__str__"):
-            return to_str(self).literal
+            func: Function = self.env.get("__str__", LINE_FILE)
+            result = call_function([], LINE_FILE, func, None)
+            return result.literal
         else:
             attr = self.env.attributes()
             attr.pop("this")
@@ -527,18 +532,14 @@ class SPLBaseException(Exception):
 
 def to_str(v) -> lib.String:
     if isinstance(v, ClassInstance):
-        func: Function = v.env.get("__str__", LINE_FILE)
-        result = call_function([], LINE_FILE, func, None)
-        return result
+        return lib.String(str(v))
     else:
         return lib.String(v)
 
 
 def to_repr(v) -> lib.String:
     if isinstance(v, ClassInstance):
-        func: Function = v.env.get("__repr__", LINE_FILE)
-        result = call_function([], LINE_FILE, func, None)
-        return result
+        return lib.String(repr(v))
     else:
         return lib.String(v)
 
@@ -738,6 +739,10 @@ def exec_(env: Environment, *args):
     else:
         line = " ".join(str(x) for x in args)
         return _exec_line(line, path)
+
+
+def id_(obj: lib.SplObject):
+    return obj.id
 
 
 def help_(env: Environment, obj=None):
@@ -960,7 +965,7 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
                             if not is_subclass_of(catching_exception, spl_base_exception, block_scope):
                                 raise lib.TypeException(
                                     "Catching exception must derive from 'Exception', in file '{}', at line {}"
-                                    .format(line.file, line.line_num))
+                                        .format(line.file, line.line_num))
                             if is_subclass_of(exception_class, catching_exception, block_scope):
                                 result = evaluate(cat.then, block_scope)
                                 return result
@@ -1501,8 +1506,12 @@ RAW_TYPE_COMPARISON_TABLE = {
     "===": lambda left, right: left is right,
     "is": lambda left, right: left is right,
     "!==": lambda left, right: left is not right,
-    "instanceof": lambda left, right: False,
+    "instanceof": lambda left, right: raw_type_instanceof(left, right),
 }
+
+
+def raw_type_instanceof(left, right):
+    return isinstance(right, type) and isinstance(left, right)
 
 
 def raw_type_comparison(left, right, symbol):

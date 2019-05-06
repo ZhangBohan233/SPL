@@ -5,6 +5,7 @@ class MemoryViewer {
     var base_env;
     var window;
     var tree;
+    var id_set = set();
 
     function MemoryViewer(env) {
         base_env = env;
@@ -12,7 +13,7 @@ class MemoryViewer {
         tree = new sgl.TreeView(window);
         tree.set_height(30);
         tree.columns(4);
-        tree.column_width(2, 300);
+        tree.column_width(2, 400);
         tree.column_heading(0, "Name");
         tree.column_heading(1, "Type");
         tree.column_heading(2, "Content");
@@ -21,6 +22,15 @@ class MemoryViewer {
     }
 
     function browse(name, obj, parent) {
+        if (obj instanceof Object) {
+            var obj_id = id(obj);
+            if (id_set.contains(obj_id)) {
+                append(name, obj, parent, "duplicate");
+                return;
+            } else {
+                id_set.add(obj_id);
+            }
+        }
         var child = append(name, obj, parent);
         if (obj instanceof EnvWrapper) {
             for (var attr; obj.attributes()) {
@@ -36,8 +46,8 @@ class MemoryViewer {
         }
     }
 
-    function append(name, obj, parent) {
-        return tree.add_item(name, ~[type(obj), string(obj)], parent)
+    function append(name, obj, parent, note="") {
+        return tree.add_item(name, ~[type(obj), string(obj), note], parent)
     }
 
     function show() {

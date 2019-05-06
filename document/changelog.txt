@@ -1,3 +1,13 @@
+********** SPL 1.6 Beta 12 **********
+===== Build 0087 2019/05/06 =====
+
+* New built-in function:
+    * id()
+* Bug fixes:
+    * instanceof not work for python types
+    * string() not work for classes with __str__ not defined
+    * memory_view() recurse infinitely to circular references
+
 ********** SPL 1.6 Beta 11 **********
 ===== Build 0086 2019/05/05 =====
 

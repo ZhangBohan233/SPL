@@ -268,13 +268,6 @@ class InDecrementOperator(Expr):
             return self.operation + "pre"
 
 
-# class TypeNode(BinaryExpr):
-#     def __init__(self, line):
-#         BinaryExpr.__init__(self, line, ":")
-#
-#         self.node_type = TYPE_NODE
-
-
 class BreakStmt(LeafNode):
     def __init__(self, line):
         LeafNode.__init__(self, line)
@@ -458,23 +451,6 @@ class ClassStmt(Node):
 
     def __repr__(self):
         return ("abstract " if self.abstract else "") + "class " + self.class_name
-
-
-# class ClassInit(UnaryOperator):
-#     # class_name: str = None
-#     # args: BlockStmt = None
-#
-#     def __init__(self, line):
-#         UnaryOperator.__init__(self, line, "new")
-
-    # def __str__(self):
-    #     if self.args:
-    #         return "ClassInit {}({})".format(self.class_name, self.args)
-    #     else:
-    #         return "ClassInit {}".format(self.class_name)
-
-    # def __repr__(self):
-    #     return self.__str__()
 
 
 class Dot(BinaryOperator):
