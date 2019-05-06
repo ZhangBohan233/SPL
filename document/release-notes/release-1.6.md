@@ -28,21 +28,27 @@ Release date: 2019/05/XX
 
 #### New Native Functions:
 * `exec()`
+* `get_env()`
+* `id()`
 
 #### Library Updates:
 * New library `lang.sp`, containing the most commonly used spl classes.
 This library will be automatically imported unless the flag `-ni` is 
 applied
-* New Library: SPL Graphics Library `sgl.sp`
+* New library: SPL Graphics Library `sgl.sp`
+* New library: `util.sp`
 * Updated `unittest.sp`: added annotations `@RunBefore` and `@RunAfter`
 * Implemented `List` in SPL, in `lang.sp`
 
 #### Functional Updates:
 * `system.stdin`, `system.stdout`, `system.stderr` now takes SPL 
 `LineInputStream/OutputStream` objects, and can be set via SPL codes
+* Errors are now print to `system.stderr`
 * `Instance.clazz` attribute records the `Class` of it
 * `*args` is now an array
 * More runtime type check
+* All classes with `__unpack__` defined can be used by unpack operator
+`*`
 
 #### Console Updates:
 * A blank line will now break the continue line `...` in console
@@ -55,6 +61,7 @@ applied
 ## New Tools:
 * SPL abstract syntax tree visualizer
 * SPL IDLE
+* Memory viewer
 
 ## Optimizations:
 * SPL interpreter file structure optimization: Moved dependencies

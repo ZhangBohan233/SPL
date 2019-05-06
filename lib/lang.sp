@@ -89,7 +89,16 @@ abstract class InputStream {
     abstract function close();
 }
 
+/*
+ * Abstract class of lined input stream.
+ *
+ * All classes extends this must implement <readline>
+ */
 abstract class LineInputStream extends InputStream {
+
+    /*
+     * Returns the next line.
+     */
     abstract function readline();
 }
 
@@ -257,6 +266,9 @@ class List extends Iterable {
 }
 
 
+/*
+ * Returns a new <List> instance, with initial elements *args
+ */
 function list(*args) {
     return new List(*args);
 }
