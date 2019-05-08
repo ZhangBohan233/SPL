@@ -22,6 +22,7 @@ ALL = set().union(SYMBOLS) \
 RESERVED = {"class", "function", "def", "if", "else", "new", "extends", "return", "break", "continue",
             "true", "false", "null", "operator", "while", "for", "import", "namespace", "throw", "try", "catch",
             "finally", "abstract", "const", "var", "assert", "as"}
+RESERVED_FOR_BRACE = {"return"}
 LAZY = {"&&", "||", "and", "or"}
 OMITS = {"\n", "\r", "\t", " "}
 OP_EQ = {"+", "-", "*", "/", "%", "&", "^", "|", "<<", ">>"}

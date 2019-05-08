@@ -326,9 +326,9 @@ class NativeInvokes(lib.NativeType):
         :return: the joined string
         """
         if isinstance(itr, lib.Iterable):
-            return lib.String(s.literal.join([x.text() for x in itr]))
+            return lib.String(s.literal.join([x.literal for x in itr]))
         else:
-            raise lib.TypeException("Object is not a native-iterable object.")
+            raise lib.TypeException("Object '{}': {} is not a native-iterable object.".format(typeof(itr), itr))
 
     @staticmethod
     def thread(env: Environment, target: Function, args: lib.Array):
@@ -932,9 +932,9 @@ def iterate(iterable, invariant, node, title_scope, block_scope, env, lf):
         # env.broken = False
         return result
     elif isinstance(iterable, ClassInstance):
-        if is_subclass_of(iterable.clazz, env.get_class("Iterator"), title_scope):
+        if is_subclass_of(iterable.clazz, env.get_class("Iterator")):
             return loop_spl_iterator(iterable, invariant, node.body, title_scope, block_scope, lf)
-        elif is_subclass_of(iterable.clazz, env.get_class("Iterable"), title_scope):
+        elif is_subclass_of(iterable.clazz, env.get_class("Iterable")):
             iter_func = iterable.env.get("__iter__", lf)
             iterator: ClassInstance = call_function([], lf, iter_func, title_scope)
             return iterate(iterator, invariant, node, title_scope, block_scope, env, lf)
@@ -962,11 +962,11 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
                     try:
                         catching_exception = evaluate(line.right, env)
                         if isinstance(catching_exception, Class):  # Catching the spl exception
-                            if not is_subclass_of(catching_exception, spl_base_exception, block_scope):
+                            if not is_subclass_of(catching_exception, spl_base_exception):
                                 raise lib.TypeException(
                                     "Catching exception must derive from 'Exception', in file '{}', at line {}"
                                         .format(line.file, line.line_num))
-                            if is_subclass_of(exception_class, catching_exception, block_scope):
+                            if is_subclass_of(exception_class, catching_exception):
                                 result = evaluate(cat.then, block_scope)
                                 return result
                     except lib.NameException:
@@ -1003,20 +1003,19 @@ def eval_try_catch(node: ast.TryStmt, env: Environment):
             return evaluate(node.finally_block, block_scope)
 
 
-def is_subclass_of(child_class: Class, target_class: Class, env: Environment) -> bool:
+def is_subclass_of(child_class: Class, target_class: Class) -> bool:
     """
     Returns whether the child class is the ancestor class itself or inherited from that class.
 
     :param child_class: the child class to be check
     :param target_class: the ancestor class
-    :param env: the environment, doesn't matter whether it is global or not
     :return: whether the child class is the ancestor class itself or inherited from that class
     """
     if isinstance(child_class, Class):
         if child_class is target_class:
             return True
         else:
-            return any([is_subclass_of(ccn, target_class, env) for ccn in child_class.superclasses])
+            return any([is_subclass_of(ccn, target_class) for ccn in child_class.superclasses])
     else:
         return False
 
@@ -1244,6 +1243,7 @@ def parse_function_args(args: list, call_env: Environment) -> (list, dict):
 
     for arg in args:
         if isinstance(arg, ast.Node):
+            lf = arg.line_num, arg.file
             if arg.node_type == ast.ASSIGNMENT_NODE:
                 arg: ast.AssignmentNode
                 kwargs[arg.left.name] = evaluate(arg.right, call_env)
@@ -1251,11 +1251,10 @@ def parse_function_args(args: list, call_env: Environment) -> (list, dict):
                 arg: ast.UnaryOperator
                 if arg.operation == "unpack":
                     args_list: lib.Array = evaluate(arg.value, call_env)
-                    proceed_unpack(args_list, pos_args, (arg.line_num, arg.file), call_env)
+                    proceed_unpack(args_list, pos_args, lf, call_env)
                 elif arg.operation == "kw_unpack":
-                    args_pair: lib.Array = evaluate(arg.value, call_env)
-                    for an_arg in args_pair:
-                        kwargs[an_arg.literal] = args_pair[an_arg]
+                    args_pair: lib.Pair = evaluate(arg.value, call_env)
+                    proceed_kw_unpack(args_pair, kwargs, lf, call_env)
                 elif arg.operation == "neg" or arg.operation == "new":
                     pos_args.append(evaluate(arg, call_env))
                 else:
@@ -1280,6 +1279,20 @@ def proceed_unpack(args_list, pos_args, lf, call_env):
     else:
         raise lib.TypeException("Type '{}' does not support unpack operation, in file '{}', at line {}."
                                 .format(typeof(args_list), lf[1], lf[0]))
+
+
+def proceed_kw_unpack(args_pair, kwargs: dict, lf, call_env):
+    # print(args_pair)
+    if isinstance(args_pair, lib.Pair):
+        for an_arg in args_pair:
+            kwargs[an_arg.literal] = args_pair[an_arg]
+    elif isinstance(args_pair, ClassInstance):
+        kwu = args_pair.env.get("__kw_unpack__", lf)
+        res = call_function([], lf, kwu, call_env)
+        proceed_kw_unpack(res, kwargs, lf, call_env)
+    else:
+        raise lib.TypeException("Type '{}' does not support keyword unpack operation, in file '{}', at line {}."
+                                .format(typeof(args_pair), lf[1], lf[0]))
 
 
 def call_function(args: list, lf: tuple, func: Function, call_env: Environment):
@@ -1367,8 +1380,6 @@ def eval_dot(node: ast.Dot, env: Environment):
     # print(node.left)
     if t == ast.NAME_NODE:
         obj: ast.NameNode
-        # if obj.name == "this":
-        #     raise lib.UnauthorizedException("Access 'this' from outside")
         if isinstance(instance, lib.NativeType):
             return native_types_attr_invoke(instance, obj)
         elif isinstance(instance, ClassInstance) or isinstance(instance, Module):
@@ -1431,7 +1442,7 @@ def class_arithmetic(left: Class, right, symbol, env: Environment, right_node):
         return not isinstance(right, Class) or left.id != right.id
     elif symbol == "subclassof":
         if isinstance(right, Class):
-            return is_subclass_of(left, right, env)
+            return is_subclass_of(left, right)
         else:
             return False
     elif symbol == "instanceof":
@@ -1447,7 +1458,7 @@ def instance_arithmetic(left: ClassInstance, right, symbol, env: Environment):
         return not isinstance(right, ClassInstance) or left.id != right.id
     elif symbol == "instanceof":
         if isinstance(right, Class):
-            return is_subclass_of(env.get_class(left.class_name), right, env)
+            return is_subclass_of(env.get_class(left.class_name), right)
         else:
             return False
     else:
@@ -1900,7 +1911,7 @@ def eval_import_node(node: ast.ImportNode, env: Environment):
 
 
 def raise_exception(e: SPLBaseException, env: Environment):
-    if not is_subclass_of(env.get_class(e.exception.class_name), env.get_class("Exception"), env):
+    if not is_subclass_of(env.get_class(e.exception.class_name), env.get_class("Exception")):
         raise lib.TypeException("Type '{}' is not throwable".format(e.exception.class_name))
     raise e
 

@@ -36,7 +36,9 @@ Release date: 2019/05/XX
 This library will be automatically imported unless the flag `-ni` is 
 applied
 * New library: SPL Graphics Library `sgl.sp`
+* New library: JavaScript Object Notation support: `json.sp`
 * New library: `util.sp`
+* Merged `string_builder.sp` into `util.sp`
 * Updated `unittest.sp`: added annotations `@RunBefore` and `@RunAfter`
 * Implemented `List` in SPL, in `lang.sp`
 

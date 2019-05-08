@@ -19,12 +19,10 @@ class Parser:
         func_count = 0
         par_count = 0  # count of parenthesis
         square_count = 0  # count of square bracket
-        # get_count = 0  # count of getitem
         cond_nest_list = []
         call_nest_list = []
         param_nest_list = []
         square_nest_list = []
-        # get_nest_list = []
         is_abstract = False
         is_extending = False
         var_level = ast.ASSIGN
@@ -83,8 +81,7 @@ class Parser:
                         last_token = self.tokens[i - 1]
                         if isinstance(last_token, stl.IdToken) and \
                                 (last_token.symbol == ")" or  # is a function
-                                 last_token.symbol.isidentifier() or  # is a class
-                                 is_dot_identifier(last_token.symbol)):  # is a dotted import
+                                 is_identifier_before_block(last_token.symbol)):  # is a class or a dotted import
                             parser.new_block()
                         else:
                             parser.add_dict()
@@ -331,8 +328,10 @@ def is_call(last_token: stl.Token) -> bool:
     return False
 
 
-def is_dot_identifier(s: str) -> bool:
-    if s.isidentifier():
+def is_identifier_before_block(s: str) -> bool:
+    if s in stl.RESERVED_FOR_BRACE:
+        return False
+    elif s.isidentifier():
         return True
     else:
         if len(s) > 0 and s[0] != "." and s[-1] != ".":

@@ -184,7 +184,7 @@ class List extends Iterable {
     }
 
     function __unpack__() {
-        return __iter__();
+        return to_array();
     }
 
     function append(v) {

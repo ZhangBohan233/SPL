@@ -172,7 +172,7 @@ class Environment:
     def define_function(self, key, value, lf, annotations: lib.Set):
         if not annotations.contains(lib.String("Override")) and \
                 not annotations.contains(lib.String("Suppress")) and \
-                key[0].islower() and self.contains_key(key):
+                key[0].islower() and self._local_contains(key):
             lib.compile_time_warning("Warning: re-declaring method '{}' in '{}', at line {}".format(key, lf[1], lf[0]))
         self.variables[key] = value
 
