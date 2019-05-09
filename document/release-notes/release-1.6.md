@@ -1,6 +1,6 @@
 # SPL 1.6 Release
 
-Release date: 2019/05/XX
+Release date: 2019/05/08
 
 ## New Features
 
@@ -50,7 +50,9 @@ applied
 * `*args` is now an array
 * More runtime type check
 * All classes with `__unpack__` defined can be used by unpack operator
-`*`
+`*`, `__kw_unpack__` for keyword unpack operator `**`
+* Provided a python native way to throw an exception defined in 
+`lang.sp`
 
 #### Console Updates:
 * A blank line will now break the continue line `...` in console

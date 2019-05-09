@@ -17,7 +17,21 @@ if __name__ == "__main__":
 
     lex2.setup(script.get_spl_path(), "console", script.get_spl_path(), import_lang=True)
     itr = spl_interpreter.Interpreter([], os.getcwd(), "utf8", (sys.stdin, sys.stdout, sys.stderr))
+
+    # Makes the interpreter import the "lang.sp"
+    lex2.tokenize([])
+    parser_ = psr.Parser(lex2.get_tokens())
+    block = parser_.parse()
+    itr.set_ast(block)
+    itr.interpret()
     lines = []
+
+    lex2.import_lang = False
+
+    def error_handler(e2):
+        raise e2
+
+    itr.set_error_handler(error_handler)
 
     while True:
         if line_terminated:
@@ -27,8 +41,6 @@ if __name__ == "__main__":
         lines.append(line)
 
         try:
-            if lex2.import_lang:
-                lex2.import_lang = False
             lex2.tokenize(lines)
 
             parser_ = psr.Parser(lex2.get_tokens())

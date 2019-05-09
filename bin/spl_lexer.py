@@ -61,6 +61,7 @@ class Tokenizer:
             self.tokens += [stl.IdToken(LINE_FILE, "import"), stl.IdToken(LINE_FILE, "namespace"),
                             stl.LiteralToken(LINE_FILE, "lang")]
             self.find_import(0, 3)
+
         if isinstance(source, list):
             self.tokenize_text(source)
         else:

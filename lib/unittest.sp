@@ -28,7 +28,7 @@ function testall() {
     var passed = total - fail_num;
     println("Test %s. Passed: %d out of %d".format(result, passed, total));
     for (var failure; failed) {
-        println("%s: %r".format(failure, failed[failure]), system.stderr);
+        println("%s: %r".format(failure, failed[failure].message), system.stderr);
     }
 }
 
@@ -52,4 +52,10 @@ function get_all_tests() {
         }
     }
     return ~[run_before, run_after, functions];
+}
+
+function assert_equals(actual, expected) {
+    if (actual != expected) {
+        throw new AssertionException("Assertion failed. Expected %r, got %r".format(expected, actual));
+    }
 }

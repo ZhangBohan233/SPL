@@ -701,11 +701,6 @@ class StringFormatException(SplException):
         SplException.__init__(self, msg)
 
 
-class AssertionException(SplException):
-    def __init__(self, msg=""):
-        SplException.__init__(self, msg)
-
-
 def exit_(code=0):
     """
     Exits the current process.

@@ -324,12 +324,12 @@ class Environment:
 
 
 class MainAbstractEnvironment(Environment):
-    namespace: list
+    namespaces: set
 
     def __init__(self, scope_type, outer):
         Environment.__init__(self, scope_type, outer)
 
-        self.namespace = []
+        self.namespaces = set()
 
     def is_global(self):
         raise NotImplementedError
@@ -347,10 +347,10 @@ class MainAbstractEnvironment(Environment):
         raise NotImplementedError
 
     def add_namespace(self, namespace: Environment):
-        self.namespace.append(namespace)
+        self.namespaces.add(namespace)
 
     def search_namespace(self, key: str):
-        for ns in self.namespace:
+        for ns in self.namespaces:
             if key in ns.constants:
                 return ns.constants[key]
             if key in ns.variables:
@@ -361,7 +361,7 @@ class MainAbstractEnvironment(Environment):
             return NULLPTR
 
     def assign_namespace(self, key: str, value):
-        for ns in self.namespace:
+        for ns in self.namespaces:
             if key in ns.variables:
                 ns.variables[key] = value
                 return True

@@ -1,3 +1,15 @@
+import "util"
+import namespace "user.sp"
 
-import namespace "u3.sp"
-import "u2.sp"
+class Clazz {
+    function Clazz() {
+        println(map);
+        println(c);
+    }
+}
+
+println(functions.map);
+
+new Clazz();
+
+util.memory_view(get_env());

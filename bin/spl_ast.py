@@ -97,7 +97,7 @@ class BlockStmt(Node):
         self.node_type = BLOCK_STMT
         self.lines = []
 
-    def add_line(self, node: Node):
+    def add_line(self, node):
         self.lines.append(node)
 
     def __str__(self):
@@ -1092,7 +1092,7 @@ def parse_expr(lst):
             is_post = True
             if index < len(lst) - 1:
                 node = lst[index + 1]
-                if isinstance(node, NameNode) or isinstance(node, Dot) or isinstance(node, Expr):
+                if isinstance(node, NameNode) or isinstance(node, Dot):
                     is_post = False
             operator.is_post = is_post
             if is_post:

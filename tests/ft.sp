@@ -184,4 +184,6 @@ c2.other();
 println(lang instanceof Module);
 
 var str = string(c2);
+println(map(function (x) {x + 1}, [1, 2, 3]));
+
 util.memory_view(get_env());

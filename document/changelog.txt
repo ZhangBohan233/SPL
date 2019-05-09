@@ -1,3 +1,12 @@
+********** SPL 1.6 Release **********
+===== Build 0090 2019/05/08 =====
+
+* Provided a native way to throw an exception defined in lang.sp
+* Importing a namespace will now imports all namespaces of the imported namespace
+* Bug fixes:
+    * Increment/Decrement operator identification
+    * Console did not import 'lang.sp'
+
 ********** SPL 1.6 Release Candidate 2 **********
 ===== Build 0089 2019/05/07 =====
 

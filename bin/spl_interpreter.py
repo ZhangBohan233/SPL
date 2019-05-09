@@ -43,6 +43,7 @@ class Interpreter:
         self.env = GlobalEnvironment()
         self.env.scope_name = "Global"
         self.set_up_env()
+        self.handler = self.default_handler
 
     def set_up_env(self):
         """
@@ -71,6 +72,14 @@ class Interpreter:
         """
         self.ast = ast_
 
+    def set_error_handler(self, handler):
+        self.handler = handler
+
+    def default_handler(self, e):
+        error = traceback.format_exc()
+        print_waring(self.env, error)
+        return -1
+
     def interpret(self):
         """
         Starts the interpretation.
@@ -79,10 +88,8 @@ class Interpreter:
         """
         try:
             return evaluate(self.ast, self.env)
-        except Exception:
-            error = traceback.format_exc()
-            print_waring(self.env, error)
-            return -1
+        except Exception as e:
+            return self.handler(e)
 
 
 def parse_args(argv):
@@ -1805,13 +1812,39 @@ def eval_jump(node, env: Environment):
 def eval_assert(node: ast.Node, env: Environment):
     result = evaluate(node, env)
     if result is not True:
-        raise lib.AssertionException("Assertion failed on expression '{}', in file '{}', at line {}"
-                                     .format(node, node.file, node.line_num))
+        lf = node.line_num, node.file
+        throw_spl_exception("AssertionException", lf, env, [
+            lib.String("Assertion failed on expression '{}', in file '{}', at line {}"
+                       .format(node, node.file, node.line_num))
+        ])
+
+
+def throw_spl_exception(name: str, lf, call_env: Environment, args: list = None):
+    """
+    Throws an exception defined in spl 'lib/lang.sp'
+
+    :param name: the exception name
+    :param lf: the line-file
+    :param call_env: calling environment
+    :param args: argument list, None if not calling constructor
+    :return:
+    """
+    exception_class: Class = call_env.get_class(name)
+    if args is None:
+        instance = create_instance(exception_class, exception_class.outer_env, call_env)
+    else:
+        call = ast.FuncCall(lf, ast.NameNode(lf, exception_class))
+        call.args = ast.BlockStmt(lf)
+        call.args.lines = args
+        instance = create_instance(exception_class, exception_class.outer_env, call_env, call)
+    raise_exception(SPLBaseException(instance), call_env)
 
 
 def eval_namespace(node: ast.Node, env: Environment):
     module: Module = evaluate(node, env)
     env.add_namespace(module.env)
+    for ns in module.env.namespaces:
+        env.add_namespace(ns)
 
 
 UNARY_TABLE = {

@@ -14,6 +14,16 @@ class Exception {
 
 
 /*
+ * Exception of assertion failed.
+ */
+class AssertionException extends Exception {
+    function AssertionException(msg="") {
+        Exception(msg);
+    }
+}
+
+
+/*
  * A superclass of all iterator classes.
  */
 abstract class Iterator {
