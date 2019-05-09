@@ -1,6 +1,4 @@
-import "functions"
-import "exception"
-import "iterator"
+import namespace "functions"
 
 
 const E = 2.718281828459045;

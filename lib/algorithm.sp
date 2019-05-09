@@ -58,10 +58,10 @@ function merge_sort(lst) {
  * Returns a list with length <length> containing random integers in range [min, max].
  */
 function rand_list(length, min, max) {
-    var lst = list();
+    var lst = [];
     var r = max - min;
     for (var i = 0; i < length; i += 1) {
-        var x = random() * r + min;
+        var x = math.random() * r + min;
         var xi = int(x);
         lst.append(xi);
     }

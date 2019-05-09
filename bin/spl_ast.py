@@ -1,14 +1,14 @@
-import spl_token_lib as stl
+from bin import spl_token_lib as stl
 
 PRECEDENCE = {"+": 50, "-": 50, "*": 100, "/": 100, "%": 100,
               "==": 20, ">": 25, "<": 25, ">=": 25, "<=": 25,
               "!=": 20, "&&": 5, "and": 5, "||": 5, "or": 5, "&": 12, "^": 11, "|": 10,
-              "<<": 40, ">>": 40, "unpack": 200, "kw_unpack": 200,
-              ".": 500, "!": 200, "neg": 200, "return": 1, "throw": 1,
+              "<<": 40, ">>": 40, "unpack": 200, "kw_unpack": 200, "new": 150,
+              ".": 500, "!": 200, "neg": 200, "return": 1, "throw": 1, "namespace": 150,
               "=": 2, "+=": 2, "-=": 2, "*=": 2, "/=": 2, "%=": 2,
               "&=": 2, "^=": 2, "|=": 2, "<<=": 2, ">>=": 2, "=>": 500,
-              "===": 20, "is": 20, "!==": 20, "instanceof": 25, "assert": 1,
-              "?": 3, "++": 300, "--": 300}
+              "===": 20, "is": 20, "!==": 20, "instanceof": 25, "subclassof": 25, "assert": 1,
+              "?": 3, "++": 300, "--": 300, ":": 2}
 
 MULTIPLIER = 1000
 
@@ -19,7 +19,7 @@ BREAK_STMT = 7
 CONTINUE_STMT = 8
 ASSIGNMENT_NODE = 9
 DOT = 10
-OPERATOR_NODE = 12
+BINARY_OPERATOR = 12
 UNARY_OPERATOR = 14
 TERNARY_OPERATOR = 15
 BLOCK_STMT = 16
@@ -29,15 +29,16 @@ FOR_LOOP_STMT = 19
 DEF_STMT = 20
 FUNCTION_CALL = 21
 CLASS_STMT = 22
-CLASS_INIT = 23
+# CLASS_INIT = 23
 ABSTRACT = 25
 TRY_STMT = 27
 CATCH_STMT = 28
-TYPE_NODE = 29
+# TYPE_NODE = 29
 JUMP_NODE = 30
 UNDEFINED_NODE = 31
 IN_DECREMENT_OPERATOR = 32
 INDEXING_NODE = 33
+IMPORT_NODE = 34
 
 # Variable levels
 ASSIGN = 0
@@ -86,6 +87,32 @@ class Expr(Node):
         Node.__init__(self, line)
 
 
+class BlockStmt(Node):
+    lines: list = None
+    standalone = False
+
+    def __init__(self, line):
+        Node.__init__(self, line)
+
+        self.node_type = BLOCK_STMT
+        self.lines = []
+
+    def add_line(self, node):
+        self.lines.append(node)
+
+    def __str__(self):
+        s = "\n" + " " * SPACES.get() + "{"
+        SPACES.add_space()
+        for line in self.lines:
+            s += "\n" + " " * SPACES.get() + str(line)
+        SPACES.remove_space()
+        s += "\n" + " " * SPACES.get() + "}"
+        return s
+
+    def __repr__(self):
+        return "BlockStmt"
+
+
 class BinaryExpr(Expr):
     """
     :type operation: str
@@ -107,7 +134,7 @@ class BinaryExpr(Expr):
         return "BE({} {} {})".format(self.left, self.operation, self.right)
 
     def __repr__(self):
-        return self.__str__()
+        return "BE'{}'".format(self.operation)
 
 
 class LiteralNode(LeafNode):
@@ -156,16 +183,16 @@ class TernaryOperator(Expr):
         return "TE({} {} {} {} {})".format(self.left, self.first_op, self.mid, self.second_op, self.right)
 
     def __repr__(self):
-        return self.__str__()
+        return "TE'{} {}'".format(self.first_op, self.second_op)
 
 
-class OperatorNode(BinaryExpr):
+class BinaryOperator(BinaryExpr):
     assignment = False
 
     def __init__(self, line, op):
         BinaryExpr.__init__(self, line, op)
 
-        self.node_type = OPERATOR_NODE
+        self.node_type = BINARY_OPERATOR
 
 
 class UnaryOperator(Expr):
@@ -185,11 +212,11 @@ class UnaryOperator(Expr):
         return "UE({} {})".format(self.operation, self.value)
 
     def __repr__(self):
-        return self.__str__()
+        return "UE'{}'".format(self.operation)
 
 
 class NameNode(LeafNode):
-    name = None
+    name: str = None
 
     def __init__(self, line, n):
         LeafNode.__init__(self, line)
@@ -201,7 +228,7 @@ class NameNode(LeafNode):
         return "N(" + self.name + ")"
 
     def __repr__(self):
-        return self.__str__()
+        return self.name
 
 
 class AssignmentNode(BinaryExpr):
@@ -216,7 +243,7 @@ class AssignmentNode(BinaryExpr):
 
 class InDecrementOperator(Expr):
     operation: str
-    is_post: bool  # if is_post: i++
+    is_post: bool = True  # if is_post: i++
     value = None
 
     def __init__(self, lf, operation):
@@ -235,14 +262,10 @@ class InDecrementOperator(Expr):
             return self.operation + str(self.value)
 
     def __repr__(self):
-        return self.__str__()
-
-
-class TypeNode(BinaryExpr):
-    def __init__(self, line):
-        BinaryExpr.__init__(self, line, ".")
-
-        self.node_type = TYPE_NODE
+        if self.is_post:
+            return "post" + self.operation
+        else:
+            return self.operation + "pre"
 
 
 class BreakStmt(LeafNode):
@@ -271,32 +294,6 @@ class ContinueStmt(LeafNode):
         return self.__str__()
 
 
-class BlockStmt(Node):
-    lines: list = None
-    standalone = False
-
-    def __init__(self, line):
-        Node.__init__(self, line)
-
-        self.node_type = BLOCK_STMT
-        self.lines = []
-
-    def add_line(self, node: Node):
-        self.lines.append(node)
-
-    def __str__(self):
-        s = "\n" + " " * SPACES.get() + "{"
-        SPACES.add_space()
-        for line in self.lines:
-            s += "\n" + " " * SPACES.get() + str(line)
-        SPACES.remove_space()
-        s += "\n" + " " * SPACES.get() + "}"
-        return s
-
-    def __repr__(self):
-        return self.__str__()
-
-
 class CondStmt(Node):
     condition = None
 
@@ -318,7 +315,7 @@ class IfStmt(CondStmt):
         return "if({} then {} else[{}] {})".format(self.condition, self.then_block, self.has_else, self.else_block)
 
     def __repr__(self):
-        return self.__str__()
+        return "If-else Stmt"
 
 
 class WhileStmt(CondStmt):
@@ -333,7 +330,7 @@ class WhileStmt(CondStmt):
         return "while({} do {})".format(self.condition, self.body)
 
     def __repr__(self):
-        return self.__str__()
+        return "WhileStmt"
 
 
 class ForLoopStmt(CondStmt):
@@ -348,7 +345,7 @@ class ForLoopStmt(CondStmt):
         return "for ({}) do {}".format(self.condition, self.body)
 
     def __repr__(self):
-        return self.__str__()
+        return "ForLoopStmt"
 
 
 class DefStmt(TitleNode):
@@ -371,15 +368,15 @@ class DefStmt(TitleNode):
         return "func(({}) -> {})".format(self.params, self.body)
 
     def __repr__(self):
-        return self.__str__()
+        return ("abstract " if self.abstract else "") + "function"
 
 
-class FuncCall(LeafNode):
+class FuncCall(Node):
     call_obj = None
     args: BlockStmt = None
 
     def __init__(self, line, call_obj):
-        LeafNode.__init__(self, line)
+        Node.__init__(self, line)
 
         self.node_type = FUNCTION_CALL
         self.call_obj = call_obj
@@ -388,7 +385,7 @@ class FuncCall(LeafNode):
         return "call:[{}({})]".format(self.call_obj, self.args)
 
     def __repr__(self):
-        return self.__str__()
+        return "Call"
 
     def fulfilled(self):
         return self.args is not None
@@ -408,15 +405,34 @@ class IndexingNode(Node):
         return "{}[{}]".format(self.call_obj, self.arg)
 
     def __repr__(self):
-        return self.__str__()
+        return "indexing"
 
     def fulfilled(self):
         return self.arg is not None
 
 
+class ImportNode(Node):
+    import_name: str
+    path: str
+    block: BlockStmt = None
+
+    def __init__(self, line, name, path):
+        Node.__init__(self, line)
+
+        self.import_name = name
+        self.path = path
+        self.node_type = IMPORT_NODE
+
+    def __str__(self):
+        return "import {}: {}".format(self.import_name, self.block)
+
+    def __repr__(self):
+        return "import {}".format(self.import_name)
+
+
 class ClassStmt(Node):
     class_name: str = None
-    superclass_names: list = None
+    superclass_nodes: list
     block: BlockStmt = None
     abstract: bool = False
     doc: str
@@ -428,38 +444,18 @@ class ClassStmt(Node):
         self.class_name = name
         self.abstract = abstract
         self.doc = class_doc
-        self.superclass_names = ["Object"]
+        self.superclass_nodes = [NameNode(line, "Object")]
 
     def __str__(self):
         return "Class {}: {}".format(self.class_name, self.block)
 
     def __repr__(self):
-        return self.__str__()
+        return ("abstract " if self.abstract else "") + "class " + self.class_name
 
 
-class ClassInit(LeafNode):
-    class_name = None
-    args: BlockStmt = None
-
-    def __init__(self, line, name):
-        LeafNode.__init__(self, line)
-
-        self.node_type = CLASS_INIT
-        self.class_name = name
-
-    def __str__(self):
-        if self.args:
-            return "ClassInit {}({})".format(self.class_name, self.args)
-        else:
-            return "ClassInit {}".format(self.class_name)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class Dot(OperatorNode):
+class Dot(BinaryOperator):
     def __init__(self, line):
-        OperatorNode.__init__(self, line, ".")
+        BinaryOperator.__init__(self, line, ".")
 
         self.node_type = DOT
 
@@ -467,7 +463,7 @@ class Dot(OperatorNode):
         return "({} dot {})".format(self.left, self.right)
 
     def __repr__(self):
-        return self.__str__()
+        return "."
 
 
 class CatchStmt(CondStmt):
@@ -482,7 +478,7 @@ class CatchStmt(CondStmt):
         return "catch ({}) {}".format(self.condition, self.then)
 
     def __repr__(self):
-        return self.__str__()
+        return "CatchStmt"
 
 
 class TryStmt(Node):
@@ -501,7 +497,7 @@ class TryStmt(Node):
             .format(self.try_block, self.catch_blocks, self.finally_block)
 
     def __repr__(self):
-        return self.__str__()
+        return "TryStmt"
 
 
 class JumpNode(Node):
@@ -546,11 +542,12 @@ class AbstractSyntaxTree:
         self.inner = None
         self.in_expr = False
         self.in_ternary = False
-        # self.in_get = False
-        # self.in_cond = False
 
     def __str__(self):
         return str(self.elements)
+
+    def invalidate_inner(self):
+        self.inner = None
 
     def get_active(self):
         if self.inner:
@@ -590,7 +587,7 @@ class AbstractSyntaxTree:
             self.inner.add_operator(line, op, assignment)
         else:
             self.in_expr = True
-            op_node = OperatorNode(line, op)
+            op_node = BinaryOperator(line, op)
             op_node.assignment = assignment
             self.stack.append(op_node)
 
@@ -642,14 +639,22 @@ class AbstractSyntaxTree:
             node = UndefinedNode(line)
             self.stack.append(node)
 
-    def add_type(self, line):
+    # def add_type(self, line):
+    #     if self.inner:
+    #         self.inner.add_type(line)
+    #     else:
+    #         print(123123)
+    #         name = self.stack.pop()
+    #         tp_node = TypeNode(line)
+    #         tp_node.left = name
+    #         self.stack.append(tp_node)
+
+    def add_import(self, line, import_name, path):
         if self.inner:
-            self.inner.add_type(line)
+            self.inner.add_import(line, import_name, path)
         else:
-            name = self.stack.pop()
-            tp_node = TypeNode(line)
-            tp_node.left = name
-            self.stack.append(tp_node)
+            node = ImportNode(line, import_name, path)
+            self.stack.append(node)
 
     def add_if(self, line):
         if self.inner:
@@ -717,7 +722,7 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             block = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             function = self.stack.pop()
             function.params = block
             self.stack.append(function)
@@ -745,7 +750,7 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             block: BlockStmt = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             node: IndexingNode = self.stack.pop()
             node.arg = block
             self.stack.append(node)
@@ -788,10 +793,11 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             block: BlockStmt = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             call: FuncCall = self.stack.pop()
-            if len(self.stack) > 0 and isinstance(self.stack[-1], ClassInit):
-                call = self.stack.pop()
+            # if len(self.stack) > 0 and isinstance(self.stack[-1], ClassInit):
+            #     print(asdad)
+            #     call = self.stack.pop()
             call.args = block
             self.stack.append(call)
 
@@ -802,11 +808,19 @@ class AbstractSyntaxTree:
             self.inner.build_line()
             expr = self.inner.get_as_block()
             # print(expr)
-            self.inner = None
+            self.invalidate_inner()
             cond_stmt: CondStmt = self.stack.pop()
             cond_stmt.condition = expr
             # print(cond_stmt)
             self.stack.append(cond_stmt)
+
+    def build_import(self):
+        if self.inner:
+            self.inner.build_import()
+        else:
+            block: BlockStmt = self.stack.pop()
+            node: ImportNode = self.stack[-1]
+            node.block = block
 
     def new_block(self):
         if self.inner:
@@ -835,12 +849,11 @@ class AbstractSyntaxTree:
         else:
             return self.stack[-1]
 
-    def add_extends(self, superclass_name: str, target_class):
+    def add_extends(self):
         if self.inner:
-            self.inner.add_extends(superclass_name, target_class)
+            self.inner.add_extends()
         else:
-            target_class: ClassStmt
-            target_class.superclass_names.append(superclass_name)
+            self.inner = AbstractSyntaxTree()
 
     def build_class(self):
         if self.inner:
@@ -850,13 +863,6 @@ class AbstractSyntaxTree:
             class_node = self.stack.pop()
             class_node.block = node
             self.stack.append(class_node)
-
-    def add_class_new(self, line, class_name):
-        if self.inner:
-            self.inner.add_class_new(line, class_name)
-        else:
-            node = ClassInit(line, class_name)
-            self.stack.append(node)
 
     def add_dot(self, line):
         if self.inner:
@@ -879,10 +885,20 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             block = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             if len(block.lines) != 1:
                 raise stl.ParseException("Empty parenthesis")
             self.stack.append(block.lines[0])
+
+    def build_extends(self):
+        if self.inner.inner:
+            self.inner.build_extends()
+        else:
+            self.inner.build_line()
+            block = self.inner.get_as_block()
+            self.invalidate_inner()
+            clazz: ClassStmt = self.stack[-1]
+            clazz.superclass_nodes = block.lines
 
     def try_build_func(self):
         if self.inner:
@@ -904,7 +920,7 @@ class AbstractSyntaxTree:
         else:
             self.inner.build_line()
             root = self.inner.get_as_block()
-            self.inner = None
+            self.invalidate_inner()
             self.stack.append(root)
 
     def build_expr(self):
@@ -927,7 +943,6 @@ class AbstractSyntaxTree:
                         (isinstance(node, FuncCall) and node.fulfilled()) or \
                         (isinstance(node, IndexingNode) and node.fulfilled()) or \
                         isinstance(node, DefStmt) or \
-                        isinstance(node, ClassInit) or \
                         isinstance(node, UndefinedNode) or \
                         (isinstance(node, BlockStmt) and node.standalone):
                     lst.append(node)
@@ -1009,15 +1024,15 @@ class AbstractSyntaxTree:
                     last = self.elements.lines[-1]
                     if place_else(last, lst[0]):
                         return
-                    # if isinstance(last, IfStmt) and last.else_block is None and last.has_else:
-                    #     last.else_block = lst[0]
-                    #     return
                 self.elements.add_line(lst[0])
 
     def get_as_block(self) -> BlockStmt:
         if len(self.stack) > 0 or self.in_expr:
             raise stl.ParseException("Line is not terminated")
         return self.elements
+
+    def print_stack(self):
+        print([str(x) for x in self.stack])
 
 
 def get_number(line, v: str):
@@ -1077,7 +1092,7 @@ def parse_expr(lst):
             is_post = True
             if index < len(lst) - 1:
                 node = lst[index + 1]
-                if isinstance(node, NameNode) or isinstance(node, Dot) or isinstance(node, Expr):
+                if isinstance(node, NameNode) or isinstance(node, Dot):
                     is_post = False
             operator.is_post = is_post
             if is_post:

@@ -1,3 +1,161 @@
+********** SPL 1.6 Release **********
+===== Build 0090 2019/05/08 =====
+
+* Provided a native way to throw an exception defined in lang.sp
+* Importing a namespace will now imports all namespaces of the imported namespace
+* Bug fixes:
+    * Increment/Decrement operator identification
+    * Console did not import 'lang.sp'
+
+********** SPL 1.6 Release Candidate 2 **********
+===== Build 0089 2019/05/07 =====
+
+* Moved class 'StringBuilder' from string_builder.sp to util.sp
+* Added new library json.sp
+* Functional updates:
+    * Hidden function __kw_unpack__
+* Bug fixes:
+    * StringBuilder.to_string() generates error
+    * Re-declare warning shows at wrong time
+    * return {...} misidentified as a block statement
+
+********** SPL 1.6 Release Candidate **********
+===== Build 0088 2019/05/06 =====
+
+* Added some docstrings
+
+********** SPL 1.6 Beta 12 **********
+===== Build 0087 2019/05/06 =====
+
+* New built-in function:
+    * id()
+* Bug fixes:
+    * instanceof not work for python types
+    * string() not work for classes with __str__ not defined
+    * memory_view() recurse infinitely to circular references
+
+********** SPL 1.6 Beta 11 **********
+===== Build 0086 2019/05/05 =====
+
+* Added the error traceback of eval()
+
+********** SPL 1.6 Beta 10 **********
+===== Build 0085 2019/05/04 =====
+
+* SGL updates
+* IDLE Updates
+* Error traceback now printed to system.stderr
+
+********** SPL 1.6 Beta 9 **********
+===== Build 0084 2019/05/04 =====
+
+* Change the NativeType 'List' to 'Array'
+* Added new native function 'array()'
+* Implemented 'List' in SPL, in lang.sp
+* Functional updates:
+    * SPL object __iter__ can now return a native iterable object
+    * Hidden function __unpack__
+* New native function:
+    * get_env()
+* New library:
+    * util.sp:
+        * memory_view()
+* New SGL widget:
+    * TreeView
+* Bug fixes:
+    * Access of Class might be blocked by constructor in class
+
+********** SPL 1.6 Beta 8 **********
+===== Build 0083 2019/05/03 =====
+
+* Optimized function call
+* Updated native function help():
+    * Changed the output of 'help' to system.stdout
+    * Added the help for module
+
+********** SPL 1.6 Beta 7 **********
+===== Build 0082 2019/05/02 =====
+
+* Structural optimization:
+    * Moved all spl *.py files into /bin
+    * Added a new function checking the spl path
+* Updated idle.sp
+
+********** SPL 1.6 Beta 6 **********
+===== Build 0081 2019/05/02 =====
+
+* Updated native functions:
+    * input()
+* spl lib updates:
+    * io.sp: added spl based IOException
+    * sgl.sp: Menus
+* Bug fixes:
+    * try-catch block could not catch Exception from modules
+
+********** SPL 1.6 Beta 5 **********
+===== Build 0080 2019/05/02 =====
+
+* Change in system:
+    * stdout, stderr, stdin are now SPL Objects, which is initialized in lang.sp
+* Native function re-implementation:
+    * main() and eval()
+* Spl lib updates:
+    * sgl.sp
+    * io.sp
+* Update idle
+
+********** SPL 1.6 Beta 4 **********
+===== Build 0079 2019/05/01 =====
+
+* New syntax:
+    * New binary operator 'subclassof'
+    * Constructor.clazz
+    * Native object initialization via operator 'new'
+    * Native object method call and native function call now supports *args and **kwargs
+* Nre library:
+    * SPL Graphics Library (sgl.sp)
+* New tool:
+    * SPL IDLE (early development version)
+* Added some type check:
+    * The object used by keyword 'throw' must be derived from Exception
+    * Catching exception must be an exception
+* Added new command-line flag:
+    * -ni, --noimport, do not import lib.lang.sp automatically
+* Structural optimization:
+    * Moved some tools into /bin directory
+* Bug fixes:
+    * Fixed that try-catch block would cause error if the exception thrown is an spl exception, but the expecting
+        exception is a python exception
+    * Fixed that console and eval() did not work, due to problem in import
+    * Fixed that eval() only take one line
+    * Fixed that imported iterable class without namespace caused error when used in for-each loop
+    * Fixed that parser might misidentify reserved names as function names (e.g "return (1 + 2)")
+
+********** SPL 1.6 Beta 3 **********
+===== Build 0078 2019/04/28 =====
+
+* Created 'lang.sp' which will be automatically imported
+* Optimizes on native functions dir() and help():
+    * These functions now work on native type itself, not instance of native object
+* Created new parser tool:
+    * Graphical abstract syntax tree visualizer
+* Optimization:
+    * Duplicated import from a same file now will not be imported again
+* Bug fixes:
+    * Fixed that classes with the same name could be identified as same classes
+
+********** SPL 1.6 Alpha 6 **********
+===== Build 0077 2019/04/28 =====
+
+* Completely redesigned the module-import system:
+    * The modules are now separated
+    * New keyword 'namespace'
+    * New keyword 'as'
+* Optimized the Environment's
+* Changed keyword 'new' into an unary operator
+* Changed the mechanism of class extensions
+* Removed the class initialization optimization
+
 ********** SPL 1.6 Beta 2 **********
 ===== Build 0076 2019/04/25 =====
 

@@ -1,6 +1,5 @@
 import io
 
-
 EOF = -1
 EOL = ";"
 SYMBOLS = {"{", "}", ".", ",", "~"}
@@ -11,7 +10,7 @@ BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mo
                     "<": "lt", ">": "gt", "==": "eq", ">=": "ge", "<=": "le", "!=": "neq",
                     "&&": "and", "||": "or", "&": "band", "^": "xor", "|": "bor",
                     "<<": "lshift", ">>": "rshift", "===": "", "!==": "", "instanceof": "",
-                    "and": "and", "or": "or", "is": ""}
+                    "subclassof": "", "and": "and", "or": "or", "is": "", ":": ""}
 UNARY_OPERATORS = {"!": "not", "not": "not"}
 OTHERS = {"=", "@", ":"}
 ALL = set().union(SYMBOLS) \
@@ -21,8 +20,9 @@ ALL = set().union(SYMBOLS) \
     .union(UNARY_OPERATORS) \
     .union(TERNARY_OPERATORS)
 RESERVED = {"class", "function", "def", "if", "else", "new", "extends", "return", "break", "continue",
-            "true", "false", "null", "operator", "while", "for", "import", "throw", "try", "catch", "finally",
-            "abstract", "const", "var", "assert", "del"}
+            "true", "false", "null", "operator", "while", "for", "import", "namespace", "throw", "try", "catch",
+            "finally", "abstract", "const", "var", "assert", "as"}
+RESERVED_FOR_BRACE = {"return"}
 LAZY = {"&&", "||", "and", "or"}
 OMITS = {"\n", "\r", "\t", " "}
 OP_EQ = {"+", "-", "*", "/", "%", "&", "^", "|", "<<", ">>"}

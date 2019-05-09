@@ -1,7 +1,7 @@
 import sys
 import time as time_lib
 import os
-import spl_memory as mem
+from bin import spl_memory as mem
 
 
 def replace_bool_none(string: str):
@@ -58,7 +58,7 @@ def replace_bool_none(string: str):
     return "".join(lst)
 
 
-def print_waring(msg: str):
+def compile_time_warning(msg: str):
     sys.stderr.write(msg + "\n")
     sys.stderr.flush()
 
@@ -121,14 +121,15 @@ class NativeType(SplObject):
     def type_name__(cls) -> str:
         raise NotImplementedError
 
-    def doc__(self) -> str:
+    @classmethod
+    def doc__(cls) -> str:
         """
         :return: the doc string of this type
         """
-        doc = ["NativeObject ", self.type_name__(), " ", self.__doc__, "\n"]
-        for x in dir(self):
+        doc = ["NativeObject ", cls.type_name__(), " ", cls.__doc__, "\n"]
+        for x in dir(cls):
             if len(x) < 2 or x[-2:] != "__":
-                attr = getattr(self, x)
+                attr = getattr(cls, x)
                 if callable(attr):
                     doc.append("    method ")
                     doc.append(x)
@@ -146,7 +147,7 @@ class NativeType(SplObject):
                     if attr_doc:
                         doc.append(attr_doc)
                         doc.append("\n")
-        return "".join(doc)
+        return "".join([str(x) for x in doc])
 
 
 class Iterable:
@@ -254,7 +255,7 @@ class String(NativeType, Iterable):
                     lit = args[count]
                     lst.append(str(lit))
                 else:
-                    print_waring("Warning: Unknown flag: %" + flag)
+                    # print_waring("Warning: Unknown flag: %" + flag)
                     lst.append("%")
                     i = j
                     continue
@@ -264,8 +265,8 @@ class String(NativeType, Iterable):
             lst.append(ch)
             i += 1
 
-        if count < len(args):
-            print_waring("Warning: too much arguments for string format")
+        # if count < len(args):
+        #     print_waring("Warning: too much arguments for string format")
         return String("".join(lst))
 
     @classmethod
@@ -280,11 +281,53 @@ class String(NativeType, Iterable):
         return String(self.literal[from_: end])
 
 
-class List(NativeType, Iterable):
-    def __init__(self, *initial, mutable=True):
+class PyInputStream(NativeType):
+    def __init__(self, stream):
         NativeType.__init__(self)
 
-        self.mutable = mutable
+        self.stream = stream
+
+    @classmethod
+    def type_name__(cls) -> str:
+        return "PyInputStream"
+
+    def read(self):
+        return self.stream.read()
+
+    def readline(self):
+        return self.stream.readline()
+
+    def close(self):
+        self.stream.close()
+
+
+class PyOutputStream(NativeType):
+    def __init__(self, stream):
+        NativeType.__init__(self)
+
+        self.stream = stream
+
+    @classmethod
+    def type_name__(cls) -> str:
+        return "PyOutputStream"
+
+    def write(self, obj):
+        self.stream.write(str(obj))
+
+    def flush(self):
+        self.stream.flush()
+
+    def close(self):
+        self.stream.close()
+
+
+class Array(NativeType, Iterable):
+    """
+    A collector of sequential data with static size and dynamic type.
+    """
+    def __init__(self, *initial):
+        NativeType.__init__(self)
+
         self.list = [*initial]
 
     def __iter__(self):
@@ -302,73 +345,28 @@ class List(NativeType, Iterable):
     def __setitem__(self, key, value):
         self.list[key] = value
 
-    def set(self, key, value):
-        if self.mutable:
-            self.__setitem__(key, value)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
-
-    def get(self, key):
-        self.__getitem__(key)
-
     @classmethod
     def type_name__(cls):
-        return "List"
-
-    def append(self, value):
-        if self.mutable:
-            self.list.append(value)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
+        return "Array"
 
     def contains(self, item):
         return item in self.list
-
-    def insert(self, index, item):
-        if self.mutable:
-            self.list.insert(index, item)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
-
-    def pop(self, index=-1):
-        if self.mutable:
-            return self.list.pop(index)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
-
-    def clear(self):
-        if self.mutable:
-            return self.list.clear()
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
-
-    def extend(self, lst):
-        if self.mutable:
-            return self.list.extend(lst)
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
 
     def size(self):
         return len(self.list)
 
     def sort(self):
-        if self.mutable:
-            return self.list.sort()
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
+        return self.list.sort()
 
-    def sublist(self, from_, to=None):
+    def sub_array(self, from_, to=None):
         length = self.size()
         end = length if to is None else to
         if from_ < 0 or end > length:
-            raise IndexOutOfRangeException("Sublist index out of range")
-        return List(self.list[from_: end])
+            raise IndexOutOfRangeException("Sub array index out of range")
+        return Array(self.list[from_: end])
 
     def reverse(self):
-        if self.mutable:
-            return self.list.reverse()
-        else:
-            raise IllegalOperationException("Mutating an immutable list")
+        return self.list.reverse()
 
 
 class Pair(NativeType, Iterable):
@@ -458,24 +456,39 @@ class System(NativeType):
         argv: command line arguments
         cwd: the working directory
         encoding: the encoding mode
-        stdout: system standard output stream
-        stderr: system standard error output stream
-        stdin: system standard input stream
+        stdout: system standard output stream, ClassInstance extends OutputStream
+        stderr: system standard error output stream, ClassInstance extends OutputStream
+        stdin: system standard input stream, ClassInstance extends InputStream
     """
 
-    argv: List
+    argv: Array
     cwd: String
     encoding: str
-    stdout = sys.stdout
-    stderr = sys.stderr
-    stdin = sys.stdin
+    native_in = None
+    native_out = None
+    native_err = None
+    stdout = None  # ClassInstance <NativeOutputStream>
+    stderr = None  # ClassInstance <NativeOutputStream>
+    stdin = None  # ClassInstance <NativeInputStream>
 
-    def __init__(self, argv_: List, directory: String, enc: str):
+    def __init__(self, argv_: Array, directory: String, enc: str, in_out_err):
         NativeType.__init__(self)
 
-        type(self).cwd = directory
-        type(self).argv = argv_
-        type(self).encoding = enc
+        self.native_in = PyInputStream(in_out_err[0])
+        self.native_out = PyOutputStream(in_out_err[1])
+        self.native_err = PyOutputStream(in_out_err[2])
+        self.cwd = directory
+        self.argv = argv_
+        self.encoding = enc
+
+    def set_in(self, in_):
+        self.stdin = in_
+
+    def set_out(self, out):
+        self.stdout = out
+
+    def set_err(self, err):
+        self.stderr = err
 
     @staticmethod
     def time():
@@ -519,14 +532,14 @@ class Os(NativeType):
         return "Os"
 
     @staticmethod
-    def list_files(path) -> List:
+    def list_files(path) -> Array:
         """
         Returns a <List> consists of all files under the directory <path>.
 
         :param path: the directory path
         :return: a <List> consists of all files under the directory <path>
         """
-        return List(os.listdir(path))
+        return Array(os.listdir(path))
 
 
 class File(NativeType):
@@ -553,7 +566,7 @@ class File(NativeType):
             elif self.mode == "rb":
                 return int(self.fp.read(1)[0])
             else:
-                raise IOException("Wrong mode")
+                raise PyIOException("Wrong mode")
         else:
             return None
 
@@ -566,9 +579,9 @@ class File(NativeType):
         if self.mode == "r":
             return String(self.fp.read())
         elif self.mode == "rb":
-            return List(*list(self.fp.read()))
+            return Array(*list(self.fp.read()))
         else:
-            raise IOException("Wrong mode")
+            raise PyIOException("Wrong mode")
 
     def readline(self):
         """
@@ -585,7 +598,7 @@ class File(NativeType):
             else:
                 return None
         else:
-            raise IOException("Wrong mode")
+            raise PyIOException("Wrong mode")
 
     def write(self, s):
         """
@@ -599,7 +612,7 @@ class File(NativeType):
             else:
                 self.fp.write(str(s))
         else:
-            raise IOException("Wrong mode")
+            raise PyIOException("Wrong mode")
 
     def flush(self):
         """
@@ -608,7 +621,7 @@ class File(NativeType):
         if "w" in self.mode:
             self.fp.flush()
         else:
-            raise IOException("Wrong mode")
+            raise PyIOException("Wrong mode")
 
     def close(self):
         """
@@ -633,6 +646,11 @@ class SplException(InterpretException):
         InterpretException.__init__(self, msg)
 
 
+class NameException(SplException):
+    def __init__(self, msg=""):
+        SplException.__init__(self, msg)
+
+
 class TypeException(SplException):
     def __init__(self, msg=""):
         SplException.__init__(self, msg)
@@ -643,7 +661,7 @@ class IndexOutOfRangeException(SplException):
         SplException.__init__(self, msg)
 
 
-class IOException(SplException):
+class PyIOException(SplException):
     def __init__(self, msg=""):
         SplException.__init__(self, msg)
 
@@ -683,34 +701,6 @@ class StringFormatException(SplException):
         SplException.__init__(self, msg)
 
 
-class AssertionException(SplException):
-    def __init__(self, msg=""):
-        SplException.__init__(self, msg)
-
-
-def print_ln(s="", stream=sys.stdout):
-    """
-    Prints out message to an output stream, with a new line at the end and the stream flushed.
-
-    :param s: the content to be printed, empty string as default
-    :param stream: the output stream, stdout as default
-    """
-    print_(s, stream)
-    stream.write("\n")
-    stream.flush()
-
-
-def print_(s, stream=sys.stdout):
-    """
-    Prints out message to an output stream.
-
-    :param s: the content to be printed
-    :param stream: the output stream, stdout as default
-    """
-    # s2 = replace_bool_none(String(s).text__())
-    stream.write(str(String(s)))
-
-
 def exit_(code=0):
     """
     Exits the current process.
@@ -720,40 +710,29 @@ def exit_(code=0):
     exit(code)
 
 
-def input_(*prompt):
-    """
-    Asks input from user.
-
-    This function will hold the program until the user inputs a new line character.
-
-    :param prompt: the prompt text to be shown to the user
-    :return the user input, as <String>
-    """
-    s = input(*prompt)
-    st = String(s)
-    return st
-
-
-def make_list(*initial_elements):
+def make_array(*initial_elements, **kwargs):
     """
     Creates a dynamic mutable list.
 
     :param initial_elements: the elements that the list initially contains
     :return: a reference of the newly created <List> object
     """
-    lst = List(*initial_elements)
-    return lst
+    if 'length' in kwargs:
+        lst = [None for _ in range(kwargs['length'])]
+        return Array(*lst)
+    else:
+        return Array(*initial_elements)
 
 
-def make_immutable_list(*initial_elements):
-    """
-        Creates an immutable list.
-
-        :param initial_elements: the elements that the list initially contains
-        :return: a reference of the newly created <List> object
-        """
-    lst = List(*initial_elements, mutable=False)
-    return lst
+# def make_immutable_list(*initial_elements):
+#     """
+#         Creates an immutable list.
+#
+#         :param initial_elements: the elements that the list initially contains
+#         :return: a reference of the newly created <List> object
+#         """
+#     lst = List(*initial_elements, mutable=False)
+#     return lst
 
 
 def make_pair(initial_elements: dict = None):

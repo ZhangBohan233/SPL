@@ -8,6 +8,8 @@
 * list creation with []   ...done
 * pair creation with {}   ...done
 
+* array in python, list in spl   ...done
+
 ===== 1.4 =====
 
 * assert   ...done

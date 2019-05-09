@@ -5,3 +5,18 @@ try {
 } catch (e: IndexError) {
     lst[0] = e;
 }
+
+println(lst);
+
+class RTE extends Exception {
+
+}
+
+try {
+    throw new RTE;
+} catch (e: IndexError) {
+    println(111);
+} catch (e: Exception) {
+    println(223);
+}
+a=5;

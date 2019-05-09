@@ -1,5 +1,5 @@
 if __name__ == "__main__":
-    import spl_ast
+    from bin import spl_ast, spl_interpreter
 
     psr = spl_ast.Parser()
     psr.add_name("a")
@@ -15,8 +15,6 @@ if __name__ == "__main__":
     psr.build_line()
 
     print(psr)
-
-    import spl_interpreter
 
     itr = spl_interpreter.Interpreter(psr.get_as_block())
     print(itr.interpret())

@@ -1,6 +1,7 @@
-import "functions"
-import "math"
-import "queue"
+import namespace "math"
+import namespace "functions"
+import namespace "queue"
+import "util"
 
 /*
  * This is the doc of a single function.
@@ -111,7 +112,10 @@ class Clazz2 extends Clazz {
     }
 
     function other() {
-
+        var x = this instanceof Clazz.clazz;
+        var y = Clazz2.clazz subclassof Clazz.clazz;
+        println(x);
+        println(y);
     }
 }
 
@@ -122,10 +126,11 @@ if (main) {
     help(foo);
     help(Clazz2);
     help(list);
-    println(gcd(398, -298));
-    println(log(5));
-    println(log(8, 2));
-    println(E);
+    help(List);
+    println(math.gcd(398, -298));
+    println(math.log(5));
+    println(math.log(8, 2));
+    println(math.E);
     help(natives);
     var v = 1 + 2 * 3 - 2;
     println(v);
@@ -140,6 +145,7 @@ println(type(text));
 println(file0 instanceof File);
 println(1 instanceof int);
 println("ss" instanceof String);
+println(1 instanceof Object);
 
 try {
     var file2 = f_open("E:\GgGg.txt");
@@ -153,6 +159,7 @@ try {
 println(type(system));
 var c2 = new Clazz2;
 c2.over();
+println(c2 instanceof Object);
 
 function whole(dic) {
     println(dic);
@@ -165,3 +172,18 @@ var lst = [{1, 2, 3, 1}, "dd", [3, 2, 1], {"a"=5, "b"={kk=6}}];
 println(lst[2][1]);
 println(lst[3]["b"][kk]++);
 println(lst);
+
+println(dir(Clazz2));
+println(dir(List));
+
+println(lst instanceof List);
+println(Clazz2 subclassof Object);
+println(q instanceof lang.Iterable);
+c2.other();
+
+println(lang instanceof Module);
+
+var str = string(c2);
+println(map(function (x) {x + 1}, [1, 2, 3]));
+
+util.memory_view(get_env());

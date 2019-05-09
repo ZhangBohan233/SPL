@@ -1,12 +1,10 @@
 """ The main SPL runner. """
 
 import sys
-import spl_lexer
-import spl_interpreter
-import spl_parser as psr
+import script
 import time
 import os
-import spl_lib as lib
+from bin import spl_lib as lib, spl_lexer, spl_parser as psr, spl_interpreter
 
 sys.setrecursionlimit(10000)
 
@@ -29,12 +27,13 @@ OPTIONS:
     -et,             execution               shows the execution times of each node
     -e,   --exit,    exit value              shows the program's exit value
     -l,   --link,    link                    write the linked script to file
+    -ni,  --noimport                         do not automatically import lib.lang.sp
     -t,   --timer,   timer                   enables the timer
     -tk,  --tokens,   tokens                 shows language tokens
     -v,   --vars,    variables               prints out all global variables after execution
     
 FLAGS:
-    -Dfile ENCODING    --file encoding    changes the sp file decoding
+    -Dfile ENCODING    --file encoding       changes the sp file decoding
     
 ARGV:
     command-line argument for the spl program
@@ -46,7 +45,8 @@ Example
 
 def parse_arg(args):
     d = {"file": None, "dir": None, "debugger": False, "timer": False, "ast": False, "tokens": False,
-         "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False, "link": False}
+         "vars": False, "argv": [], "encoding": None, "exit": False, "exec_time": False, "link": False,
+         "import": True, "out": sys.stdout, "in": sys.stdin, "err": sys.stderr}
     i = 1
     while i < len(args):
         arg: str = args[i]
@@ -69,6 +69,8 @@ def parse_arg(args):
                     d["exit"] = True
                 elif flag == "l" or flag == "-link":
                     d["link"] = True
+                elif flag == "ni" or flag == "-noimport":
+                    d["import"] = False
                 elif flag == "Dfile":
                     i += 1
                     d["encoding"] = args[i]
@@ -104,16 +106,17 @@ def interpret(mode: str):
 
     if mode == "sp":
         lexer = spl_lexer.Tokenizer()
-        lexer.setup(os.path.dirname(os.path.abspath(__file__)), file_name, argv["dir"], set(), link=argv["link"])
+        lexer.setup(script.get_spl_path(), file_name, argv["dir"], link=argv["link"],
+                    import_lang=argv["import"])
         lexer.tokenize(f)
-    elif mode == "lsp":
-        lexer = spl_lexer.Tokenizer()
-        lexer.restore_tokens(f)
+    # elif mode == "lsp":
+    #     lexer = spl_lexer.Tokenizer()
+    #     lexer.restore_tokens(f)
     else:
         raise Exception
 
     if argv["tokens"]:
-        print(lexer.tokens)
+        print(lexer.get_tokens())
 
     parse_start = time.time()
 
@@ -129,7 +132,9 @@ def interpret(mode: str):
 
     interpret_start = time.time()
 
-    itr = spl_interpreter.Interpreter(argv["argv"], argv["dir"], argv["encoding"])
+    ioe = (argv["in"], argv["out"], argv["err"])
+
+    itr = spl_interpreter.Interpreter(argv["argv"], argv["dir"], argv["encoding"], ioe)
     itr.set_ast(block)
     result = itr.interpret()
 

@@ -1,7 +1,6 @@
 if __name__ == "__main__":
-    import spl_lexer
-    import spl_ast
-    import spl_interpreter
+    from bin import spl_lexer, spl_ast, spl_interpreter
+
     file_name = "sample.sp"
     file_name = "samples/sample5.sp"
     f = open(file_name, "r")
