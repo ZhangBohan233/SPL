@@ -1,3 +1,9 @@
+********** SPL 1.6.1 **********
+===== Build 0091 2019/05/11 =====
+
+* Bug fixes:
+    * Import error when script directory is the current working directory
+
 ********** SPL 1.6 Release **********
 ===== Build 0090 2019/05/08 =====
 

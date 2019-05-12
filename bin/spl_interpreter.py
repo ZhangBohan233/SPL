@@ -114,7 +114,6 @@ def add_natives(env: Environment):
     env.add_heap("println", NativeFunction(print_ln, "println", True))
     env.add_heap("type", NativeFunction(typeof, "type"))
     env.add_heap("pair", NativeFunction(lib.make_pair, "pair"))
-    # env.add_heap("array", NativeFunction(lib.make_array_of_length, "array"))
     env.add_heap("array", NativeFunction(lib.make_array, "array"))
     env.add_heap("set", NativeFunction(lib.make_set, "set"))
     env.add_heap("int", NativeFunction(lib.to_int, "int"))
@@ -132,7 +131,6 @@ def add_natives(env: Environment):
     env.add_heap("help", NativeFunction(help_, "help", True))
     env.add_heap("exec", NativeFunction(exec_, "exec", True))
     env.add_heap("id", NativeFunction(id_, "id"))
-    # env.add_heap("get_class", NativeFunction(get_class, "get_class", True))
 
     # type of built-in
     env.add_heap("boolean", NativeFunction(lib.to_boolean, "boolean"))
@@ -148,7 +146,6 @@ def add_natives(env: Environment):
     env.define_const("Os", lib.Os, LINE_FILE)
     env.define_const("Natives", NativeInvokes, LINE_FILE)
     env.define_const("Function", Function, LINE_FILE)
-    # env.define_const("Window", gra.Window, LINE_FILE)
     env.define_const("Graphic", gra.Graphic, LINE_FILE)
     env.define_const("EnvWrapper", EnvWrapper, LINE_FILE)
     env.define_const("Class", Class, LINE_FILE)

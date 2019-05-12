@@ -249,9 +249,12 @@ class Tokenizer:
                     raise stl.ParseException("Unexpected token in file '{}', at line {}"
                                              .format(next_token.file, next_token.line))
                 name = path_token.text
-                # self.tokens.pop(i)
+
                 if name[-3:] == ".sp":  # user lib
-                    file_name = "{}{}{}".format(self.script_dir, os.sep, name[:-3]).replace(".", "/") + ".sp"
+                    if len(self.script_dir) == 0:
+                        file_name = name[:-3].replace(".", "/") + ".sp"
+                    else:
+                        file_name = "{}{}{}".format(self.script_dir, os.sep, name[:-3]).replace(".", "/") + ".sp"
                     import_name = name[:-3]
                 else:  # system lib
                     file_name = "{}{}lib{}{}.sp".format(self.spl_path, os.sep, os.sep, name)
@@ -269,8 +272,6 @@ class Tokenizer:
 
                 self.tokens.pop(i + 1)  # remove the import name token
 
-                # if file_name not in self.imported:
-                #     self.imported.add(file_name)
                 self.import_file(file_name, import_name)
                 if namespace_token:
                     lf = namespace_token.line, namespace_token.file

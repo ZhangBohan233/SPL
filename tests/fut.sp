@@ -36,4 +36,9 @@ function test_increment() {
     assert b == 12;
 }
 
+@Test
+function instance_test() {
+    assert true instanceof boolean;
+}
+
 unittest.testall();

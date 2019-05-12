@@ -724,17 +724,6 @@ def make_array(*initial_elements, **kwargs):
         return Array(*initial_elements)
 
 
-# def make_immutable_list(*initial_elements):
-#     """
-#         Creates an immutable list.
-#
-#         :param initial_elements: the elements that the list initially contains
-#         :return: a reference of the newly created <List> object
-#         """
-#     lst = List(*initial_elements, mutable=False)
-#     return lst
-
-
 def make_pair(initial_elements: dict = None):
     """
     Creates a key-value pair.
