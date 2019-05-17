@@ -1,3 +1,10 @@
+********** SPL 1.6.2 **********
+===== Build 0092 2019/05/14 =====
+
+* Library updates:
+    * math.sp:
+        * Added functions 'fact(x)', 'perm(n, k)', 'comb(n, k)'
+
 ********** SPL 1.6.1 **********
 ===== Build 0091 2019/05/11 =====
 

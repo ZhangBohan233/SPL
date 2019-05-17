@@ -199,6 +199,11 @@ class Environment:
                 if key in out.variables:
                     out.variables[key] = value
                     return
+                if out.is_class():
+                    out: ClassEnvironment
+                    if key in out.private_vars:
+                        out.private_vars[key] = value
+                        return
                 out = out.outer
             if not self.assign_const(key, value, lf) and not self.assign_namespace(key, value):
                 raise lib.NameException("Name '{}' is not defined, in '{}', at line {}"
@@ -461,6 +466,18 @@ class ModuleEnvironment(MainAbstractEnvironment):
 class ClassEnvironment(MainAbstractEnvironment):
     def __init__(self, outer):
         MainAbstractEnvironment.__init__(self, CLASS_SCOPE, outer)
+
+        self.private_vars = {}
+        self.private_consts = {}
+        self.protected_vars = {}
+        self.protected_consts = {}
+
+    def define_private_var(self, key, value, lf):
+        if self._local_contains(key):
+            raise lib.NameException("Name '{}' is already defined in this scope, in '{}', at line {}"
+                                    .format(key, lf[1], lf[0]))
+        else:
+            self.private_vars[key] = value
 
     def is_class(self):
         return True

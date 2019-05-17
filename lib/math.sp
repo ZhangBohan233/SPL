@@ -1,4 +1,4 @@
-import namespace "functions"
+import "functions"
 
 
 const E = 2.718281828459045;
@@ -120,6 +120,43 @@ function round(n) {
 
 
 /*
+ * Returns the number of combination picking <k> from <n>;
+ */
+function comb(n, k) {
+    return perm(n, k) / fact(k);
+}
+
+
+/*
+ * Returns the number of permutation picking <k> from <n>;
+ */
+function perm(n, k) {
+    return fact(n) / fact(n - k);
+}
+
+
+/*
+ * Returns the factorial of <n>.
+ */
+function factorial(n) {
+	if (n <= 1) return 1;
+	else return n * factorial(n - 1);
+}
+
+
+/*
+ * Returns the factorial of <n>.
+ */
+function fact(n) {
+    var x = 1;
+    for (var i = 1; i <= n; i++) {
+        x *= i;
+    }
+    return x;
+}
+
+
+/*
  * Returns <true> if <p> is a prime.
  */
 function is_prime(p) {
@@ -151,7 +188,7 @@ function primes(limit) {
     var tar = lst[0];
     while (lst[lst.length() - 1] > tar * tar) {
         tar = lst[index];
-        lst = filter(function (x) {x == tar || x % tar != 0}, lst);
+        lst = functions.filter(function (x) {x == tar || x % tar != 0}, lst);
         index += 1;
     }
     return lst;
@@ -168,7 +205,7 @@ function euler_phi(n) {
 
 
 function euler_phi_fp(n) {
-    return count(function(x) {gcd(n, x) == 1}, new RangeIterator(1, n, 1));
+    return functions.count(function(x) {gcd(n, x) == 1}, new RangeIterator(1, n, 1));
 }
 
 

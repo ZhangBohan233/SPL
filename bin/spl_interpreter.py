@@ -1059,10 +1059,13 @@ def eval_braces(node: ast.BlockStmt, env: Environment) -> object:
 def eval_assignment_node(node: ast.AssignmentNode, env: Environment):
     key = node.left
     value = evaluate(node.right, env)
-    return assignment(key, value, env, node.level)
+    if node.access == ast.NORMAL:
+        return assignment(key, value, env, node.level)
+    else:
+        throw_spl_exception("Exception", (node.line_num, node.file), env)
 
 
-def assignment(key: ast.Node, value, env: Environment, level):
+def assignment(key: ast.Node, value, env: Environment, level, access=ast.NORMAL):
     t = key.node_type
     lf = key.line_num, key.file
     # print(key)
@@ -1075,7 +1078,15 @@ def assignment(key: ast.Node, value, env: Environment, level):
             env.define_const(key.name, value, lf)
         elif level == ast.VAR:
             # var_type = generate_var_type(node.var_type, env)
-            env.define_var(key.name, value, lf)
+            if access == ast.NORMAL:
+                env.define_var(key.name, value, lf)
+            elif access == ast.PROTECTED:
+                pass
+            elif access == ast.PRIVATE:
+                env: ClassEnvironment
+                env.define_private_var(key.name, value, lf)
+            else:
+                raise lib.InterpretException("Unexpected access")
         elif level == ast.FUNC_DEFINE:
             value: Function
             env.define_function(key.name, value, lf, value.annotations)
@@ -1642,7 +1653,7 @@ def class_inheritance(cla: Class, env: Environment, scope: Environment):
     for line in cla.body.lines:  # this step just fills the scope
         if isinstance(line, ast.AssignmentNode):
             value = evaluate(line.right, env)
-            assignment(line.left, value, scope, line.level)
+            assignment(line.left, value, scope, line.level, line.access)
         else:
             raise lib.SplException("Not an expression inside class body")
             # evaluate(line, scope)

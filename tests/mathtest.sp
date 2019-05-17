@@ -1,4 +1,4 @@
-import "math"
+import namespace "math"
 import "unittest"
 
 
@@ -32,5 +32,5 @@ if (main()) {
     println(rad(180));
     println(sin(1));
 
-    testall();
+    unittest.testall();
 }

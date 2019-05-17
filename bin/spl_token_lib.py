@@ -21,7 +21,7 @@ ALL = set().union(SYMBOLS) \
     .union(TERNARY_OPERATORS)
 RESERVED = {"class", "function", "def", "if", "else", "new", "extends", "return", "break", "continue",
             "true", "false", "null", "operator", "while", "for", "import", "namespace", "throw", "try", "catch",
-            "finally", "abstract", "const", "var", "assert", "as"}
+            "finally", "abstract", "const", "var", "assert", "as", "private", "protected"}
 RESERVED_FOR_BRACE = {"return"}
 LAZY = {"&&", "||", "and", "or"}
 OMITS = {"\n", "\r", "\t", " "}
