@@ -29,7 +29,6 @@ class Parser:
         brace_count = 0
         class_braces = []
         import_braces = []
-        titles = []
 
         while True:
             try:
@@ -72,7 +71,8 @@ class Parser:
                     elif sym == "@":
                         i += 1
                         next_token: stl.IdToken = self.tokens[i]
-                        titles.append(next_token.symbol)
+                        # titles.append(next_token.symbol)
+                        parser.add_annotation(line, next_token.symbol)
                     elif sym == "{":
                         brace_count += 1
                         if is_extending:
@@ -166,12 +166,11 @@ class Parser:
                             parser.add_assignment(line, ast.FUNC_DEFINE)
                         else:
                             raise stl.ParseException("Illegal function name '{}'".format(f_name))
-                        parser.add_function(line, is_abstract, titles.copy(), func_doc)
+                        parser.add_function(line, is_abstract, func_doc)
                         i += push_back
                         param_nest_list.append(par_count)
                         par_count += 1
                         is_abstract = False
-                        titles.clear()
                     elif sym == "operator":
                         func_doc = self.get_doc(i)
                         i += 1
@@ -179,10 +178,9 @@ class Parser:
                         op_name = "__" + stl.BINARY_OPERATORS[op_token.symbol] + "__"
                         parser.add_name(line, op_name)
                         parser.add_assignment(line, ast.FUNC_DEFINE)
-                        parser.add_function(line, False, titles.copy(), func_doc)
+                        parser.add_function(line, False, func_doc)
                         param_nest_list.append(par_count)
                         par_count += 1
-                        titles.clear()
                         i += 1
                     elif sym == "class":
                         class_doc = self.get_doc(i)

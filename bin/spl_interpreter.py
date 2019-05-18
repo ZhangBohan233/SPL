@@ -9,7 +9,7 @@ import os
 import subprocess
 import traceback
 from bin.environment import Environment, GlobalEnvironment, LoopEnvironment, SubEnvironment, \
-    FunctionEnvironment, ClassEnvironment, ModuleEnvironment, UNDEFINED
+    FunctionEnvironment, ClassEnvironment, ModuleEnvironment, UNDEFINED, Annotation
 
 LST = [72, 97, 112, 112, 121, 32, 66, 105, 114, 116, 104, 100, 97, 121, 32,
        73, 115, 97, 98, 101, 108, 108, 97, 33, 33, 33]
@@ -150,6 +150,7 @@ def add_natives(env: Environment):
     env.define_const("EnvWrapper", EnvWrapper, LINE_FILE)
     env.define_const("Class", Class, LINE_FILE)
     env.define_const("Module", Module, LINE_FILE)
+    env.define_const("Annotation", Annotation, LINE_FILE)
 
     # global variables
 
@@ -1413,6 +1414,27 @@ def eval_dot(node: ast.Dot, env: Environment):
         raise lib.InterpretException("Unknown Syntax, in file '{}', at line {}".format(node.file, node.line_num))
 
 
+def get_node_in_annotation(node: ast.AnnotationNode, env: Environment, ann_list: list) -> (ast.Node, ast.Node):
+    if node.args is not None:
+        node.args.standalone = True
+        content = evaluate(node.args, env)
+    else:
+        content = None
+    ann = Annotation(lib.String(node.name), content)
+    ann_list.append(ann)
+    if isinstance(node.body, ast.AssignmentNode):
+        if isinstance(node.body.right, ast.DefStmt) and node.body.level == ast.FUNC_DEFINE:
+            fn: ast.DefStmt = node.body.right
+            fn.annotations = ann_list
+            return node.body
+    # elif isinstance(node.body, ast.ClassStmt):
+    #     node.body.
+    elif isinstance(node.body, ast.AnnotationNode):
+        return get_node_in_annotation(node.body, env, ann_list)
+
+    throw_spl_exception("AnnotationException", (node.line_num, node.file), env)
+
+
 def arithmetic(left, right_node: ast.Node, symbol, env: Environment):
     if symbol in stl.LAZY:
         if left is None or isinstance(left, bool):
@@ -1643,6 +1665,11 @@ def class_inheritance(cla: Class, env: Environment, scope: Environment):
         if isinstance(line, ast.AssignmentNode):
             value = evaluate(line.right, env)
             assignment(line.left, value, scope, line.level)
+        elif isinstance(line, ast.AnnotationNode):
+            # print(line)
+            assign_node: ast.AssignmentNode = get_node_in_annotation(line, env, [])
+            value = evaluate(assign_node.right, env)
+            assignment(assign_node.left, value, scope, assign_node.level)
         else:
             raise lib.SplException("Not an expression inside class body")
             # evaluate(line, scope)
@@ -1782,8 +1809,8 @@ def eval_def(node: ast.DefStmt, env: Environment):
         params_lst.append(pair)
 
     annotations = lib.Set()
-    for ann in node.tags:
-        annotations.add(lib.String(ann))
+    for ann in node.annotations:
+        annotations.add(ann)
     f = Function(params_lst, node.body, env, node.abstract, annotations, node.doc)
     f.file = node.file
     f.line_num = node.line_num
@@ -1946,6 +1973,11 @@ def raise_exception(e: SPLBaseException, env: Environment):
     raise e
 
 
+def eval_ann_node(node: ast.AnnotationNode, env: Environment):
+    assign_node = get_node_in_annotation(node, env, [])
+    return evaluate(assign_node, env)
+
+
 # Operation table of every non-abstract node types
 NODE_TABLE = {
     ast.LITERAL_NODE: lambda n, env: lib.String(n.literal),
@@ -1969,7 +2001,8 @@ NODE_TABLE = {
     ast.UNDEFINED_NODE: lambda n, env: UNDEFINED,
     ast.IN_DECREMENT_OPERATOR: eval_increment_decrement,
     ast.INDEXING_NODE: eval_indexing_node,
-    ast.IMPORT_NODE: eval_import_node
+    ast.IMPORT_NODE: eval_import_node,
+    ast.ANNOTATION_NODE: eval_ann_node
 }
 
 

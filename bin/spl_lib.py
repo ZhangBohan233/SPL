@@ -422,6 +422,11 @@ class Set(NativeType, Iterable):
     def __repr__(self):
         return self.__str__()
 
+    def get(self, item):
+        for x in self.set:
+            if x == item:
+                return x
+
     def size(self):
         return len(self.set)
 

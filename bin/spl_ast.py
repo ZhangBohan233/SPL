@@ -39,6 +39,7 @@ UNDEFINED_NODE = 31
 IN_DECREMENT_OPERATOR = 32
 INDEXING_NODE = 33
 IMPORT_NODE = 34
+ANNOTATION_NODE = 35
 
 # Variable levels
 ASSIGN = 0
@@ -268,6 +269,24 @@ class InDecrementOperator(Expr):
             return self.operation + "pre"
 
 
+class AnnotationNode(Node):
+    name: str
+    args: BlockStmt = None
+    body: BlockStmt = None
+
+    def __init__(self, line, name):
+        Node.__init__(self, line)
+        self.name = name
+
+        self.node_type = ANNOTATION_NODE
+
+    def __str__(self):
+        return "@" + self.name + ("" if self.body is None else str(self.body))
+
+    def __repr__(self):
+        return "@" + self.name
+
+
 class BreakStmt(LeafNode):
     def __init__(self, line):
         LeafNode.__init__(self, line)
@@ -352,17 +371,17 @@ class DefStmt(TitleNode):
     params: BlockStmt = None
     body = None
     abstract: bool = False
-    tags: list
+    annotations: list
     doc: str
 
-    def __init__(self, line, abstract: bool, tags: list, func_doc: str):
+    def __init__(self, line, abstract: bool, func_doc: str):
         TitleNode.__init__(self, line)
 
         self.node_type = DEF_STMT
         self.params = None
         self.abstract = abstract
         self.doc = func_doc
-        self.tags = tags
+        self.annotations = []
 
     def __str__(self):
         return "func(({}) -> {})".format(self.params, self.body)
@@ -708,11 +727,11 @@ class AbstractSyntaxTree:
         else:
             pass
 
-    def add_function(self, line, abstract: bool, tags: list, func_doc: str):
+    def add_function(self, line, abstract: bool, func_doc: str):
         if self.inner:
-            self.inner.add_function(line, abstract, tags, func_doc)
+            self.inner.add_function(line, abstract, func_doc)
         else:
-            func = DefStmt(line, abstract, tags, func_doc)
+            func = DefStmt(line, abstract, func_doc)
             self.stack.append(func)
             self.inner = AbstractSyntaxTree()
 
@@ -732,9 +751,14 @@ class AbstractSyntaxTree:
         if self.inner:
             self.inner.add_call(line)
         else:
-            fc = FuncCall(line, self.stack.pop())
-            self.stack.append(fc)
-            self.inner = AbstractSyntaxTree()
+            obj = self.stack.pop()
+            if isinstance(obj, AnnotationNode):
+                self.stack.append(obj)
+                self.inner = AbstractSyntaxTree()
+            else:
+                fc = FuncCall(line, obj)
+                self.stack.append(fc)
+                self.inner = AbstractSyntaxTree()
 
     def add_getitem(self, line):
         if self.inner:
@@ -787,6 +811,13 @@ class AbstractSyntaxTree:
         else:
             self.stack.append(None)
 
+    def add_annotation(self, line, name):
+        if self.inner:
+            self.inner.add_annotation(line, name)
+        else:
+            node = AnnotationNode(line, name)
+            self.stack.append(node)
+
     def build_call(self):
         if self.inner.inner:
             self.inner.build_call()
@@ -794,11 +825,12 @@ class AbstractSyntaxTree:
             self.inner.build_line()
             block: BlockStmt = self.inner.get_as_block()
             self.invalidate_inner()
-            call: FuncCall = self.stack.pop()
-            # if len(self.stack) > 0 and isinstance(self.stack[-1], ClassInit):
-            #     print(asdad)
-            #     call = self.stack.pop()
-            call.args = block
+            call = self.stack.pop()
+            if isinstance(call, AnnotationNode):
+                call.args = block
+            else:
+                call: FuncCall
+                call.args = block
             self.stack.append(call)
 
     def build_condition(self):
@@ -977,6 +1009,12 @@ class AbstractSyntaxTree:
                     elif isinstance(node, BinaryExpr) and len(lst) > 0 and node.right is None:
                         node.right = lst[0]
                         lst[0] = node
+                    elif isinstance(node, AnnotationNode) and len(lst) > 0 and node.body is None:
+                        node.body = lst[0]
+                        lst[0] = node
+                        # last: AssignmentNode = lst[0]
+                        # func: DefStmt = last.right
+                        # func.tags = node
                     # elif isinstance(node, TernaryOperator) and len(lst) > 0:
                     #     node.right = lst[0]
                     #     lst[0] = node

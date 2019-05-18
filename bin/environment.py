@@ -27,8 +27,37 @@ class Undefined:
         return self.__str__()
 
 
+class Annotation(lib.NativeType):
+    def __init__(self, name: lib.String, content: lib.Pair = None):
+        lib.NativeType.__init__(self)
+        self.name = name
+        self.params = content
+
+    @classmethod
+    def type_name__(cls) -> str:
+        return "Annotation"
+
+    def __eq__(self, other):
+        return isinstance(other, Annotation) and other.name == self.name
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __str__(self):
+        if self.params is None:
+            return "@{}".format(self.name)
+        else:
+            return "@{}({})".format(self.name, self.params)
+
+    def __repr__(self):
+        return self.__str__()
+
+
 NULLPTR = NullPointer()
 UNDEFINED = Undefined()
+
+SUPPRESS = Annotation(lib.String("Suppress"))
+OVERRIDE = Annotation(lib.String("Override"))
 
 
 class Environment:
@@ -170,8 +199,8 @@ class Environment:
         raise lib.SplException("Not inside loop.")
 
     def define_function(self, key, value, lf, annotations: lib.Set):
-        if not annotations.contains(lib.String("Override")) and \
-                not annotations.contains(lib.String("Suppress")) and \
+        if not annotations.contains(OVERRIDE) and \
+                not annotations.contains(SUPPRESS) and \
                 key[0].islower() and self._local_contains(key):
             lib.compile_time_warning("Warning: re-declaring method '{}' in '{}', at line {}".format(key, lf[1], lf[0]))
         self.variables[key] = value

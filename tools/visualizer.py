@@ -100,7 +100,7 @@ class Visualizer:
                 self.add_item(node.block, child, "class body")
             elif isinstance(node, ast.DefStmt):
                 child = self.insert(parent, node, repr(node), note_to_this)
-                self.add_item(node.tags, child, "function annotations")
+                self.add_item(node.annotations, child, "function annotations")
                 self.add_item(node.params, child, "params")
                 self.add_item(node.body, child, "function body")
             elif isinstance(node, ast.TryStmt):
@@ -109,6 +109,10 @@ class Visualizer:
                 for cb in node.catch_blocks:
                     self.add_item(cb, child, "catch block")
                 self.add_item(node.finally_block, child, "finally block")
+            elif isinstance(node, ast.AnnotationNode):
+                child = self.insert(parent, node, repr(node), note_to_this)
+                self.add_item(node.args, child, "annotation content")
+                self.add_item(node.body, child, "annotation body")
             else:
                 self.tree_view.insert(parent, 'end', text="Unknown Node")
         else:

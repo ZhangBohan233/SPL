@@ -1,3 +1,15 @@
+********** SPL 1.6.3 **********
+===== Build 0093 2019/05/18 =====
+
+* New annotation system:
+    * Annotations now supports parameters
+* Library updates:
+    * unittest.sp:
+        * Tests now supports expecting specific exception
+* Native classes updates:
+    * Added method Set.get():
+        * Naively gets an item from a set
+
 ********** SPL 1.6.2 **********
 ===== Build 0092 2019/05/17 =====
 

@@ -1,3 +1,7 @@
+===== 1.6.3 =====
+
+* Annotation with parameter   ...done
+
 ===== 1.6 =====
 
 * 64 bit integer   ...discard

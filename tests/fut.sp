@@ -41,4 +41,35 @@ function instance_test() {
     assert true instanceof boolean;
 }
 
+@Test
+function instance_test2() {
+    assert 1 instanceof int;
+}
+
+@Test
+function if_else_test() {
+    const score = 78;
+    var gpa;
+    if (score >= 85) gpa = 4.0;
+    else if (score >= 82) gpa = 3.7;
+    else if (score >= 80) gpa = 3.3;
+    else if (score >= 77) {
+        gpa = 3.0;
+    } else if (score >= 73) gpa = 2.7;
+    else throw new Exception("You are trash");
+
+    assert gpa == 3.0;
+}
+
+class TestException extends Exception {
+    function TestException(msg) {
+        Exception(msg);
+    }
+}
+
+@Test("exception" = TestException)
+function test_exception() {
+    throw new TestException("What");
+}
+
 unittest.testall();

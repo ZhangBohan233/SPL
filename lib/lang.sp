@@ -24,6 +24,18 @@ class AssertionException extends Exception {
 
 
 /*
+ * Exception of annotations.
+ *
+ * Exception from all annotations should be derived from this exception.
+ */
+class AnnotationException extends Exception {
+    function AnnotationException(msg="") {
+        Exception(msg);
+    }
+}
+
+
+/*
  * A superclass of all iterator classes.
  */
 abstract class Iterator {
