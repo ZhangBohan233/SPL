@@ -466,7 +466,7 @@ class ClassInstance(lib.SplObject):
             call.args.add_line(item)
             return evaluate(call, self.env)
         else:
-            raise lib.SplException("{} object does not support indexing".format(self.class_name))
+            raise lib.TypeException("{} object does not support indexing".format(self.class_name))
 
     def __hash__(self):
         if self.env.contains_key("__hash__"):
@@ -474,7 +474,7 @@ class ClassInstance(lib.SplObject):
             call.args = ast.BlockStmt(LINE_FILE)
             return evaluate(call, self.env)
         else:
-            raise lib.SplException("{} object is not hashable".format(self.class_name))
+            raise lib.TypeException("'{}' object is not hashable".format(self.class_name))
 
     def __neg__(self):
         if self.env.contains_key("__neg__"):
@@ -482,7 +482,7 @@ class ClassInstance(lib.SplObject):
             call.args = ast.BlockStmt(LINE_FILE)
             return evaluate(call, self.env)
         else:
-            raise lib.SplException("{} object has no neg attribute".format(self.class_name))
+            raise lib.TypeException("{} object has no neg attribute".format(self.class_name))
 
     def __repr__(self):
         if self.env.contains_key("__repr__"):
@@ -499,7 +499,7 @@ class ClassInstance(lib.SplObject):
             call.args.add_line(item)
             return evaluate(call, self.env)
         else:
-            raise lib.SplException("{} object does not support indexing".format(self.class_name))
+            raise lib.TypeException("{} object does not support indexing".format(self.class_name))
 
     def __str__(self):
         if self.env.contains_key("__str__"):
@@ -620,7 +620,7 @@ def typeof(obj) -> lib.String:
         return lib.String(t.__name__)
 
 
-def eval_(env: Environment, expr: lib.String):
+def eval_(env: Environment, expr: lib.String) -> ast.BlockStmt:
     """
     Evaluates a <String> as an expression.
 
@@ -845,6 +845,12 @@ def _exec_line(line: str, path: str):
     return result
 
 
+def _run_spl_script(env: Environment, path: lib.String):
+    spl_path = script.get_spl_path() + os.sep + script.SPL_NAME
+    cmd = "python {} {}".format(spl_path, path)
+    return exec_(env, lib.String(cmd))
+
+
 # Interpreter
 
 
@@ -1066,7 +1072,7 @@ def eval_assignment_node(node: ast.AssignmentNode, env: Environment):
 def assignment(key: ast.Node, value, env: Environment, level):
     t = key.node_type
     lf = key.line_num, key.file
-    # print(key)
+    # print(key, value, level)
     if t == ast.NAME_NODE:
         key: ast.NameNode
         if level == ast.ASSIGN:
@@ -1076,6 +1082,7 @@ def assignment(key: ast.Node, value, env: Environment, level):
             env.define_const(key.name, value, lf)
         elif level == ast.VAR:
             # var_type = generate_var_type(node.var_type, env)
+            # print(value)
             env.define_var(key.name, value, lf)
         elif level == ast.FUNC_DEFINE:
             value: Function
@@ -1427,8 +1434,6 @@ def get_node_in_annotation(node: ast.AnnotationNode, env: Environment, ann_list:
             fn: ast.DefStmt = node.body.right
             fn.annotations = ann_list
             return node.body
-    # elif isinstance(node.body, ast.ClassStmt):
-    #     node.body.
     elif isinstance(node.body, ast.AnnotationNode):
         return get_node_in_annotation(node.body, env, ann_list)
 
@@ -1492,8 +1497,8 @@ def instance_arithmetic(left: ClassInstance, right, symbol, env: Environment):
         call_obj = ast.NameNode(LINE_FILE, op_name)
         if not left.env.contains_key(op_name):
             raise lib.AttributeException("Class '{}' does not support operation '{}'".format(left.class_name, symbol))
-        block = ast.BlockStmt(LINE_FILE)
-        block.add_line(right)
+        # block = ast.BlockStmt(LINE_FILE)
+        # block.add_line(right)
         # func: Function = left.env.get(fc.f_name, LINE_FILE)
         func: Function = evaluate(call_obj, left.env)
         result = call_function([right], LINE_FILE, func, env)
@@ -1871,21 +1876,45 @@ def eval_namespace(node: ast.Node, env: Environment):
         env.add_namespace(ns)
 
 
-UNARY_TABLE = {
+HARD_UNARY_TABLE = {
     "return": eval_return,
     "throw": lambda n, env: raise_exception(SPLBaseException(evaluate(n, env)), env),
     "new": init_class,
-    "neg": lambda n, env: -evaluate(n, env),
-    "!": lambda n, env: not bool(evaluate(n, env)),
     "assert": eval_assert,
     "namespace": eval_namespace
+}
+
+UNARY_TABLE = {
+    "neg": lambda x: -x,
+    "!": lambda x: not bool(x),
 }
 
 
 def eval_unary_expression(node: ast.UnaryOperator, env: Environment):
     t = node.operation
-    op = UNARY_TABLE[t]
-    return op(node.value, env)
+    if t in HARD_UNARY_TABLE:
+        op = HARD_UNARY_TABLE[t]
+        return op(node.value, env)
+    else:
+        value = evaluate(node.value, env)
+        if isinstance(value, ClassInstance):
+            op_name = "__" + stl.UNARY_OPERATORS[t] + "__"
+            call_obj = ast.NameNode(LINE_FILE, op_name)
+            if not value.env.contains_key(op_name):
+                raise lib.AttributeException(
+                    "Class '{}' does not support operation '{}'".format(value.class_name, t))
+            # func: Function = left.env.get(fc.f_name, LINE_FILE)
+            func: Function = evaluate(call_obj, value.env)
+            result = call_function([], LINE_FILE, func, env)
+            return result
+        elif isinstance(value, lib.NativeType):
+            op_name = "__" + stl.UNARY_OPERATORS[t] + "__"
+            call_obj = ast.NameNode(LINE_FILE, op_name)
+            result = native_types_call(value, call_obj, [], env)
+            return result
+        else:
+            op = UNARY_TABLE[t]
+            return op(value)
 
 
 def eval_conditional_operator(left: ast.Node, mid: ast.Node, right: ast.Node, env: Environment):
@@ -2026,6 +2055,14 @@ def evaluate(node: ast.Node, env: Environment):
 
 
 # Processes before run
+
+
+def string_run(self: lib.String, env):
+    result = _run_spl_script(env, self)
+    return result
+
+
+lib.String.__run__ = string_run
 
 
 OBJECT_DOC = """

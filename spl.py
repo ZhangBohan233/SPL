@@ -168,7 +168,7 @@ if __name__ == "__main__":
         file_name = argv["file"]
 
         if not os.path.exists(file_name):
-            print("File Not Found!")
+            print("File '{}' not found!".format(file_name))
             exit(1)
 
         encoding = argv["encoding"]

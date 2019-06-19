@@ -568,11 +568,27 @@ class AbstractSyntaxTree:
     def invalidate_inner(self):
         self.inner = None
 
+    def last_is_name(self):
+        if self.inner:
+            return self.inner.last_is_name()
+        else:
+            if len(self.stack) > 0:
+                if isinstance(self.stack[-1], NameNode):
+                    return True
+            return False
+
     def get_active(self):
         if self.inner:
             return self.inner.get_active()
         else:
             return self
+
+    def get_block_and_remove(self) -> BlockStmt:
+        if self.inner:
+            return self.inner.get_block_and_remove()
+        else:
+            block = self.stack.pop()
+            return block
 
     def is_in_ternary(self):
         if self.inner:
@@ -657,16 +673,6 @@ class AbstractSyntaxTree:
         else:
             node = UndefinedNode(line)
             self.stack.append(node)
-
-    # def add_type(self, line):
-    #     if self.inner:
-    #         self.inner.add_type(line)
-    #     else:
-    #         print(123123)
-    #         name = self.stack.pop()
-    #         tp_node = TypeNode(line)
-    #         tp_node.left = name
-    #         self.stack.append(tp_node)
 
     def add_import(self, line, import_name, path):
         if self.inner:
@@ -1084,7 +1090,6 @@ def get_number(line, v: str):
 
 
 def parse_expr(lst):
-    # print(lst)
     while len(lst) > 1:
         max_pre = 0
         index = 0

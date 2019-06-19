@@ -2,6 +2,7 @@ import tkinter
 import tkinter.ttk
 import argparse
 import os
+import script
 from bin import spl_lexer, spl_ast as ast, spl_parser as psr
 
 
@@ -143,7 +144,7 @@ if __name__ == "__main__":
     ni = args.ni
 
     lexer = spl_lexer.Tokenizer()
-    lexer.setup(os.path.dirname(os.path.abspath("")), file_name, spl_lexer.get_dir(file_name), link=False,
+    lexer.setup(script.get_spl_path(), file_name, spl_lexer.get_dir(file_name), link=False,
                 import_lang=not ni)
     f = open(file_name, "r")
     lexer.tokenize(f)

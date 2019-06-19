@@ -2,7 +2,7 @@ import os
 import sys
 
 
-EXTENSIONS = {'.txt', '.sp'}
+EXTENSIONS = {'.txt', '.sp', '.py'}
 
 
 def search_dir(target: str, dir_name: str, results: list):

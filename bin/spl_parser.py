@@ -1,4 +1,5 @@
 from bin import spl_ast as ast, spl_token_lib as stl
+import os
 
 ABSTRACT_IDENTIFIER = {"function", "def", "class"}
 
@@ -29,6 +30,7 @@ class Parser:
         brace_count = 0
         class_braces = []
         import_braces = []
+        current_keyword = None
 
         while True:
             try:
@@ -95,6 +97,9 @@ class Parser:
                         elif is_this_list(class_braces, brace_count):
                             parser.build_class()
                             class_braces.pop()
+                        elif current_keyword is not None:
+                            current_keyword.parse(parser.get_block_and_remove())
+                            current_keyword = None
                         next_token = self.tokens[i + 1]
                         if not (isinstance(next_token, stl.IdToken) and next_token.symbol in stl.NO_BUILD_LINE):
                             parser.build_line()
@@ -150,9 +155,13 @@ class Parser:
                             parser.build_line()
                     elif sym == ".":
                         parser.add_dot(line)
+                    elif sym == "keyword":
+                        i += 1
+                        kw_token: stl.IdToken = self.tokens[i]
+                        current_keyword = CustomKeyword(kw_token.symbol)
                     elif sym == "~":  # a special mark
                         pass
-                    elif sym == "function" or sym == "def":
+                    elif sym == "fn" or sym == "function" or sym == "def":
                         func_doc = self.get_doc(i)
                         i += 1
                         f_token: stl.IdToken = self.tokens[i]
@@ -174,8 +183,21 @@ class Parser:
                     elif sym == "operator":
                         func_doc = self.get_doc(i)
                         i += 1
-                        op_token: stl.IdToken = self.tokens[i]
-                        op_name = "__" + stl.BINARY_OPERATORS[op_token.symbol] + "__"
+                        op_token = self.tokens[i]
+                        group = stl.BINARY_OPERATORS
+                        if isinstance(op_token, stl.NumToken):
+                            v = int(op_token.value)
+                            if v == 1:
+                                group = stl.UNARY_OPERATORS
+                            elif v == 2:
+                                group = stl.BINARY_OPERATORS
+                            elif v == 3:
+                                group = stl.TERNARY_OPERATORS
+                            else:
+                                raise stl.ParseException("Unsupported operator kind")
+                            i += 1
+                            op_token = self.tokens[i]
+                        op_name = "__" + group[op_token.symbol] + "__"
                         parser.add_name(line, op_name)
                         parser.add_assignment(line, ast.FUNC_DEFINE)
                         parser.add_function(line, False, func_doc)
@@ -246,13 +268,15 @@ class Parser:
                                 i += 1
                             else:
                                 parser.add_unary(line, "unpack")
+                        elif sym == "&" and (i == 0 or is_unary(self.tokens[i - 1])):  # the command-line notation
+                            print(123)
                         else:
                             parser.add_operator(line, sym)
                     elif sym in stl.UNARY_OPERATORS:
                         if sym == "!" or sym == "not":
                             parser.add_unary(line, "!")
                         else:
-                            print("Should not be here")
+                            parser.add_unary(line, sym)
                     elif sym[:-1] in stl.OP_EQ:
                         parser.add_operator(line, sym, True)
                     elif sym == "import":
@@ -327,14 +351,25 @@ def is_call(last_token: stl.Token) -> bool:
 
 
 def is_identifier_before_block(s: str) -> bool:
+    """
+    Returns False if the next brace is a dict or set initialization
+
+    :param s:
+    :return:
+    """
     if s in stl.RESERVED_FOR_BRACE:
         return False
     elif s.isidentifier():
         return True
     else:
         if len(s) > 0 and s[0] != "." and s[-1] != ".":
-            s2 = s.replace(".", "")
-            return s2.isidentifier()
+            s2 = s.replace(".", "").replace("\\", "").replace("/", "")
+            if s2.isidentifier():
+                return True
+            else:
+                if len(s2) > 2 and s2[1] == ":":  # special case for windows path
+                    return s2[0].isidentifier() and s2[2:].isidentifier()
+        return False
 
 
 def is_this_list(lst: list, count: int) -> bool:
@@ -379,3 +414,34 @@ def is_unary(last_token):
         return False
     else:
         return True
+
+
+class CustomKeyword:
+    def __init__(self, name):
+        self.name = name
+
+    def parse(self, block: ast.BlockStmt):
+        options = {}
+        for line in block.lines:
+            # line: ast.AssignmentNode
+            item: ast.LiteralNode = line.left
+
+            value = line.right
+            if isinstance(value, int):
+                options[item.literal] = value
+            elif isinstance(value, ast.LiteralNode):
+                options[item.literal] = value.literal
+        # print(options)
+
+        number = options["number"]
+        if number == 1:
+            group = stl.UNARY_OPERATORS
+        elif number == 2:
+            group = stl.BINARY_OPERATORS
+        elif number == 3:
+            group = stl.TERNARY_OPERATORS
+        else:
+            raise stl.ParseException()
+
+        group[self.name] = options["name"]
+        ast.PRECEDENCE[self.name] = options["precedence"]

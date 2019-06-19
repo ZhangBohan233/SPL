@@ -298,3 +298,9 @@ function list(*args) {
 system.set_in(new NativeInputStream(system.native_in));
 system.set_out(new NativeOutputStream(system.native_out));
 system.set_err(new NativeOutputStream(system.native_err));
+
+keyword run {
+    "name" = "run",
+    "number" = 1,
+    "precedence" = 1
+}

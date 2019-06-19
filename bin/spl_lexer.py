@@ -213,8 +213,12 @@ class Tokenizer:
                 self.tokens.append(stl.NumToken(line_num, part))
             elif is_integer(part):
                 self.tokens.append(stl.NumToken(line_num, part))
-            elif part in stl.ALL:
+            # elif part == "\n":
+            #     self.tokens.append(stl.IdToken(line_num, part))
+            elif stl.is_in_all(part):
                 self.tokens.append(stl.IdToken(line_num, part))
+            # elif part in stl.ALL:
+            #     self.tokens.append(stl.IdToken(line_num, part))
             elif part[:-1] in stl.OP_EQ:
                 self.tokens.append(stl.IdToken(line_num, part))
             elif part == stl.EOL:
@@ -254,7 +258,8 @@ class Tokenizer:
                     if len(self.script_dir) == 0:
                         file_name = name[:-3].replace(".", "/") + ".sp"
                     else:
-                        file_name = "{}{}{}".format(self.script_dir, os.sep, name[:-3]).replace(".", "/") + ".sp"
+                        file_name = self.script_dir + "{}{}".format(os.sep, name[:-3]).replace(".", "/") + ".sp"
+                        # file_name = "{}{}{}".format(self.script_dir, os.sep, name[:-3]).replace(".", "/") + ".sp"
                     import_name = name[:-3]
                 else:  # system lib
                     file_name = "{}{}lib{}{}.sp".format(self.spl_path, os.sep, os.sep, name)
@@ -292,7 +297,7 @@ class Tokenizer:
         """
         with open(full_path, "r") as file:
             lexer = Tokenizer()
-            lexer.setup(self.spl_path, full_path, get_dir(full_path), False)
+            lexer.setup(self.spl_path, full_path, get_dir(full_path), import_lang=False)
             # lexer.script_dir = get_dir(full_path)
             lexer.tokenize(file)
             # print(lexer.tokens)
@@ -441,8 +446,8 @@ def is_float(num_str: str) -> bool:
 
 def get_dir(f_name: str):
     if os.sep in f_name:
-        return f_name[:f_name.find(os.sep)]
+        return f_name[:f_name.rfind(os.sep)]
     elif "/" in f_name:
-        return f_name[:f_name.find("/")]
+        return f_name[:f_name.rfind("/")]
     else:
         return ""

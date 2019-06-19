@@ -1,3 +1,16 @@
+********** SPL 1.7 Alpha 1 **********
+===== Build 0094 2019/06/19 =====
+
+* New syntax:
+    * New keyword "keyword", used to define new keywords
+    * Added an unary operator for String "run"
+* Redesigned unary operator evaluate system
+* Bug fixes:
+    * Fixed that visualizer recognized a wrong spl script dir
+    * Fixed a potential bug that the lexer was using "find" instead of "rfind" to locate the script dir
+    * Fixed that the "lang.sp" was automatically nested imported in importing files
+    * Fixed that the import node might misled the parser to recognize a module brace into a set creation
+
 ********** SPL 1.6.3 **********
 ===== Build 0093 2019/05/18 =====
 

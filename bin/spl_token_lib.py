@@ -13,15 +13,16 @@ BINARY_OPERATORS = {"+": "add", "-": "sub", "*": "mul", "/": "truediv", "%": "mo
                     "subclassof": "", "and": "and", "or": "or", "is": "", ":": ""}
 UNARY_OPERATORS = {"!": "not", "not": "not"}
 OTHERS = {"=", "@", ":"}
-ALL = set().union(SYMBOLS) \
-    .union(BINARY_OPERATORS) \
-    .union(OTHERS) \
-    .union(MIDDLE) \
-    .union(UNARY_OPERATORS) \
-    .union(TERNARY_OPERATORS)
-RESERVED = {"class", "function", "def", "if", "else", "new", "extends", "return", "break", "continue",
+ALL = [SYMBOLS, UNARY_OPERATORS, BINARY_OPERATORS, TERNARY_OPERATORS, OTHERS, MIDDLE]
+# ALL = set().union(SYMBOLS) \
+#     .union(BINARY_OPERATORS) \
+#     .union(OTHERS) \
+#     .union(MIDDLE) \
+#     .union(UNARY_OPERATORS) \
+#     .union(TERNARY_OPERATORS)
+RESERVED = {"class", "function", "fn", "def", "if", "else", "new", "extends", "return", "break", "continue",
             "true", "false", "null", "operator", "while", "for", "import", "namespace", "throw", "try", "catch",
-            "finally", "abstract", "const", "var", "assert", "as"}
+            "finally", "abstract", "const", "var", "assert", "as", "keyword"}
 RESERVED_FOR_BRACE = {"return"}
 LAZY = {"&&", "||", "and", "or"}
 OMITS = {"\n", "\r", "\t", " "}
@@ -34,6 +35,13 @@ NO_CLASS_NAME = {"Object"}
 
 # PUBLIC = 0
 # PRIVATE = 1
+
+
+def is_in_all(keyword):
+    for s in ALL:
+        if keyword in s:
+            return True
+    return False
 
 
 def replace_escapes(text: str):
